@@ -1,0 +1,169 @@
+/* =====================================================
+   labs-ui-filters.css
+   Filter bar dengan icon prefix dan reset button
+   ===================================================== */
+
+.labs-filter-bar {
+    background: var(--labs-bg-card);
+    border: 1px solid var(--labs-border);
+    border-radius: var(--labs-radius);
+    padding: var(--labs-space-4);
+    margin-bottom: var(--labs-space-5);
+    box-shadow: var(--labs-shadow-sm);
+}
+
+.labs-filter-bar__row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto;
+    gap: var(--labs-space-3);
+    align-items: end;
+}
+
+.labs-filter-bar__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.labs-filter-bar__label {
+    font-size: 11px;
+    color: var(--labs-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.labs-filter-input {
+    position: relative;
+}
+
+.labs-filter-input__icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--labs-text-light);
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.labs-filter-input .form-control {
+    padding-left: 32px;
+    border-radius: var(--labs-radius-sm);
+    border: 1px solid var(--labs-border-strong);
+    font-size: 13px;
+    height: 36px;
+    transition: var(--labs-transition-fast);
+}
+
+.labs-filter-input .form-control:focus {
+    border-color: var(--labs-primary);
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.12);
+}
+
+.labs-filter-bar__actions {
+    display: flex;
+    gap: var(--labs-space-2);
+}
+
+@media (max-width: 768px) {
+    .labs-filter-bar__row {
+        grid-template-columns: 1fr;
+    }
+    .labs-filter-bar__actions {
+        justify-content: stretch;
+    }
+    .labs-filter-bar__actions .labs-btn {
+        flex: 1;
+    }
+}
+
+/* =====================================================
+   labs-filter-inline: compact 1-row filter
+   Simpel minimalis, responsif, proporsional
+   ===================================================== */
+.labs-filter-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--labs-space-2);
+    align-items: center;
+    margin-bottom: var(--labs-space-4);
+    padding: var(--labs-space-3);
+    background: var(--labs-bg-card);
+    border: 1px solid var(--labs-border);
+    border-radius: var(--labs-radius);
+}
+
+/* Uniform control sizing untuk semua elemen filter
+   Override AdminLTE .form-control default agar select/input/search sama tinggi & style */
+.labs-filter-inline > select,
+.labs-filter-inline > .labs-filter-inline__search > input {
+    flex: 1 1 140px;
+    min-width: 120px;
+    max-width: 220px;
+    height: 36px !important;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--labs-text);
+    background-color: var(--labs-bg-card);
+    border: 1px solid var(--labs-border-strong);
+    border-radius: var(--labs-radius-sm);
+    padding: 6px 10px !important;
+    margin: 0;
+    box-shadow: none !important;
+    transition: var(--labs-transition-fast);
+}
+
+.labs-filter-inline > select:focus,
+.labs-filter-inline > .labs-filter-inline__search > input:focus {
+    border-color: var(--labs-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.12) !important;
+}
+
+.labs-filter-inline__search {
+    position: relative;
+    flex: 2 1 200px;
+    max-width: 320px;
+    display: flex;
+    align-items: stretch;
+}
+
+.labs-filter-inline__search > input {
+    flex: 1 1 auto;
+    width: 100%;
+    padding-left: 32px !important;
+}
+
+.labs-filter-inline__search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--labs-text-light);
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 2;
+    line-height: 1;
+}
+
+.labs-filter-inline > .labs-btn {
+    flex: 0 0 auto;
+    height: 36px;
+}
+
+@media (max-width: 768px) {
+    .labs-filter-inline {
+        gap: var(--labs-space-1);
+        padding: var(--labs-space-2);
+    }
+    .labs-filter-inline > select,
+    .labs-filter-inline > .labs-filter-inline__search {
+        flex: 1 1 calc(50% - 4px);
+        max-width: none;
+    }
+    .labs-filter-inline > .labs-filter-inline__search {
+        flex: 1 1 100%;
+    }
+}

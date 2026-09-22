@@ -1,0 +1,67 @@
+/* =====================================================
+   labs-ui-variables.css
+   Palette: Warm Professional
+   Digunakan oleh seluruh komponen labs-ui
+   Modul lain boleh override variabel di bawah ini
+   ===================================================== */
+
+:root {
+    /* Brand Colors - Warm Professional */
+    --labs-primary: #C2410C;          /* Burnt orange - utama */
+    --labs-primary-dark: #9A3412;     /* Hover/gradient akhir */
+    --labs-primary-soft: #FED7AA;     /* Background tint */
+
+    /* Status Colors */
+    --labs-success: #15803D;          /* Hijau tua - selesai/aman */
+    --labs-success-soft: #DCFCE7;
+    --labs-warning: #B45309;          /* Amber tua - kuning/perhatian */
+    --labs-warning-soft: #FEF3C7;
+    --labs-orange: #EA580C;           /* Orange medium */
+    --labs-orange-soft: #FFEDD5;
+    --labs-danger: #B91C1C;           /* Merah tua - krisis */
+    --labs-danger-soft: #FEE2E2;
+    --labs-info: #0E7490;             /* Teal - info/ringan */
+    --labs-info-soft: #CFFAFE;
+
+    /* Neutral / Text */
+    --labs-text: #1C1917;             /* Teks utama (warm black) */
+    --labs-text-muted: #57534E;       /* Teks sekunder (warm gray) */
+    --labs-text-light: #A8A29E;       /* Teks tersier */
+    --labs-border: #E7E5E4;           /* Border/card outline (warm gray) */
+    --labs-border-strong: #D6D3D1;
+
+    /* Background */
+    --labs-bg-page: #FAFAF9;          /* Background halaman (stone-50) */
+    --labs-bg-card: #FFFFFF;          /* Background card */
+    --labs-bg-soft: #F5F5F4;          /* Background subtle (stone-100) */
+
+    /* Shadows */
+    --labs-shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.05);
+    --labs-shadow: 0 2px 8px rgba(28, 25, 23, 0.08);
+    --labs-shadow-md: 0 4px 12px rgba(28, 25, 23, 0.10);
+    --labs-shadow-lg: 0 10px 25px rgba(28, 25, 23, 0.12);
+
+    /* Radius */
+    --labs-radius-sm: 4px;
+    --labs-radius: 8px;
+    --labs-radius-md: 10px;
+    --labs-radius-lg: 14px;
+    --labs-radius-xl: 18px;
+
+    /* Spacing scale */
+    --labs-space-1: 4px;
+    --labs-space-2: 8px;
+    --labs-space-3: 12px;
+    --labs-space-4: 16px;
+    --labs-space-5: 20px;
+    --labs-space-6: 24px;
+    --labs-space-8: 32px;
+
+    /* Transitions */
+    --labs-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --labs-transition-fast: all 0.15s ease;
+
+    /* Typography */
+    --labs-font-heading: 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --labs-font-body: 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}

@@ -1,0 +1,114 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Model_kpi_pimpinan_sma extends MY_Model {
+
+    private $primary_key    = 'id_kpi';
+    private $table_name     = 'kpi_pimpinan_sma';
+    private $field_search   = ['nama_kpi', 'id_pimpinan', 'judul_kpi', 'id_jenis_kpi', 'tanggal', 'keterangan', 'file_piagam'];
+
+    public function __construct()
+    {
+        $config = array(
+            'primary_key'   => $this->primary_key,
+            'table_name'    => $this->table_name,
+            'field_search'  => $this->field_search,
+         );
+
+        parent::__construct($config);
+    }
+
+    public function count_all($q = null, $field = null)
+    {
+        $iterasi = 1;
+        $num = count($this->field_search);
+        $where = NULL;
+        $q = $this->scurity($q);
+        $field = $this->scurity($field);
+
+        if (empty($field)) {
+            foreach ($this->field_search as $field) {
+                if($field=='is_approve'){
+                    $q=is_approve_status($q);
+                }
+                if ($iterasi == 1) {
+                    $where .= "kpi_pimpinan_sma.".$field . " LIKE '%" . $q . "%' ";
+                } else {
+                    $where .= "OR " . "kpi_pimpinan_sma.".$field . " LIKE '%" . $q . "%' ";
+                }
+                $iterasi++;
+            }
+
+            $where = '('.$where.')';
+        } else {
+            $where .= "(" . "kpi_pimpinan_sma.".$field . " LIKE '%" . $q . "%' )";
+        }
+
+        $this->join_avaiable()->filter_avaiable();
+        $this->db->where($where);
+        $query = $this->db->get($this->table_name);
+
+        return $query->num_rows();
+    }
+
+    public function get($q = null, $field = null, $limit = 0, $offset = 0, $select_field = [])
+    {
+        $iterasi = 1;
+        $num = count($this->field_search);
+        $where = NULL;
+        $q = $this->scurity($q);
+        $field = $this->scurity($field);
+
+        if (empty($field)) {
+            foreach ($this->field_search as $field) {
+                if($field=='is_approve'){
+                    $q=is_approve_status($q);
+                }
+                if ($iterasi == 1) {
+                    $where .= "kpi_pimpinan_sma.".$field . " LIKE '%" . $q . "%' ";
+                } else {
+                    $where .= "OR " . "kpi_pimpinan_sma.".$field . " LIKE '%" . $q . "%' ";
+                }
+                $iterasi++;
+            }
+
+            $where = '('.$where.')';
+        } else {
+            $where .= "(" . "kpi_pimpinan_sma.".$field . " LIKE '%" . $q . "%' )";
+        }
+
+        if (is_array($select_field) AND count($select_field)) {
+            $this->db->select($select_field);
+        }
+        
+        $this->join_avaiable()->filter_avaiable();
+        $this->db->where($where);
+        $this->db->limit($limit, $offset);
+                $this->db->order_by('kpi_pimpinan_sma.'.$this->primary_key, "DESC");
+                $query = $this->db->get($this->table_name);
+
+        return $query->result();
+    }
+
+    public function join_avaiable() {
+        $this->db->join('pimpinan_sma', 'pimpinan_sma.id_pimpinan = kpi_pimpinan_sma.id_pimpinan', 'LEFT');
+        $this->db->join('jenis_kpi_pimpinan', 'jenis_kpi_pimpinan.id_jenis_kpi = kpi_pimpinan_sma.id_jenis_kpi', 'LEFT');
+        
+        $this->db->select('kpi_pimpinan_sma.*,pimpinan_sma.nama_lengkap as pimpinan_sma_nama_lengkap,jenis_kpi_pimpinan.nama_jenis as jenis_kpi_pimpinan_nama_jenis');
+
+
+        return $this;
+    }
+
+    public function filter_avaiable() {
+
+        if (!$this->aauth->is_admin()) {
+            }
+
+        return $this;
+    }
+
+}
+
+/* End of file Model_kpi_pimpinan_sma.php */
+/* Location: ./application/models/Model_kpi_pimpinan_sma.php */

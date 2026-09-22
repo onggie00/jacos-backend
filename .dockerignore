@@ -1,0 +1,12 @@
+node_modules
+vendor
+uploads
+mysql_data
+.git
+.vscode
+.agent
+.agents
+berkas_sample
+ckeditor
+labschool-notification-scheduler
+pi-skills

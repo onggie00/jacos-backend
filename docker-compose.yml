@@ -1,0 +1,64 @@
+services:
+
+  php:
+    build:
+      context: .
+      dockerfile: php/Dockerfile
+
+    container_name: php74
+
+    ports:
+      - "8080:80"
+
+    environment:
+      - CI_ENV=development
+
+    volumes:
+      - ./:/var/www/html:cached
+
+    depends_on:
+      - mysql
+
+  mysql:
+
+    image: mysql:8.0
+
+    container_name: mysql
+
+    restart: always
+
+    command: --sql-mode="STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
+
+    environment:
+
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-labschool_db}
+
+      MYSQL_USER: ${MYSQL_USER:-labschool_user}
+
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    ports:
+      - "3307:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  phpmyadmin:
+
+    image: phpmyadmin/phpmyadmin
+
+    ports:
+      - "8081:80"
+
+    environment:
+      PMA_HOST: mysql
+      UPLOAD_LIMIT: 512M
+
+    volumes:
+      - ./phpmyadmin/config.user.php:/etc/phpmyadmin/config.user.php
+
+volumes:
+
+  mysql_data:

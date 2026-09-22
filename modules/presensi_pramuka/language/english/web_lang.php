@@ -1,0 +1,19 @@
+<?php
+$lang['presensi_pramuka'] = 'Presensi Pramuka';
+$lang['id_presensi_pramuka'] = 'Id Presensi Pramuka';
+$lang['hari'] = 'Hari';
+$lang['tanggal'] = 'Tanggal';
+$lang['jenjang'] = 'Jenjang';
+$lang['id_siswa_aktif'] = 'Siswa';
+$lang['nama_lengkap'] = 'Nama Siswa';
+$lang['kelas'] = 'Kelas';
+$lang['status_hadir'] = 'Status Hadir';
+$lang['kehadiran'] = 'Kehadiran';
+$lang['status_kelengkapan'] = 'Kelengkapan Atribut';
+$lang['kelengkapan'] = 'Nilai Atribut';
+$lang['status_keaktifan'] = 'Status Keaktifan';
+$lang['keaktifan'] = 'Nilai Keaktifan';
+$lang['total_nilai'] = 'Total Nilai';
+$lang['updated_by'] = 'Diupdate Oleh';
+$lang['created_at'] = 'Waktu Dibuat';
+$lang['updated_at'] = 'Waktu Update';

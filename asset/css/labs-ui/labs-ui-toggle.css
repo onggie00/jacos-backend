@@ -1,0 +1,83 @@
+/* =====================================================
+   labs-ui-toggle.css
+   Show/hide chart toggle + collapsible section
+   ===================================================== */
+
+.labs-toggle-section {
+    margin-bottom: var(--labs-space-5);
+}
+
+.labs-toggle-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--labs-space-2);
+    background: var(--labs-bg-card);
+    border: 1px solid var(--labs-border);
+    border-radius: var(--labs-radius);
+    padding: var(--labs-space-3) var(--labs-space-4);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--labs-text);
+    transition: var(--labs-transition-fast);
+    width: 100%;
+    text-align: left;
+    box-shadow: var(--labs-shadow-sm);
+}
+
+.labs-toggle-trigger:hover {
+    background: var(--labs-bg-soft);
+    border-color: var(--labs-border-strong);
+}
+
+.labs-toggle-trigger__icon {
+    color: var(--labs-primary);
+    transition: transform 0.3s ease;
+    font-size: 12px;
+    width: 16px;
+    display: inline-flex;
+    justify-content: center;
+}
+
+.labs-toggle-trigger.is-expanded .labs-toggle-trigger__icon {
+    transform: rotate(90deg);
+}
+
+.labs-toggle-trigger__label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--labs-space-2);
+}
+
+.labs-toggle-trigger__label i {
+    color: var(--labs-primary);
+}
+
+.labs-toggle-trigger__badge {
+    background: var(--labs-primary-soft);
+    color: var(--labs-primary-dark);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.labs-toggle-content {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+    opacity: 0;
+    margin-top: 0;
+}
+
+.labs-toggle-content.is-expanded {
+    max-height: 4000px;
+    opacity: 1;
+    margin-top: var(--labs-space-4);
+}
+
+.labs-toggle-content.is-loading {
+    min-height: 200px;
+}

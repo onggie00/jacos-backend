@@ -1,0 +1,36 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+$lang['pegawai_slip'] = 'Slip Gaji & Tunjangan Pegawai';
+$lang['id_slip'] = 'Id Slip';
+$lang['id_pegawai'] = 'Pegawai';
+$lang['npp'] = 'NPP';
+$lang['golongan'] = 'Golongan';
+$lang['jabatan'] = 'Jabatan';
+$lang['gaji_pokok'] = 'Gaji Pokok';
+$lang['tunjangan_istri'] = 'Tunjangan Istri';
+$lang['tunjangan_anak'] = 'Tunjangan Anak';
+$lang['tunjangan_pengelolaan'] = 'Tunjangan Pengelolaan';
+$lang['tunjangan_jabatan'] = 'Tunjangan Jabatan';
+$lang['tunjangan_kesejahteraan'] = 'Tunjangan Kesejahteraan';
+$lang['tunjangan_masa_kerja'] = 'Tunjangan Masa Kerja';
+$lang['tunjangan_fungsional'] = 'Tunjangan Fungsional';
+$lang['total_kehadiran'] = 'Total Kehadiran';
+$lang['rupiah_per_kehadiran'] = 'Rupiah Per Kehadiran';
+$lang['tunjangan_kehadiran'] = 'Tunjangan Kehadiran';
+$lang['total_mengajar'] = 'Total Mengajar';
+$lang['rupiah_per_mengajar'] = 'Rupiah Per Mengajar';
+$lang['tunjangan_mengajar'] = 'Tunjangan Mengajar';
+$lang['total_piket'] = 'Total Piket';
+$lang['rupiah_per_piket'] = 'Rupiah Per Piket';
+$lang['tunjangan_piket'] = 'Tunjangan Piket';
+$lang['tunjangan_wali_kelas'] = 'Tunjangan Wali Kelas';
+$lang['tunjangan_pembina'] = 'Tunjangan Pembina';
+$lang['insentif_ft'] = 'Insentif France Track';
+$lang['tunjangan_insentif'] = 'Tunjangan Insentif';
+$lang['bonus'] = 'Bonus';
+$lang['honor'] = 'Honor';
+$lang['bulan'] = 'Bulan';
+$lang['tahun'] = 'Tahun';
+$lang['created_at'] = 'Created At';
+$lang['updated_at'] = 'Updated At';

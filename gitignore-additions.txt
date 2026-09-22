@@ -1,0 +1,4 @@
+# --- Tambahan: file kerja agent, jangan masuk git ---
+TASKS.md
+HANDOFF.md
+Berkas_sample/file_test_tmp/

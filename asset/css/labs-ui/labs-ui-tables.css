@@ -1,0 +1,111 @@
+/* =====================================================
+   labs-ui-tables.css
+   Tabel dengan header gradient, sticky, hover, avatar
+   ===================================================== */
+
+.labs-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--labs-bg-card);
+    font-size: 13px;
+}
+
+.labs-table thead th {
+    background: linear-gradient(180deg, #FFFBF5, #F5F0EA);
+    color: var(--labs-text);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    padding: var(--labs-space-3) var(--labs-space-4);
+    border-bottom: 2px solid var(--labs-border-strong);
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    white-space: nowrap;
+}
+
+.labs-table tbody td {
+    padding: var(--labs-space-3) var(--labs-space-4);
+    border-bottom: 1px solid var(--labs-border);
+    color: var(--labs-text);
+    vertical-align: middle;
+}
+
+.labs-table tbody tr {
+    transition: var(--labs-transition-fast);
+}
+
+.labs-table tbody tr:hover {
+    background: var(--labs-bg-soft);
+}
+
+.labs-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.labs-table-wrap {
+    border: 1px solid var(--labs-border);
+    border-radius: var(--labs-radius);
+    overflow: hidden;
+    background: var(--labs-bg-card);
+}
+
+.labs-table-scroll {
+    max-height: 65vh;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+/* Avatar inisial nama */
+.labs-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--labs-primary), var(--labs-primary-dark));
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-right: var(--labs-space-2);
+    text-transform: uppercase;
+}
+
+.labs-avatar--sm { width: 24px; height: 24px; font-size: 10px; }
+.labs-avatar--md { width: 32px; height: 32px; font-size: 12px; }
+.labs-avatar--lg { width: 48px; height: 48px; font-size: 16px; }
+
+.labs-name-cell {
+    display: flex;
+    align-items: center;
+}
+
+/* Row aksi buttons */
+.labs-row-actions {
+    display: flex;
+    gap: var(--labs-space-2);
+    flex-wrap: wrap;
+}
+
+/* Empty row */
+.labs-table tbody .labs-empty-row td {
+    text-align: center;
+    padding: var(--labs-space-8);
+    color: var(--labs-text-muted);
+    font-style: italic;
+}
+
+/* Cell helpers */
+.labs-cell-numeric {
+    text-align: center;
+    font-weight: 600;
+}
+
+.labs-cell-muted {
+    color: var(--labs-text-muted);
+}

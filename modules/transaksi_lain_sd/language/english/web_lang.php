@@ -1,0 +1,16 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+$lang['transaksi_lain_sd'] = 'List Tagihan SD';
+$lang['id'] = 'Id';
+$lang['id_siswa_aktif'] = 'Siswa Aktif';
+$lang['id_transaksi_lain'] = 'Tagihan';
+$lang['tanggal_bayar'] = 'Tanggal Pembayaran';
+$lang['va_number'] = 'VA Number';
+$lang['kode_tagihan'] = 'Nomor Tagihan';
+$lang['file_kwitansi'] = 'File Kwitansi';
+$lang['nominal_bayar'] = 'Nominal Bayar';
+$lang['status_transaksi'] = 'Status Transaksi';
+$lang['expired_at'] = 'Tagihan Expired';
+$lang['created_at'] = 'Created At';
+$lang['updated_at'] = 'Updated At';

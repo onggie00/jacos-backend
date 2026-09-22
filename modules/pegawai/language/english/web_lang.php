@@ -1,0 +1,31 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+$lang['pegawai'] = 'Pegawai';
+$lang['id_pegawai'] = 'Id Pegawai';
+$lang['nama_lengkap'] = 'Nama Lengkap';
+$lang['nik'] = 'Nik';
+$lang['nuptk'] = 'Nuptk';
+$lang['npp'] = 'Npp';
+$lang['kk'] = 'Kk';
+$lang['npwp'] = 'Npwp';
+$lang['alamat'] = 'Alamat';
+$lang['agama'] = 'Agama';
+$lang['jenis_kelamin'] = 'Jenis Kelamin';
+$lang['status_menikah'] = 'Status Menikah';
+$lang['jumlah_anak'] = 'Jumlah Anak';
+$lang['no_telp'] = 'No Telp';
+$lang['email'] = 'Email';
+$lang['id_posisi'] = 'Id Posisi';
+$lang['unit'] = 'Unit';
+$lang['status_kepegawaian'] = 'Status Kepegawaian';
+$lang['informasi_kepala_pimpinan'] = 'Informasi Kepala Pimpinan';
+$lang['emp_code'] = 'Emp Code';
+$lang['token'] = 'Token';
+$lang['token_expired'] = 'Token Expired';
+$lang['email_ms_office'] = 'Email Ms Office';
+$lang['no_kk'] = 'No Kk';
+$lang['tempat_lahir'] = 'Tempat Lahir';
+$lang['tgl_lahir'] = 'Tgl Lahir';
+$lang['foto_profil'] = 'Foto Profil';
+$lang['slip_gaji'] = 'Slip Gaji';

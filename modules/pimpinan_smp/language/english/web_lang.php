@@ -1,0 +1,32 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+$lang['pimpinan_smp'] = 'Pimpinan Smp';
+$lang['id_pimpinan'] = 'Id Pimpinan';
+$lang['nama_lengkap'] = 'Nama Lengkap';
+$lang['nik'] = 'Nik';
+$lang['nuptk'] = 'Nuptk';
+$lang['npp'] = 'Npp';
+$lang['npwp'] = 'Npwp';
+$lang['alamat'] = 'Alamat';
+$lang['agama'] = 'Agama';
+$lang['jenis_kelamin'] = 'Jenis Kelamin';
+$lang['status_menikah'] = 'Status Menikah';
+$lang['jumlah_anak'] = 'Jumlah Anak';
+$lang['no_telp'] = 'No Telp';
+$lang['email'] = 'Email';
+$lang['id_posisi'] = 'Id Posisi';
+$lang['satuan_pendidikan'] = 'Satuan Pendidikan';
+$lang['unit'] = 'Unit';
+$lang['id_mapel'] = 'Id Mapel';
+$lang['status_kepegawaian'] = 'Status Kepegawaian';
+$lang['informasi_kepala_pimpinan'] = 'Informasi Kepala Pimpinan';
+$lang['emp_code'] = 'Emp Code';
+$lang['token'] = 'Token';
+$lang['token_expired'] = 'Token Expired';
+$lang['email_ms_office'] = 'Email Ms Office';
+$lang['foto_profil'] = 'Foto Profil';
+$lang['no_kk'] = 'No Kk';
+$lang['tempat_lahir'] = 'Tempat Lahir';
+$lang['tgl_lahir'] = 'Tgl Lahir';
+$lang['slip_gaji'] = 'Slip Gaji';

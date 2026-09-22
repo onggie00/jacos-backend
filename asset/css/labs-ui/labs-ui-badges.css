@@ -1,0 +1,52 @@
+/* =====================================================
+   labs-ui-badges.css
+   Badge kategori dengan mapping konsisten
+   ===================================================== */
+
+.labs-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.4;
+    border: 1px solid transparent;
+}
+
+.labs-badge--success { background: var(--labs-success-soft); color: var(--labs-success); border-color: rgba(21, 128, 61, 0.2); }
+.labs-badge--warning { background: var(--labs-warning-soft); color: var(--labs-warning); border-color: rgba(180, 83, 9, 0.2); }
+.labs-badge--orange  { background: var(--labs-orange-soft);  color: var(--labs-orange);  border-color: rgba(234, 88, 12, 0.2); }
+.labs-badge--danger  { background: var(--labs-danger-soft);  color: var(--labs-danger);  border-color: rgba(185, 28, 28, 0.2); }
+.labs-badge--info    { background: var(--labs-info-soft);    color: var(--labs-info);    border-color: rgba(14, 116, 144, 0.2); }
+.labs-badge--default { background: var(--labs-bg-soft);      color: var(--labs-text-muted); border-color: var(--labs-border); }
+
+/* Pulse animation untuk krisis */
+.labs-badge--danger.labs-badge--pulse {
+    animation: labsBadgePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes labsBadgePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(185, 28, 28, 0); }
+}
+
+/* Dot indicator */
+.labs-badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
+}
+
+/* Solid variant */
+.labs-badge--solid.labs-badge--success { background: var(--labs-success); color: #fff; }
+.labs-badge--solid.labs-badge--warning { background: var(--labs-warning); color: #fff; }
+.labs-badge--solid.labs-badge--orange  { background: var(--labs-orange);  color: #fff; }
+.labs-badge--solid.labs-badge--danger  { background: var(--labs-danger);  color: #fff; }
+.labs-badge--solid.labs-badge--info    { background: var(--labs-info);    color: #fff; }
+.labs-badge--solid.labs-badge--primary { background: var(--labs-primary); color: #fff; }

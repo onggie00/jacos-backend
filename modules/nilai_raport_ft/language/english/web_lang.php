@@ -1,0 +1,30 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+$lang['nilai_raport_ft'] = 'Nilai Raport Ft';
+$lang['id_nilai_raport_ft'] = 'Id Nilai Raport Ft';
+$lang['id_siswa'] = 'Id Siswa';
+$lang['b_inggris'] = 'B Inggris';
+$lang['b_inggris2'] = 'B Inggris2';
+$lang['b_inggris3'] = 'B Inggris3';
+$lang['b_inggris4'] = 'B Inggris4';
+$lang['b_indonesia'] = 'B Indonesia';
+$lang['b_indonesia2'] = 'B Indonesia2';
+$lang['b_indonesia3'] = 'B Indonesia3';
+$lang['b_indonesia4'] = 'B Indonesia4';
+$lang['ipa'] = 'Ipa';
+$lang['ipa2'] = 'Ipa2';
+$lang['ipa3'] = 'Ipa3';
+$lang['ipa4'] = 'Ipa4';
+$lang['ips'] = 'Ips';
+$lang['ips2'] = 'Ips2';
+$lang['ips3'] = 'Ips3';
+$lang['ips4'] = 'Ips4';
+$lang['matematika'] = 'Matematika';
+$lang['matematika2'] = 'Matematika2';
+$lang['matematika3'] = 'Matematika3';
+$lang['matematika4'] = 'Matematika4';
+$lang['file_raport'] = 'File Raport';
+$lang['file_raport2'] = 'File Raport2';
+$lang['file_raport3'] = 'File Raport3';
+$lang['file_raport4'] = 'File Raport4';

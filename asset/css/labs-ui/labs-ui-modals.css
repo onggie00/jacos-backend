@@ -1,0 +1,238 @@
+/* =====================================================
+   labs-ui-modals.css
+   Modal styling: header gradient, tabs, skeleton
+   ===================================================== */
+
+.labs-modal .modal-content {
+    border: none;
+    border-radius: var(--labs-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--labs-shadow-lg);
+}
+
+.labs-modal .modal-header {
+    background: linear-gradient(135deg, var(--labs-primary), var(--labs-primary-dark));
+    color: #fff;
+    padding: var(--labs-space-5) var(--labs-space-6);
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.labs-modal .modal-title {
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--labs-space-2);
+}
+
+.labs-modal .modal-header .close {
+    color: #fff;
+    opacity: 0.85;
+    text-shadow: none;
+    font-size: 22px;
+    font-weight: 300;
+}
+
+.labs-modal .modal-header .close:hover {
+    opacity: 1;
+    color: #fff;
+}
+
+.labs-modal .modal-body {
+    padding: var(--labs-space-6);
+    background: var(--labs-bg-page);
+}
+
+.labs-modal .modal-footer {
+    background: var(--labs-bg-card);
+    border-top: 1px solid var(--labs-border);
+    padding: var(--labs-space-3) var(--labs-space-6);
+}
+
+/* Modal tabs */
+.labs-modal-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--labs-border);
+    margin-bottom: var(--labs-space-5);
+    gap: 2px;
+    overflow-x: auto;
+}
+
+.labs-modal-tabs__item {
+    padding: var(--labs-space-3) var(--labs-space-4);
+    cursor: pointer;
+    color: var(--labs-text-muted);
+    font-weight: 500;
+    font-size: 13px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: var(--labs-transition-fast);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.labs-modal-tabs__item:hover {
+    color: var(--labs-text);
+}
+
+.labs-modal-tabs__item.active {
+    color: var(--labs-primary);
+    border-bottom-color: var(--labs-primary);
+}
+
+.labs-modal-tabs__item i {
+    font-size: 12px;
+}
+
+.labs-tab-content { display: none; }
+.labs-tab-content.active { display: block; animation: labsFadeIn 0.25s ease; }
+
+@keyframes labsFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal section */
+.labs-modal-section {
+    background: var(--labs-bg-card);
+    border: 1px solid var(--labs-border);
+    border-radius: var(--labs-radius);
+    padding: var(--labs-space-5);
+    margin-bottom: var(--labs-space-4);
+}
+
+.labs-modal-section:last-child {
+    margin-bottom: 0;
+}
+
+.labs-modal-section__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--labs-text);
+    margin: 0 0 var(--labs-space-4) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--labs-space-2);
+}
+
+.labs-modal-section__title i {
+    color: var(--labs-primary);
+}
+
+/* Skeleton loader */
+.labs-skeleton {
+    background: linear-gradient(90deg, #F5F5F4 0%, #FAFAF9 50%, #F5F5F4 100%);
+    background-size: 200% 100%;
+    animation: labsSkeletonShimmer 1.4s ease-in-out infinite;
+    border-radius: var(--labs-radius-sm);
+    height: 14px;
+    margin-bottom: var(--labs-space-2);
+}
+
+.labs-skeleton--lg { height: 24px; width: 60%; }
+.labs-skeleton--md { height: 16px; }
+.labs-skeleton--block { width: 100%; }
+.labs-skeleton--circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin: 0 auto var(--labs-space-3) auto;
+}
+
+@keyframes labsSkeletonShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Info grid (untuk profile) */
+.labs-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--labs-space-3);
+}
+
+.labs-info-grid__item {
+    background: var(--labs-bg-soft);
+    padding: var(--labs-space-3) var(--labs-space-4);
+    border-radius: var(--labs-radius-sm);
+    border-left: 3px solid var(--labs-primary);
+}
+
+.labs-info-grid__label {
+    font-size: 11px;
+    color: var(--labs-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.labs-info-grid__value {
+    font-size: 13px;
+    color: var(--labs-text);
+    font-weight: 500;
+}
+
+/* Form groups dalam modal */
+.labs-form-group {
+    margin-bottom: var(--labs-space-4);
+}
+.labs-form-group:last-child {
+    margin-bottom: 0;
+}
+.labs-form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--labs-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+.labs-form-group .form-control {
+    width: 100%;
+    height: 36px;
+    font-size: 13px;
+    padding: 6px 12px;
+    border: 1px solid var(--labs-border-strong);
+    border-radius: var(--labs-radius-sm);
+    background: var(--labs-bg-card);
+    color: var(--labs-text);
+    transition: var(--labs-transition-fast);
+}
+.labs-form-group .form-control:focus {
+    border-color: var(--labs-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.12);
+}
+.labs-form-group textarea.form-control {
+    height: auto;
+    min-height: 80px;
+}
+
+/* Progress bar (skor) */
+.labs-progress {
+    background: var(--labs-bg-soft);
+    border-radius: 20px;
+    height: 8px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.labs-progress__bar {
+    height: 100%;
+    border-radius: 20px;
+    transition: width 0.6s ease;
+}
+
+.labs-progress__bar--success { background: linear-gradient(90deg, var(--labs-success), #166534); }
+.labs-progress__bar--warning { background: linear-gradient(90deg, var(--labs-warning), #92400E); }
+.labs-progress__bar--orange  { background: linear-gradient(90deg, var(--labs-orange), #C2410C); }
+.labs-progress__bar--danger  { background: linear-gradient(90deg, var(--labs-danger), #991B1B); }
+.labs-progress__bar--info    { background: linear-gradient(90deg, var(--labs-info), #155E75); }

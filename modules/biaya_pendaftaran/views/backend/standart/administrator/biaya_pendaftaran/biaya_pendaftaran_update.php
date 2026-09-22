@@ -1,0 +1,179 @@
+
+
+<script type="text/javascript">
+</script>
+<!-- Content Header (Page header) -->
+<section class="content-header">
+    <h1>
+        Biaya Pendaftaran        <small>Edit Biaya Pendaftaran</small>
+    </h1>
+    <ol class="breadcrumb">
+        <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
+        <li class=""><a  href="<?= site_url('administrator/biaya_pendaftaran'); ?>">Biaya Pendaftaran</a></li>
+        <li class="active">Edit</li>
+    </ol>
+</section>
+<!-- Main content -->
+<section class="content">
+    <div class="row" >
+        <div class="col-md-12">
+            <div class="box box-warning">
+                <div class="box-body ">
+                    <!-- Widget: user widget style 1 -->
+                    <div class="box box-widget widget-user-2">
+                        <!-- Add the bg color to the header using any of the bg-* classes -->
+                        <div class="widget-user-header ">
+                            <div class="widget-user-image">
+                                <img class="img-circle" src="<?= BASE_ASSET; ?>/img/add2.png" alt="User Avatar">
+                            </div>
+                            <!-- /.widget-user-image -->
+                            <h3 class="widget-user-username">Biaya Pendaftaran</h3>
+                            <h5 class="widget-user-desc">Edit Biaya Pendaftaran</h5>
+                            <hr>
+                        </div>
+                        <?= form_open(base_url('administrator/biaya_pendaftaran/edit_save/'.$this->uri->segment(4)), [
+                            'name'    => 'form_biaya_pendaftaran', 
+                            'class'   => 'form-horizontal form-step', 
+                            'id'      => 'form_biaya_pendaftaran', 
+                            'method'  => 'POST'
+                            ]); ?>
+                         
+                                                <div class="form-group ">
+                            <label for="nominal_pendaftaran" class="col-sm-2 control-label">Nominal Pendaftaran 
+                            <i class="required">*</i>
+                            </label>
+                            <div class="col-sm-8">
+                                <input type="number" class="form-control" name="nominal_pendaftaran" id="nominal_pendaftaran" placeholder="Nominal Pendaftaran" value="<?= set_value('nominal_pendaftaran', $biaya_pendaftaran->nominal_pendaftaran); ?>">
+                                <small class="info help-block">
+                                <b>Input Nominal Pendaftaran</b> Max Length : 20.</small>
+                            </div>
+                        </div>
+                                                 
+                                                <div class="form-group ">
+                            <label for="nominal_daftar_ulang" class="col-sm-2 control-label">Nominal Daftar Ulang 
+                            <i class="required">*</i>
+                            </label>
+                            <div class="col-sm-8">
+                                <input type="number" class="form-control" name="nominal_daftar_ulang" id="nominal_daftar_ulang" placeholder="Nominal Daftar Ulang" value="<?= set_value('nominal_daftar_ulang', $biaya_pendaftaran->nominal_daftar_ulang); ?>">
+                                <small class="info help-block">
+                                <b>Input Nominal Daftar Ulang</b> Max Length : 20.</small>
+                            </div>
+                        </div>
+                                                
+                                                 <div class="message"></div>
+                                                <div class="row-fluid col-md-7 container-button-bottom">
+                            <button class="btn btn-flat btn-primary btn_save btn_action" id="btn_save" data-stype='stay' title="<?= cclang('save_button'); ?> (Ctrl+s)">
+                            <i class="fa fa-save" ></i> <?= cclang('save_button'); ?>
+                            </button>
+                            <a class="btn btn-flat btn-info btn_save btn_action btn_save_back" id="btn_save" data-stype='back' title="<?= cclang('save_and_go_the_list_button'); ?> (Ctrl+d)">
+                            <i class="ion ion-ios-list-outline" ></i> <?= cclang('save_and_go_the_list_button'); ?>
+                            </a>
+                            <a class="btn btn-flat btn-default btn_action" id="btn_cancel" title="<?= cclang('cancel_button'); ?> (Ctrl+x)">
+                            <i class="fa fa-undo" ></i> <?= cclang('cancel_button'); ?>
+                            </a>
+                            <span class="loading loading-hide">
+                            <img src="<?= BASE_ASSET; ?>/img/loading-spin-primary.svg"> 
+                            <i><?= cclang('loading_saving_data'); ?></i>
+                            </span>
+                        </div>
+                                                 <?= form_close(); ?>
+                    </div>
+                </div>
+                <!--/box body -->
+            </div>
+            <!--/box -->
+        </div>
+    </div>
+</section>
+<!-- /.content -->
+<!-- Page script -->
+<script>
+    $(document).ready(function(){
+       
+      
+             
+      $('#btn_cancel').click(function(){
+        swal({
+            title: "Are you sure?",
+            text: "the data that you have created will be in the exhaust!",
+            type: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#DD6B55",
+            confirmButtonText: "Yes!",
+            cancelButtonText: "No!",
+            closeOnConfirm: true,
+            closeOnCancel: true
+          },
+          function(isConfirm){
+            if (isConfirm) {
+              window.location.href = BASE_URL + 'administrator/biaya_pendaftaran';
+            }
+          });
+    
+        return false;
+      }); /*end btn cancel*/
+    
+      $('.btn_save').click(function(){
+        $('.message').fadeOut();
+            
+        var form_biaya_pendaftaran = $('#form_biaya_pendaftaran');
+        var data_post = form_biaya_pendaftaran.serializeArray();
+        var save_type = $(this).attr('data-stype');
+        data_post.push({name: 'save_type', value: save_type});
+    
+        $('.loading').show();
+    
+        $.ajax({
+          url: form_biaya_pendaftaran.attr('action'),
+          type: 'POST',
+          dataType: 'json',
+          data: data_post,
+        })
+        .done(function(res) {
+          $('form').find('.form-group').removeClass('has-error');
+          $('form').find('.error-input').remove();
+          $('.steps li').removeClass('error');
+          if(res.success) {
+            var id = $('#biaya_pendaftaran_image_galery').find('li').attr('qq-file-id');
+            if (save_type == 'back') {
+              window.location.href = res.redirect;
+              return;
+            }
+    
+            $('.message').printMessage({message : res.message});
+            $('.message').fadeIn();
+            $('.data_file_uuid').val('');
+    
+          } else {
+            if (res.errors) {
+               parseErrorField(res.errors);
+            }
+            $('.message').printMessage({message : res.message, type : 'warning'});
+          }
+    
+        })
+        .fail(function() {
+          $('.message').printMessage({message : 'Error save data', type : 'warning'});
+        })
+        .always(function() {
+          $('.loading').hide();
+          $('html, body').animate({ scrollTop: $(document).height() }, 2000);
+        });
+    
+        return false;
+      }); /*end btn save*/
+      
+       
+       
+       
+
+      async function chain(){
+      }
+       
+      chain();
+
+
+    
+    
+    }); /*end doc ready*/
+</script>
