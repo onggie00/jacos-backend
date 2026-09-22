@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 define( 'CLIENT_ID', 'cb3ca268-e619-4b43-8aff-81538fa687c0');
 define( 'TENANT_ID', '10fc2260-5c60-4800-af0e-789640a374a3'); // Only for user with mail Labschoolcibubur or just fill common to accept all microsoft mail
 define( 'SECRET_ID', '4aa8a802-af7f-41cf-b7f6-34e50fc432e4'); //backup active secret : bf68c70f-691c-4b2b-a3c6-0314d60d51a5
-define( 'CLIENT_SECRET', ''); //April 2028
+define( 'CLIENT_SECRET', ''); // [JACOS] TODO(manual): client secret Azure AD milik Jacos — secret LabSchool dihapus //April 2028
 define( 'GRAPH_USER_SCOPES', 'user.read mail.read mail.send offline_access User.ReadWrite.All User-PasswordProfile.ReadWrite.All');
 
 
