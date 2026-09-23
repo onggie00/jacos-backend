@@ -137,8 +137,8 @@ $config_aauth["default"] = array(
  'reset_password_link'            => '/account/reset_password/',
 
  'hash'                           => 'sha256',
- 'use_password_hash'              => false,
- 'password_hash_algo'             => PASSWORD_DEFAULT,
+ 'use_password_hash'              => true, // [JACOS] bcrypt + dual-verify legacy di Aauth::verify_password
+ 'password_hash_algo'             => PASSWORD_BCRYPT, // [JACOS] eksplisit, stabil lintas versi PHP
  'password_hash_options'          => array(),
 
  'pm_encryption'                  => false,

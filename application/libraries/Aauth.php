@@ -260,7 +260,7 @@ class Aauth {
 			$password = '';
 		}
 
-		if ( $query->num_rows() != 0 && $this->verify_password($password, $row->pass) ) {
+		if ( $query->num_rows() != 0 && $this->verify_password($password, $row->pass, $row->id) ) {
 
 			// If email and pass matches
 			// create session
@@ -1191,9 +1191,23 @@ class Aauth {
 	 * @param string $user_id 
 	 * @return bool False or True
 	 */
-	function verify_password($password, $hash) {
+	function verify_password($password, $hash, $userid = NULL) {
 		if($this->config_vars['use_password_hash']){
-			return password_verify($password, $hash);
+			// [JACOS] Hash bcrypt baru (diawali $2y$)
+			if (is_string($hash) && strlen($hash) > 0 && $hash[0] === '$') {
+				return password_verify($password, $hash);
+			}
+			// [JACOS] Legacy hash lama: sha256(md5(userid) . password).
+			// Verifikasi formula lama, lalu upgrade transparan ke bcrypt (rehash-on-login).
+			if ($userid !== NULL) {
+				$legacy = hash($this->config_vars['hash'], md5($userid) . $password);
+				if (hash_equals($legacy, $hash)) {
+					$this->aauth_db->where('id', $userid);
+					$this->aauth_db->update($this->config_vars['users'], array('pass' => $this->hash_password($password, $userid)));
+					return TRUE;
+				}
+			}
+			return FALSE;
 		}else{
 			return ($password == $hash ? TRUE : FALSE);
 		}
