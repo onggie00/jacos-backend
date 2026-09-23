@@ -26,9 +26,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Bri_snap_notify_payment_intrabank extends MY_Controller
 {
-    // BRI Sandbox (konsisten dengan Snap_bri_test.php)
-    private $clientId     = 'bmf114bUB3BjHsJfRFqXtiafpcG6MMH5';
-    private $clientSecret = 'ed59fvnJx3VsA4lc';
+    // BRI SNAP credentials dari tabel pengaturan_akun (bri_snap_client_id / bri_snap_client_secret)
+    private $clientId     = '';
+    private $clientSecret = '';
     private $partnerId    = 'labschool';
     private $channelId    = '00004';
     private $baseDomain   = 'sandbox.partner.api.bri.co.id';
@@ -37,6 +37,14 @@ class Bri_snap_notify_payment_intrabank extends MY_Controller
     public function __construct()
     {
         parent::__construct();
+        $this->clientId     = $this->briSnapSetting('bri_snap_client_id');
+        $this->clientSecret = $this->briSnapSetting('bri_snap_client_secret');
+    }
+
+    private function briSnapSetting($name)
+    {
+        $row = $this->mymodel->getbywhere('pengaturan_akun', 'name_setting', $name, 'row');
+        return $row ? $row->value : '';
     }
 
     public function index()

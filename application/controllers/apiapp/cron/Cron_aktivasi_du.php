@@ -4,8 +4,6 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header('Access-Control-Request-Headers: origin, x-requested-with');
 date_default_timezone_set('Asia/Jakarta');
 require FCPATH . '/vendor/autoload.php';
-define( 'API_ACCESS_KEY', 'AAAAX38-FW8:APA91bGoy4cJtX9jf4kfphdyh-1EZ3VFU8GlbVzXmka4-x-c2q6-oAvoltIKeSzoW4Pz8hbUL_MT0EW6NTUctWryTgsAlAmakleTaC-QzwLocy8OaVbswc_RuCC-tUaqPKta3TiYdoJ-' );
-define( 'PRIVATE_FIREBASE_KEY', FCPATH . 'labscib-app-c0ca345e64d9.json');
 defined('BASEPATH') OR exit('No direct script access allowed');
 //require APPPATH . '/libraries/REST_Controller.php';
 

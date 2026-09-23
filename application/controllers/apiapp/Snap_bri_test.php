@@ -13,6 +13,11 @@ class Snap_bri_test extends REST_Controller {
     {
         parent::__construct();
     }
+    private function briSnapSetting($name)
+    {
+        $row = $this->mymodel->getbywhere('pengaturan_akun', 'name_setting', $name, 'row');
+        return $row ? $row->value : '';
+    }
     public function index_post()
     {
       $status = "";
@@ -26,7 +31,7 @@ class Snap_bri_test extends REST_Controller {
         $token =  $headers['x-token'];
 
         // $token = $this->get_token();
-        $clientId = "bmf114bUB3BjHsJfRFqXtiafpcG6MMH5";
+        $clientId = $this->briSnapSetting('bri_snap_client_id');
         $privateKey = file_get_contents(PRIVATE_BRI_KEY);
         $generate_signature = $this->generateSignature($clientId, $privateKey);
         $timestamp = $generate_signature['timestamp'];
@@ -59,7 +64,7 @@ class Snap_bri_test extends REST_Controller {
     {
         $url = "https://sandbox.partner.api.bri.co.id/snap/v1.0/access-token/b2b";
 
-        $clientId = "bmf114bUB3BjHsJfRFqXtiafpcG6MMH5";
+        $clientId = $this->briSnapSetting('bri_snap_client_id');
         $privateKey = file_get_contents(PRIVATE_BRI_KEY);
 
         // $result = $this->generateSignature($clientId, $privateKey);
@@ -132,7 +137,7 @@ class Snap_bri_test extends REST_Controller {
 
         $token = $data['token'];
 
-        $clientSecret = "ed59fvnJx3VsA4lc";
+        $clientSecret = $this->briSnapSetting('bri_snap_client_secret');
         $partnerId = "labschool";
         $channelId = "00004"; //00004 lainnya
 
@@ -195,7 +200,7 @@ class Snap_bri_test extends REST_Controller {
 
         $token = $this->get_token()['access_token'];
 
-        $clientSecret = "ed59fvnJx3VsA4lc";
+        $clientSecret = $this->briSnapSetting('bri_snap_client_secret');
         $partnerId = "labschool";
         $channelId = "12345";
 

@@ -32,8 +32,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Bri_snap_token_get extends MY_Controller
 {
-    // BRI Sandbox credentials (konsisten dengan Snap_bri_test.php)
-    private $clientId     = 'bmf114bUB3BjHsJfRFqXtiafpcG6MMH5';
+    // BRI SNAP clientId dari tabel pengaturan_akun (bri_snap_client_id)
+    private $clientId     = '';
     private $partnerId    = 'labschool';
     private $publicKeyPath = 'key_bri_public.pem';
 
@@ -43,6 +43,13 @@ class Bri_snap_token_get extends MY_Controller
     public function __construct()
     {
         parent::__construct();
+        $this->clientId = $this->briSnapSetting('bri_snap_client_id');
+    }
+
+    private function briSnapSetting($name)
+    {
+        $row = $this->mymodel->getbywhere('pengaturan_akun', 'name_setting', $name, 'row');
+        return $row ? $row->value : '';
     }
 
     public function index()

@@ -28,9 +28,12 @@ application/page-preview/*
 application/config/jwt.php
 application/config/oauth.php
 application/config/androidfcm.php
+application/config/credentials.php
 key_bri_*.pem
 labscib-app-*.json
 jacos-app-*.json
+jacosverse-app-*.json
+*firebase*.json
 apidoc/module/*
 apidoc/*
 application/controllers/api/Example.php

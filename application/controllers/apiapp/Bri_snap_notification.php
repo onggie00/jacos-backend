@@ -50,9 +50,9 @@ ob_start();
 
 class Bri_snap_notification extends MY_Controller
 {
-    // BRI Sandbox credentials (konsisten dengan Snap_bri_test.php & Bri_snap_token_get.php)
-    private $clientId      = 'bmf114bUB3BjHsJfRFqXtiafpcG6MMH5';
-    private $clientSecret  = 'ed59fvnJx3VsA4lc';
+    // BRI SNAP credentials dari tabel pengaturan_akun (bri_snap_client_id / bri_snap_client_secret)
+    private $clientId      = '';
+    private $clientSecret  = '';
     private $partnerId     = 'labschool';
 
     // Token endpoint & partnerServiceId disesuaikan dgn BRI Sandbox
@@ -63,6 +63,14 @@ class Bri_snap_notification extends MY_Controller
     {
         parent::__construct();
         $this->load->library('Spp_payment_detail');
+        $this->clientId     = $this->briSnapSetting('bri_snap_client_id');
+        $this->clientSecret = $this->briSnapSetting('bri_snap_client_secret');
+    }
+
+    private function briSnapSetting($name)
+    {
+        $row = $this->mymodel->getbywhere('pengaturan_akun', 'name_setting', $name, 'row');
+        return $row ? $row->value : '';
     }
 
     public function index()
