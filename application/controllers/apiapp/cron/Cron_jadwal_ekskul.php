@@ -48,35 +48,6 @@ class Cron_jadwal_ekskul extends MY_Controller {
 
     }
 
-    public function send_notif_legacy($title,$desc,$id_fcm,$data)
-    {
-        $Msg = array(
-            'body' => $desc,
-            'title' => $title
-        );
-        $fcmFields = array(
-            'to' => $id_fcm,
-            'notification' => $Msg,
-             'data'=>$data
-        );
-        $headers = array(
-            'Authorization: key=' . API_ACCESS_KEY,
-            'Content-Type: application/json'
-        );
-        $ch = curl_init();
-        curl_setopt( $ch,CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send' );
-        curl_setopt( $ch,CURLOPT_POST, true );
-        curl_setopt( $ch,CURLOPT_HTTPHEADER, $headers );
-        curl_setopt( $ch,CURLOPT_RETURNTRANSFER, true );
-        curl_setopt( $ch,CURLOPT_SSL_VERIFYPEER, false );
-        curl_setopt( $ch,CURLOPT_POSTFIELDS, json_encode( $fcmFields ) );
-        $result = curl_exec($ch );
-        curl_close( $ch );
-
-        $cek_respon = explode(',',$result);
-        $berhasil = substr($cek_respon[1],strpos($cek_respon[1],':')+1);
-        //echo $result."\n\n";
-    }
 
     public function send_notif($title,$desc,$fcm_id,$data){
         //$firebaseService = new FirebaseService();
@@ -142,7 +113,7 @@ class Cron_jadwal_ekskul extends MY_Controller {
         ];
     
         $fields = json_encode($fields);
-        $url = 'https://fcm.googleapis.com/v1/projects/labscib-app/messages:send';
+        $url = 'https://fcm.googleapis.com/v1/projects/' . FIREBASE_PROJECT_ID . '/messages:send';
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POST, true);

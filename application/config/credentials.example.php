@@ -13,5 +13,5 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 // Buat project Firebase Jacos -> Project settings -> Service accounts -> download JSON.
 defined('FIREBASE_SERVICE_ACCOUNT_PATH') OR define('FIREBASE_SERVICE_ACCOUNT_PATH', 'jacos-firebase-service-account.json');
 
-// DEPRECATED: legacy FCM HTTP API server key — sudah tidak dipakai (migrasi FCM v1).
-defined('API_ACCESS_KEY') OR define('API_ACCESS_KEY', '');
+// Firebase project ID (URL FCM v1: /v1/projects/<ID>/messages:send)
+defined('FIREBASE_PROJECT_ID') OR define('FIREBASE_PROJECT_ID', 'jacosverse-app');

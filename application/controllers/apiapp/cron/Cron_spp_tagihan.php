@@ -359,7 +359,7 @@ class Cron_spp_tagihan extends MY_Controller {
         ];
     
         $fields = json_encode($fields);
-        $url = 'https://fcm.googleapis.com/v1/projects/labscib-app/messages:send';
+        $url = 'https://fcm.googleapis.com/v1/projects/' . FIREBASE_PROJECT_ID . '/messages:send';
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POST, true);
