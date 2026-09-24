@@ -1414,8 +1414,259 @@ class Siswa_kb_aktif extends Admin
 			curl_close($ch);
 	}
 
-}
+	/**
+	 * IMPORT MASSAL CREATE (data historis, TIDAK terhubung PSB; id_siswa_kb = 0).
+	 * 2 langkah: upload+parse+validasi (preview) -> konfirmasi (commit).
+	 * Manual via upload file — tidak ada cron/trigger otomatis.
+	 */
+	public function import_create()
+	{
+		if (!$this->is_allowed('siswa_kb_aktif_add')) {
+			redirect('/', 'refresh');
+		}
+		$this->data['list_tahun_ajaran'] = $this->mymodel->withquery("SELECT id_tahun_ajaran, label FROM tahun_ajaran ORDER BY label DESC", "result");
+		$this->data['preview'] = $this->session->userdata('import_create_kb');
+		$this->template->title('Siswa Kb Aktif - Import Buat Baru');
+		$this->render('backend/standart/administrator/siswa_kb_aktif/siswa_kb_aktif_import_create', $this->data);
+	}
 
+	/**
+	 * Download template Excel import massal create.
+	 */
+	public function template_import_create()
+	{
+		if (!$this->is_allowed('siswa_kb_aktif_add')) {
+			redirect('/', 'refresh');
+		}
+		$this->load->library('excel');
+		$objPHPExcel = new PHPExcel();
+		$objPHPExcel->getProperties()->setTitle("Template Import Siswa KB Aktif (Buat Baru)");
+		$sheet = $objPHPExcel->getActiveSheet();
+		$headers = array(
+			'NO', 'NAMA LENGKAP', 'NIS', 'KELAS', 'TINGKATAN',
+			'KEWARGANEGARAAN', 'NIK', 'GOLONGAN DARAH', 'TELP',
+			'PENDIDIKAN AYAH', 'PENDIDIKAN IBU', 'PENGHASILAN AYAH', 'PENGHASILAN IBU',
+			'TGL LAHIR AYAH', 'TGL LAHIR IBU', 'TGL LAHIR SISWA', 'NOMOR PESERTA UJIAN'
+		);
+		$col = 0;
+		foreach ($headers as $h) {
+			$sheet->setCellValueByColumnAndRow($col, 1, $h);
+			$sheet->getStyleByColumnAndRow($col, 1)->getFont()->setBold(true);
+			$col++;
+		}
+		// contoh baris (baris 2) — kosongkan nilai, hanya panduan format tanggal
+		$sheet->setCellValueByColumnAndRow(14, 2, 'YYYY-MM-DD');
+		$sheet->setCellValueByColumnAndRow(15, 2, 'YYYY-MM-DD');
+		header('Content-Type: application/vnd.ms-excel');
+		header('Content-Disposition: attachment;filename="template_import_siswa_kb_aktif.xls"');
+		header('Cache-Control: max-age=0');
+		PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5')->save('php://output');
+		exit;
+	}
+
+	/**
+	 * Langkah 1: parse + validasi file, simpan hasil di session utk preview.
+	 * Kolom Excel (0-indexed): 0=NO, 1=nama_lengkap, 2=nis, 3=kelas(label kelas_kb),
+	 * 4=tingkatan(label tingkatan_kb), 5=kewarganegaraan, 6=nik, 7=golongan_darah, 8=telp,
+	 * 9=pendidikan_ayah, 10=pendidikan_ibu, 11=penghasilan_ayah, 12=penghasilan_ibu,
+	 * 13=tgl_lahir_ayah, 14=tgl_lahir_ibu, 15=tgl_lahir, 16=nomor_peserta_ujian.
+	 * Tahun ajaran dipilih per-batch dari form (bukan dari kolom).
+	 */
+	public function import_create_parse()
+	{
+		if (!$this->is_allowed('siswa_kb_aktif_add')) {
+			redirect('/', 'refresh');
+		}
+		$id_tahun_ajaran = (int) $this->input->post('id_tahun_ajaran');
+		if (empty($id_tahun_ajaran)) {
+			$this->session->set_flashdata('error', 'Pilih tahun ajaran dulu');
+			redirect('administrator/siswa_kb_aktif/import_create');
+		}
+		if (empty($_FILES['file_import']['name'])) {
+			$this->session->set_flashdata('error', 'File Excel belum dipilih');
+			redirect('administrator/siswa_kb_aktif/import_create');
+		}
+		$ext = pathinfo($_FILES['file_import']['name'], PATHINFO_EXTENSION);
+		if ($ext !== 'xls' && $ext !== 'xlsx') {
+			$this->session->set_flashdata('error', 'Format harus .xls atau .xlsx');
+			redirect('administrator/siswa_kb_aktif/import_create');
+		}
+
+		$this->load->library('excel');
+		$object = PHPExcel_IOFactory::load($_FILES['file_import']['tmp_name']);
+		$worksheet = $object->getSheet(0);
+		$highestRow = $worksheet->getHighestRow();
+
+		// lookup map kelas & tingkatan (hindari query per baris)
+		$map_kelas = array();
+		foreach ($this->mymodel->withquery("SELECT id_kelas_kb, label FROM kelas_kb", "result") as $k) {
+			$map_kelas[strtolower(trim($k->label))] = $k->id_kelas_kb;
+		}
+		$map_tingkatan = array();
+		foreach ($this->mymodel->withquery("SELECT id_tingkatan_kb, label FROM tingkatan_kb", "result") as $t) {
+			$map_tingkatan[strtolower(trim($t->label))] = $t->id_tingkatan_kb;
+		}
+
+		$rows = array();    // baris valid utk preview/commit
+		$skipped = array(); // baris di-skip + alasan
+		$peringatan = array();
+		$seen_nis = array();
+
+		for ($row = 2; $row <= $highestRow; $row++) {
+			$nama = ucwords(trim((string) $worksheet->getCellByColumnAndRow(1, $row)->getValue()));
+			$nis = trim((string) $worksheet->getCellByColumnAndRow(2, $row)->getValue());
+			$kelas_text = trim((string) $worksheet->getCellByColumnAndRow(3, $row)->getValue());
+			$tingkatan_text = trim((string) $worksheet->getCellByColumnAndRow(4, $row)->getValue());
+
+			if ($nama === '' && $nis === '' && $kelas_text === '') {
+				continue; // baris benar-benar kosong
+			}
+			if ($nama === '') {
+				$skipped[] = array('row' => $row, 'nama' => '', 'alasan' => 'Nama kosong');
+				continue;
+			}
+			if ($nis === '') {
+				$skipped[] = array('row' => $row, 'nama' => $nama, 'alasan' => 'NIS kosong');
+				continue;
+			}
+			if (isset($seen_nis[$nis])) {
+				$skipped[] = array('row' => $row, 'nama' => $nama, 'alasan' => 'NIS ' . $nis . ' duplikat di dalam file (baris ' . $seen_nis[$nis] . ')');
+				continue;
+			}
+			$cek_nis = $this->mymodel->getbywhere('siswa_kb_aktif', 'nis', $nis, 'row');
+			if (!empty($cek_nis)) {
+				$skipped[] = array('row' => $row, 'nama' => $nama, 'alasan' => 'NIS ' . $nis . ' sudah terdaftar (id aktif ' . $cek_nis->id_siswa_kb_aktif . ')');
+				continue;
+			}
+
+			$id_kelas = 0;
+			if ($kelas_text !== '') {
+				$key_kelas = strtolower($kelas_text);
+				if (isset($map_kelas[$key_kelas])) {
+					$id_kelas = (int) $map_kelas[$key_kelas];
+				} else {
+					// fallback LIKE (kelas label sering "TK A BINTANG" dsb)
+					$found = false;
+					foreach ($map_kelas as $label => $idk) {
+						if ($label !== '' && strpos($label, $key_kelas) !== false) {
+							$id_kelas = (int) $idk;
+							$found = true;
+							break;
+						}
+					}
+					if (!$found) {
+						$skipped[] = array('row' => $row, 'nama' => $nama, 'alasan' => 'Kelas "' . $kelas_text . '" tidak ditemukan di kelas_kb');
+						continue;
+					}
+				}
+			}
+
+			$id_tingkatan = 0;
+			if ($tingkatan_text !== '') {
+				$key_t = strtolower($tingkatan_text);
+				if (isset($map_tingkatan[$key_t])) {
+					$id_tingkatan = (int) $map_tingkatan[$key_t];
+				} else {
+					$peringatan[] = array('row' => $row, 'nama' => $nama, 'catatan' => 'Tingkatan "' . $tingkatan_text . '" tidak ditemukan — disimpan 0');
+				}
+			}
+
+			$rows[] = array(
+				'nama_lengkap' => $nama,
+				'nis' => $nis,
+				'id_kelas' => $id_kelas,
+				'id_tingkatan' => $id_tingkatan,
+				'id_tahun_ajaran' => $id_tahun_ajaran,
+				'kewarganegaraan' => (string) $worksheet->getCellByColumnAndRow(5, $row)->getValue(),
+				'nik' => (string) $worksheet->getCellByColumnAndRow(6, $row)->getValue(),
+				'golongan_darah' => (string) $worksheet->getCellByColumnAndRow(7, $row)->getValue(),
+				'telp' => (string) $worksheet->getCellByColumnAndRow(8, $row)->getValue(),
+				'pendidikan_ayah' => (string) $worksheet->getCellByColumnAndRow(9, $row)->getValue(),
+				'pendidikan_ibu' => (string) $worksheet->getCellByColumnAndRow(10, $row)->getValue(),
+				'penghasilan_ayah' => (int) $worksheet->getCellByColumnAndRow(11, $row)->getValue(),
+				'penghasilan_ibu' => (int) $worksheet->getCellByColumnAndRow(12, $row)->getValue(),
+				'tgl_lahir_ayah' => $this->_ic_tgl($worksheet->getCellByColumnAndRow(13, $row)->getValue()),
+				'tgl_lahir_ibu' => $this->_ic_tgl($worksheet->getCellByColumnAndRow(14, $row)->getValue()),
+				'tgl_lahir' => $this->_ic_tgl($worksheet->getCellByColumnAndRow(15, $row)->getValue()),
+				'nomor_peserta_ujian' => (string) $worksheet->getCellByColumnAndRow(16, $row)->getValue(),
+				'acc_ujian' => 0,
+				'is_active' => 1,
+				'spp_custom' => 0,
+				'id_siswa_kb' => 0
+			);
+			$seen_nis[$nis] = $row;
+		}
+
+		$this->session->set_userdata('import_create_kb', array(
+			'rows' => $rows,
+			'skipped' => $skipped,
+			'peringatan' => $peringatan,
+			'id_tahun_ajaran' => $id_tahun_ajaran,
+			'file' => $_FILES['file_import']['name']
+		));
+		redirect('administrator/siswa_kb_aktif/import_create');
+	}
+
+	/**
+	 * Langkah 2: commit insert baris yang sudah di-preview.
+	 */
+	public function import_create_commit()
+	{
+		if (!$this->is_allowed('siswa_kb_aktif_add')) {
+			redirect('/', 'refresh');
+		}
+		$payload = $this->session->userdata('import_create_kb');
+		if (empty($payload) || empty($payload['rows'])) {
+			$this->session->set_flashdata('error', 'Tidak ada data preview. Upload ulang file.');
+			redirect('administrator/siswa_kb_aktif/import_create');
+		}
+
+		$this->db->trans_begin();
+		$berhasil = 0;
+		foreach ($payload['rows'] as $r) {
+			$this->mymodel->insertid('siswa_kb_aktif', $r);
+			$berhasil++;
+		}
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			$this->session->set_flashdata('error', 'Import gagal total (transaction rollback) — tidak ada baris yang masuk. Cek log error.');
+			redirect('administrator/siswa_kb_aktif/import_create');
+		}
+		$this->db->trans_commit();
+
+		$skip_count = count($payload['skipped']);
+		$this->session->unset_userdata('import_create_kb');
+		$this->session->set_flashdata('success', 'Import selesai: ' . $berhasil . ' baris berhasil di-insert, ' . $skip_count . ' baris di-skip (detail ada di halaman preview sebelum commit).');
+		redirect('administrator/siswa_kb_aktif');
+	}
+
+	/**
+	 * Batalkan preview import.
+	 */
+	public function import_create_cancel()
+	{
+		if (!$this->is_allowed('siswa_kb_aktif_add')) {
+			redirect('/', 'refresh');
+		}
+		$this->session->unset_userdata('import_create_kb');
+		redirect('administrator/siswa_kb_aktif/import_create');
+	}
+
+	/**
+	 * Helper: konversi nilai tanggal Excel (serial number / string) ke Y-m-d.
+	 */
+	private function _ic_tgl($v)
+	{
+		if ($v === null || $v === '') {
+			return '';
+		}
+		if (is_numeric($v) && $v > 20000 && $v < 60000) {
+			return date('Y-m-d', PHPExcel_Shared_Date::ExcelToPHP($v));
+		}
+		$t = strtotime((string) $v);
+		return $t ? date('Y-m-d', $t) : '';
+	}
+}
 
 /* End of file siswa_kb_aktif.php */
 /* Location: ./application/controllers/administrator/Siswa KB Aktif.php */

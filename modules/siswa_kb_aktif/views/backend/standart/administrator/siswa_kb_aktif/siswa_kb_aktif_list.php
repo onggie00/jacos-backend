@@ -67,6 +67,9 @@
                   <a class="btn btn-sm btn-action btn-action-import btn-top" title="Import Data Siswa" data-toggle="modal" data-target="#modal_import">
                      <i class="fa fa-upload"></i> Import Siswa
                   </a>
+                  <a class="btn btn-sm btn-action btn-action-import btn-top" title="Import Buat Baru (data historis)" href=".site_url('administrator/siswa_kb_aktif/import_create')." style="color:#e67e22">
+                     <i class="fa fa-file-excel-o"></i> Import Buat Baru
+                  </a>
                   <?php is_allowed('siswa_kb_aktif_add', function () { ?>
                   <a class="btn btn-sm btn-action btn-action-import btn-top" title="Import Raport" data-toggle="modal" data-target="#modal_import_raport">
                      <i class="fa fa-file-pdf-o"></i> Import Raport
