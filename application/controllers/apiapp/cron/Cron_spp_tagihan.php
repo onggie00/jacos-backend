@@ -41,6 +41,12 @@ class Cron_spp_tagihan extends MY_Controller {
             $spp_ft = $this->mymodel->withquery("select sp.*, sa.nama_lengkap, sa.device_id_ortu, s.notelp_ibu, s.notelp_ayah from spp_ft sp 
             join siswa_ft_aktif sa on sp.id_siswa_aktif = sa.id_siswa_ft_aktif join siswa_ft s on sa.id_siswa_ft = s.id_siswa_ft join kelas_ft k on sa.id_kelas = k.id_kelas_ft and k.label not like '%keluar%' and k.label not like '%lulus%' 
             where sp.id_tahun_ajaran = '".$tahun_ajaran_aktif."' and sp.".$bulan." IS NULL order by nama ASC","result");
+            $spp_kb = $this->mymodel->withquery("select sp.*, sa.nama_lengkap, sa.device_id_ortu, s.notelp_ibu, s.notelp_ayah from spp_kb sp 
+            join siswa_kb_aktif sa on sp.id_siswa_aktif = sa.id_siswa_kb_aktif join siswa_kb s on sa.id_siswa_kb = s.id_siswa_kb join kelas_kb k on sa.id_kelas = k.id_kelas_kb and k.label not like '%keluar%' and k.label not like '%lulus%' 
+            where sp.id_tahun_ajaran = '".$tahun_ajaran_aktif."' and sp.".$bulan." IS NULL order by nama ASC","result");
+            $spp_tk = $this->mymodel->withquery("select sp.*, sa.nama_lengkap, sa.device_id_ortu, s.notelp_ibu, s.notelp_ayah from spp_tk sp 
+            join siswa_tk_aktif sa on sp.id_siswa_aktif = sa.id_siswa_tk_aktif join siswa_tk s on sa.id_siswa_tk = s.id_siswa_tk join kelas_tk k on sa.id_kelas = k.id_kelas_tk and k.label not like '%keluar%' and k.label not like '%lulus%' 
+            where sp.id_tahun_ajaran = '".$tahun_ajaran_aktif."' and sp.".$bulan." IS NULL order by nama ASC","result");
             
             if (!empty($spp_sd)) {
                 foreach ($spp_sd as $key => $value) {
@@ -137,6 +143,50 @@ class Cron_spp_tagihan extends MY_Controller {
                     }
                 }
             }
+            if (!empty($spp_kb)) {
+                foreach ($spp_kb as $key => $value) {
+                    $notelp = "";
+                    $nama_siswa = $value->nama_lengkap;
+                    if (!empty($value->notelp_ibu)) {
+                        $notelp = $value->notelp_ibu;
+                    }
+                    else if(!empty($value->notelp_ayah)){
+                        $notelp = $value->notelp_ayah;
+                    }
+                    $notelp = $this->cek_notelp($notelp);
+                    if ($tanggal == 1 || $tanggal == 10) {
+                        $pesan = "Pembayaran SPP siswa atas nama ".$nama_siswa." jatuh tempo pada tanggal 10 ".ucfirst($bulan)." ".date("Y").", untuk melakukan pembayaran SPP melalui Labscib App. Terima kasih (ini adalah pesan otomatis, mohon untuk tidak membalas pesan ini).";
+                        $this->send_wa_omni($notelp,  $pesan);
+                    }
+                    else if($tanggal == 20){
+                        $pesan = "Pembayaran SPP siswa atas nama ".$nama_siswa." telah jatuh tempo pada tanggal 10 ".ucfirst($bulan)." ".date("Y").", untuk melakukan pembayaran SPP melalui Labscib App. Terima kasih (ini adalah pesan otomatis, mohon untuk tidak membalas pesan ini).";
+                        $this->send_wa_omni($notelp,  $pesan);
+                    }
+                }
+            }
+
+            if (!empty($spp_tk)) {
+                foreach ($spp_tk as $key => $value) {
+                    $notelp = "";
+                    $nama_siswa = $value->nama_lengkap;
+                    if (!empty($value->notelp_ibu)) {
+                        $notelp = $value->notelp_ibu;
+                    }
+                    else if(!empty($value->notelp_ayah)){
+                        $notelp = $value->notelp_ayah;
+                    }
+                    $notelp = $this->cek_notelp($notelp);
+                    if ($tanggal == 1 || $tanggal == 10) {
+                        $pesan = "Pembayaran SPP siswa atas nama ".$nama_siswa." jatuh tempo pada tanggal 10 ".ucfirst($bulan)." ".date("Y").", untuk melakukan pembayaran SPP melalui Labscib App. Terima kasih (ini adalah pesan otomatis, mohon untuk tidak membalas pesan ini).";
+                        $this->send_wa_omni($notelp,  $pesan);
+                    }
+                    else if($tanggal == 20){
+                        $pesan = "Pembayaran SPP siswa atas nama ".$nama_siswa." telah jatuh tempo pada tanggal 10 ".ucfirst($bulan)." ".date("Y").", untuk melakukan pembayaran SPP melalui Labscib App. Terima kasih (ini adalah pesan otomatis, mohon untuk tidak membalas pesan ini).";
+                        $this->send_wa_omni($notelp,  $pesan);
+                    }
+                }
+            }
+
         }
 
         echo "Cron Selesai ";

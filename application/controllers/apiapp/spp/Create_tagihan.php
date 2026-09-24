@@ -65,6 +65,12 @@ class Create_tagihan extends REST_Controller
     }else if($jenjang=='ft'){
       $code='70';
       $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,s.nama_lengkap as nama_lengkap,s.id_siswa_ft as id_siswa from siswa_ft_aktif sa join siswa_ft s on s.id_siswa_ft = sa.id_siswa_ft join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran join kelas_ft k on k.id_kelas_ft = sa.id_kelas where id_siswa_ft_aktif = ".$id_siswa."","row");
+    }else if($jenjang=='kb'){
+      $code='80';
+      $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,s.nama_lengkap as nama_lengkap,s.id_siswa_kb as id_siswa from siswa_kb_aktif sa join siswa_kb s on s.id_siswa_kb = sa.id_siswa_kb join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran join kelas_kb k on k.id_kelas_kb = sa.id_kelas where id_siswa_kb_aktif = ".$id_siswa."","row");
+    }else if($jenjang=='tk'){
+      $code='81';
+      $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,s.nama_lengkap as nama_lengkap,s.id_siswa_tk as id_siswa from siswa_tk_aktif sa join siswa_tk s on s.id_siswa_tk = sa.id_siswa_tk join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran join kelas_tk k on k.id_kelas_tk = sa.id_kelas where id_siswa_tk_aktif = ".$id_siswa."","row");
     }
     
     //get va prefix

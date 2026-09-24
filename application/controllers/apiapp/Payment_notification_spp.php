@@ -429,7 +429,8 @@ class Payment_notification_spp extends MY_Controller
 
               //CEK UJIAN TERDEKAT BILA SUDAH MEMBAYAR DIPERBOLEHKAN UJIAN
               //$bulan_ini = date("Y-m-d", strtotime("-1 months"));//formatBulan(date("n", strtotime("-1 months")));
-              $bulan_ini = $this->mymodel->getbywhere("setting_sync_ujian","jenjang",strtolower($jenjang),"row")->tanggal_terakhir_bayar;
+              $row_setting_sync = $this->mymodel->getbywhere("setting_sync_ujian","jenjang",strtolower($jenjang),"row");
+              $bulan_ini = (!empty($row_setting_sync) && !empty($row_setting_sync->tanggal_terakhir_bayar)) ? $row_setting_sync->tanggal_terakhir_bayar : date("Y-m-d", strtotime("-1 months"));
               $bulan_ini = formatBulan($bulan_ini);
               // pakai row bulan milik tahun ajaran aktif (tagihan bisa lintas tahun ajaran)
               $row_ujian = null;

@@ -13,7 +13,9 @@ class Spp_payment_detail
             'SD'  => 'spp_sd',
             'SMP' => 'spp_smp',
             'SMA' => 'spp_sma',
-            'FT'  => 'spp_ft'
+            'FT'  => 'spp_ft',
+            'KB'  => 'spp_kb',
+            'TK'  => 'spp_tk'
         );
         $key = strtoupper(trim($jenjang));
         return isset($table_map[$key]) ? $table_map[$key] : false;

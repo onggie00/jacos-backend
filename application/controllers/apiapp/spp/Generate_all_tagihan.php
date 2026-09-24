@@ -63,6 +63,22 @@ class Generate_all_tagihan extends REST_Controller {
             $get_biaya = $this->mymodel->getbywhere("tingkatan_ft", "id_tingkatan_ft", $get_siswa->id_tingkatan, "row");
           }
 
+        }elseif($this->post('jenjang')=='kb'){
+          $join='join siswa_kb s on s.id_siswa_kb = sa.id_siswa_kb join kelas_kb k on k.id_kelas_kb = sa.id_kelas join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran';
+          $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,k.label as kelas from siswa_kb_aktif sa $join where sa.id_siswa_kb_aktif =".$id_siswa,'row');
+          $bank='BNI';
+          if($get_siswa){
+            $get_biaya = $this->mymodel->getbywhere("tingkatan_kb", "id_tingkatan_kb", $get_siswa->id_tingkatan, "row");
+          }
+
+        }elseif($this->post('jenjang')=='tk'){
+          $join='join siswa_tk s on s.id_siswa_tk = sa.id_siswa_tk join kelas_tk k on k.id_kelas_tk = sa.id_kelas join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran';
+          $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,k.label as kelas from siswa_tk_aktif sa $join where sa.id_siswa_tk_aktif =".$id_siswa,'row');
+          $bank='BNI';
+          if($get_siswa){
+            $get_biaya = $this->mymodel->getbywhere("tingkatan_tk", "id_tingkatan_tk", $get_siswa->id_tingkatan, "row");
+          }
+
         }
         if(!$get_siswa){
           $msg = array('status' => 0, 'message'=>'Siswa tidak ada' ,'data'=>array());
@@ -141,6 +157,16 @@ class Generate_all_tagihan extends REST_Controller {
             $cek_data = $this->mymodel->withquery("select * from spp_ft where id_siswa_aktif = '".$id_siswa."' and tahun_ajaran = '".$get_siswa->label."'","result");
             if (empty($cek_data)) {
               $id_detail_spp = $this->mymodel->insertid("spp_ft",$detail_spp);
+            }
+          }elseif($jenjang=='KB'){
+            $cek_data = $this->mymodel->withquery("select * from spp_kb where id_siswa_aktif = '".$id_siswa."' and tahun_ajaran = '".$get_siswa->label."'","result");
+            if (empty($cek_data)) {
+              $id_detail_spp = $this->mymodel->insertid("spp_kb",$detail_spp);
+            }
+          }elseif($jenjang=='TK'){
+            $cek_data = $this->mymodel->withquery("select * from spp_tk where id_siswa_aktif = '".$id_siswa."' and tahun_ajaran = '".$get_siswa->label."'","result");
+            if (empty($cek_data)) {
+              $id_detail_spp = $this->mymodel->insertid("spp_tk",$detail_spp);
             }
           }
 
