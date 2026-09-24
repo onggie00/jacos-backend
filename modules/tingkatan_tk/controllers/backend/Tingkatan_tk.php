@@ -9,7 +9,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 *| Tingkatan Tk site
 *|
 */
-class Tingkatan_Tk extends Admin	
+class Tingkatan_tk extends Admin	
 {
 	
 	public function __construct()

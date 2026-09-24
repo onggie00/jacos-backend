@@ -8,7 +8,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 *| Kelas Tk site
 *|
 */
-class Kelas_Tk extends Admin	
+class Kelas_tk extends Admin	
 {
 	
 	public function __construct()
