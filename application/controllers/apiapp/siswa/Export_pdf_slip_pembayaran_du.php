@@ -48,6 +48,12 @@ class Export_pdf_slip_pembayaran_du extends MY_Controller {
         if ($tipe_siswa == "sd") {
           $data = $this->mymodel->withquery("select * from siswa_sd where id_siswa_sd = '".$id_siswa."'","row");
         }
+        if ($tipe_siswa == "kb") {
+  $data = $this->mymodel->withquery("select * from siswa_kb where id_siswa_kb = '".$id_siswa."'","row");
+}
+        if ($tipe_siswa == "tk") {
+  $data = $this->mymodel->withquery("select * from siswa_tk where id_siswa_tk = '".$id_siswa."'","row");
+}
 
         if (!empty($data)) {
 

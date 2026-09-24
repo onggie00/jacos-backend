@@ -293,6 +293,54 @@ class Payment_notification extends MY_Controller
               $id_siswa = $cek_no_peserta->id_siswa;
               $tipe_siswa = "ft";
             }
+            if ($jenjang == "KB") {
+              //unit code no_peserta KB = 51
+              $unit = "51";
+              //get no_peserta terakhir di tahun ajaran tsb
+              $get_no_urut = $this->mymodel->withquery("select no_peserta, id_siswa_kb as id_siswa from siswa_kb where no_peserta like '%" . $tahun_pelajaran . "%' and no_peserta != '' and is_mutasi='2' order by no_peserta DESC", "row");
+              if (empty($get_no_urut)) {
+                $no_urut = "0001";
+              } else {
+                $no_urut = (int) substr($get_no_urut->no_peserta, -4);
+                $no_urut = $no_urut + 1;
+                $no_urut = sprintf("%04d", $no_urut);
+              }
+              $no_peserta = $tahun_pelajaran . $unit . $no_urut;
+              //cek duplikat data no peserta
+              $cek_no = $this->mymodel->withquery("select no_peserta from siswa_kb where no_peserta = '".$no_peserta."'","row");
+
+              $cek_no_peserta = $this->mymodel->withquery("select no_peserta, id_siswa_kb as id_siswa, nama_lengkap, email, nama_ibu, nama_ayah, no_peserta from siswa_kb where no_transaksi = '" . $no_transaksi . "'", "row");
+              if (!empty($cek_no_peserta) && $cek_no_peserta->no_peserta == '') {
+                $data_siswa = $this->mymodel->update("siswa_kb", array("no_peserta" => $no_peserta), "no_transaksi", $no_transaksi);
+              }
+              $id_siswa = $cek_no_peserta->id_siswa;
+              $jalur = "PSB";
+              $tipe_siswa = "kb";
+            }
+            if ($jenjang == "TK") {
+              //unit code no_peserta TK = 52
+              $unit = "52";
+              //get no_peserta terakhir di tahun ajaran tsb
+              $get_no_urut = $this->mymodel->withquery("select no_peserta, id_siswa_tk as id_siswa from siswa_tk where no_peserta like '%" . $tahun_pelajaran . "%' and no_peserta != '' and is_mutasi='2' order by no_peserta DESC", "row");
+              if (empty($get_no_urut)) {
+                $no_urut = "0001";
+              } else {
+                $no_urut = (int) substr($get_no_urut->no_peserta, -4);
+                $no_urut = $no_urut + 1;
+                $no_urut = sprintf("%04d", $no_urut);
+              }
+              $no_peserta = $tahun_pelajaran . $unit . $no_urut;
+              //cek duplikat data no peserta
+              $cek_no = $this->mymodel->withquery("select no_peserta from siswa_tk where no_peserta = '".$no_peserta."'","row");
+
+              $cek_no_peserta = $this->mymodel->withquery("select no_peserta, id_siswa_tk as id_siswa, nama_lengkap, email, nama_ibu, nama_ayah, no_peserta from siswa_tk where no_transaksi = '" . $no_transaksi . "'", "row");
+              if (!empty($cek_no_peserta) && $cek_no_peserta->no_peserta == '') {
+                $data_siswa = $this->mymodel->update("siswa_tk", array("no_peserta" => $no_peserta), "no_transaksi", $no_transaksi);
+              }
+              $id_siswa = $cek_no_peserta->id_siswa;
+              $jalur = "PSB";
+              $tipe_siswa = "tk";
+            }
           }
 
           if (!empty($data_asli['payment_ntb'])) {
@@ -371,6 +419,10 @@ class Payment_notification extends MY_Controller
                 $this->mymodel->update("status_daftar_ulang_smp", array("status" => 2, "kwitansi" => $data_email["kwitansi"], "kartu_sementara" => $data_email["kartu_siswa_sementara"], "tgl_bayar" => date("Y-m-d H:i:s")), "id_siswa_smp", $cek_no_peserta->id_siswa);
               } elseif ($tipe_siswa == 'sma') {
                 $this->mymodel->update("status_daftar_ulang_sma", array("status" => 2, "kwitansi" => $data_email["kwitansi"], "kartu_sementara" => $data_email["kartu_siswa_sementara"], "tgl_bayar" => date("Y-m-d H:i:s")), "id_siswa_sma", $cek_no_peserta->id_siswa);
+              } elseif ($tipe_siswa == 'kb') {
+                $this->mymodel->update("status_daftar_ulang_kb", array("status" => 2, "kwitansi" => $data_email["kwitansi"], "kartu_sementara" => $data_email["kartu_siswa_sementara"], "tgl_bayar" => date("Y-m-d H:i:s")), "id_siswa_kb", $cek_no_peserta->id_siswa);
+              } elseif ($tipe_siswa == 'tk') {
+                $this->mymodel->update("status_daftar_ulang_tk", array("status" => 2, "kwitansi" => $data_email["kwitansi"], "kartu_sementara" => $data_email["kartu_siswa_sementara"], "tgl_bayar" => date("Y-m-d H:i:s")), "id_siswa_tk", $cek_no_peserta->id_siswa);
               }
             } else if ($jenis_pembayaran == "SP" || $jenis_pembayaran == "SPP") {
               $get_transaksi_spp = $this->mymodel->withquery("select * from transaksi_spp where kode_tagihan = '" . $data_asli['trx_id'] . "'", "row");

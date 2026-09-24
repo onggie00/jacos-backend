@@ -56,6 +56,30 @@ class Dashboard_psb extends Admin
 		$this->render('backend/standart/administrator/grafik_psb', $data);
 	}
 
+	public function grafik_kb()
+	{
+		if (!$this->aauth->is_allowed('dashboard')) {
+			redirect('/','refresh');
+		}
+
+		$data = [];
+		$data['jenjang'] = "kb";
+		$this->template->title('Grafik PSB KB');
+		$this->render('backend/standart/administrator/grafik_psb', $data);
+	}
+
+	public function grafik_tk()
+	{
+		if (!$this->aauth->is_allowed('dashboard')) {
+			redirect('/','refresh');
+		}
+
+		$data = [];
+		$data['jenjang'] = "tk";
+		$this->template->title('Grafik PSB TK');
+		$this->render('backend/standart/administrator/grafik_psb', $data);
+	}
+
 	public function grafik_ft()
 	{
 		if (!$this->aauth->is_allowed('dashboard')) {
@@ -110,7 +134,7 @@ class Dashboard_psb extends Admin
 		}
 
 		$jenjang = strtolower((string) $this->input->post("jenjang"));
-		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft');
+		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft', 'kb', 'tk');
 		if (!in_array($jenjang, $allowed_jenjang, true)) {
 			echo json_encode(array());
 			return;
@@ -204,7 +228,7 @@ class Dashboard_psb extends Admin
 		}
 
 		$jenjang = strtolower((string) $this->input->get("jenjang"));
-		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft');
+		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft', 'kb', 'tk');
 		if (!in_array($jenjang, $allowed_jenjang, true)) {
 			return;
 		}
@@ -493,7 +517,7 @@ class Dashboard_psb extends Admin
 		}
 
 		$jenjang = strtolower((string) $this->input->post("jenjang"));
-		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft');
+		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft', 'kb', 'tk');
 		if (!in_array($jenjang, $allowed_jenjang, true)) {
 			echo json_encode(array());
 			return;
@@ -583,7 +607,7 @@ class Dashboard_psb extends Admin
 		}
 
 		$jenjang = strtolower((string) $this->input->get("jenjang"));
-		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft');
+		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft', 'kb', 'tk');
 		if (!in_array($jenjang, $allowed_jenjang, true)) {
 			return;
 		}
@@ -868,7 +892,7 @@ class Dashboard_psb extends Admin
 
 		$post = $this->input->post();
 		$jenjang = strtolower((string) $post['jenjang']);
-		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft');
+		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft', 'kb', 'tk');
 		if (!in_array($jenjang, $allowed_jenjang, true)) {
 			echo json_encode(array("status" => false, "message" => "Jenjang tidak valid"));
 			return;
@@ -1078,7 +1102,7 @@ class Dashboard_psb extends Admin
 		}
 
 		$jenjang = strtolower((string) $this->input->post('jenjang'));
-		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft');
+		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft', 'kb', 'tk');
 		if (!in_array($jenjang, $allowed_jenjang, true)) {
 			echo json_encode(array("status" => false, "message" => "Jenjang tidak valid"));
 			return;
