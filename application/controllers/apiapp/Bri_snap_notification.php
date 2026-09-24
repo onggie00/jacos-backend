@@ -63,6 +63,7 @@ class Bri_snap_notification extends MY_Controller
     {
         parent::__construct();
         $this->load->library('Spp_payment_detail');
+        $this->load->library('Bri_spp_matcher');
         $this->clientId     = $this->briSnapSetting('bri_snap_client_id');
         $this->clientSecret = $this->briSnapSetting('bri_snap_client_secret');
     }
@@ -439,14 +440,22 @@ class Bri_snap_notification extends MY_Controller
         }
 
         // ---- Transaksi SPP ----
-        $get_transaksi_spp = $this->mymodel->withquery(
-            "select * from transaksi_spp where va_number = '" . $vaLookup . "' and status_transaksi = '1' order by id_transaksi DESC",
-            'row'
+        // Atomic: spp detail + transaksi harus sukses bersama (trans_begin/commit/rollback).
+        $this->db->trans_begin();
+        $candidate_rows = $this->mymodel->withquery(
+            "select * from transaksi_spp where va_number = '" . $vaLookup . "' and status_transaksi = '1' and expired_datetime >= '" . date('Y-m-d H:i:s') . "' and kode_tagihan is not null and kode_tagihan != '' order by id_transaksi DESC",
+            'result'
         );
+        // Resolve SATU grup invoice berdasar nominal (billAmount wajib = total_biaya * count_bill).
+        $get_transaksi_spp = $this->bri_spp_matcher->resolve($candidate_rows, $billAmount);
+        if (empty($get_transaksi_spp)) {
+            $this->db->trans_rollback();
+        }
         if ($get_transaksi_spp) {
             $trx_id = explode('-', $get_transaksi_spp->no_transaksi);
-            $jenjang = $trx_id[1];
             $id_siswa = $trx_id[3];
+            // jenjang dari no_transaksi (mis. LISPP-sd-26_27-...), bukan hardcode SD
+            $jenjang = strtoupper($trx_id[1]);
             if ($jenjang == 'SD') {
                 $tipe_siswa = 'sd';
                 $get_siswa = $this->mymodel->getbywhere('siswa_sd', 'id_siswa_sd', $id_siswa, 'row');
@@ -459,15 +468,9 @@ class Bri_snap_notification extends MY_Controller
                 'file_kwitansi' => $get_transaksi_spp->no_transaksi . '-' . str_replace(' ', '_', $get_transaksi_spp->user_name) . '.pdf',
             );
 
-            $this->mymodel->update(
-                'transaksi_spp',
-                $data_transaksi,
-                "status_transaksi = '1' and expired_datetime >= '" . date('Y-m-d H:i:s') . "' and va_number=",
-                $vaLookup
-            );
-
-            // jenjang dari no_transaksi (mis. LISPP-sd-26_27-...), bukan hardcode SD
-            $jenjang = strtoupper($trx_id[1]);
+            // UPDATE ONLY SELECTED INVOICE GROUP. VA IS REUSED BETWEEN MONTHS.
+            $where_tagihan = "kode_tagihan = " . $this->db->escape($get_transaksi_spp->kode_tagihan) . " and va_number = " . $this->db->escape($vaLookup) . " and status_transaksi = '1'";
+            $this->mymodel->update('transaksi_spp', $data_transaksi, $where_tagihan);
 
             // CEK UJIAN TERDEKAT: boleh_ujian = YA bila invoice bulan cutoff (setting_sync_ujian) lunas.
             // Null-guard wajib: siswa bayar bulan != bulan cutoff -> $cek_transaksi kosong.
@@ -494,10 +497,17 @@ class Bri_snap_notification extends MY_Controller
                 }
             }
 
+            // Guard id_siswa_aktif + id_tahun_ajaran karena id_spp tidak global unik antar jenjang.
             if (!$this->_update_spp_detail($get_transaksi_spp, $data_transaksi['updated_at'])) {
                 $this->db->trans_rollback();
                 return $this->response(array('responseCode' => '5000', 'responseDescription' => 'Payment detail SPP update failed'), '500');
             }
+
+            if ($this->db->trans_status() === false) {
+                $this->db->trans_rollback();
+                return $this->response(array('responseCode' => '5000', 'responseDescription' => 'Payment update failed'), '500');
+            }
+            $this->db->trans_commit();
 
             $this->cetak_kwitansi_spp(array(
                 'tipe_siswa' => $tipe_siswa,

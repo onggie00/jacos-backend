@@ -28,6 +28,7 @@ class Payment_notification extends MY_Controller
       $token =  $headers['x-token'];
 
     $this->load->library('BniEnc');
+    $this->load->library('Spp_payment_detail');
     $get_setting = $this->mymodel->getall("pengaturan_akun");
     foreach ($get_setting as $key => $value) {
       if ($value->name_setting == "bni_client_id") {
@@ -447,32 +448,26 @@ class Payment_notification extends MY_Controller
                 "file_kwitansi" => $data_asli['trx_id'] . '-' . str_replace(' ', '_', $get_transaksi_spp->user_name) . '.pdf'
               );
 
-              //UPDATE TRANSAKSI SPP
-              $transaksi = $this->mymodel->update("transaksi_spp", $data_transaksi, "kode_tagihan", $data_asli['trx_id']);
-
-                //UPDATE SPP DETAIL
-              $bulan=explode(',',$get_transaksi_spp->detail_bulan);
-              
-              foreach($bulan as $key =>$item){
-                $b=strtolower($item);
-                $data_spp = array(
-                  $b => $data_transaksi["updated_at"],
-                );
-                // dd($data_spp);
-                if($jenjang=='SD'){
-                  $id_spp = $this->mymodel->update("spp_sd", $data_spp, "id", $get_transaksi_spp->id_spp);
-                }elseif($jenjang=='SMP'){
-                  $id_spp = $this->mymodel->update("spp_smp", $data_spp, "id", $get_transaksi_spp->id_spp);
-                }elseif($jenjang=='SMA'){
-                  $id_spp = $this->mymodel->update("spp_sma", $data_spp, "id", $get_transaksi_spp->id_spp);
-                }elseif($jenjang=='FT'){
-                  $id_spp = $this->mymodel->update("spp_ft", $data_spp, "id", $get_transaksi_spp->id_spp);
+              //UPDATE TRANSAKSI SPP + SPP DETAIL secara atomic.
+              //Guard id_siswa_aktif + id_tahun_ajaran karena id_spp tidak global unik antar jenjang.
+              $this->db->trans_begin();
+              if (!$this->_update_spp_detail($get_transaksi_spp, $data_transaksi["updated_at"])) {
+                $this->db->trans_rollback();
+                $msg = array('status' => 0, 'message' => 'Gagal memperbarui detail SPP', 'data' => array());
+                $status = "200";
+              } else {
+                $where_tagihan = "kode_tagihan = " . $this->db->escape($data_asli['trx_id']) . " and status_transaksi = '1'";
+                $transaksi = $this->mymodel->update("transaksi_spp", $data_transaksi, $where_tagihan);
+                if ($transaksi < 1 || $this->db->trans_status() === false) {
+                  $this->db->trans_rollback();
+                  $msg = array('status' => 0, 'message' => 'Gagal memperbarui transaksi SPP', 'data' => array());
+                  $status = "200";
+                } else {
+                  $this->db->trans_commit();
+                  $msg = array('status' => 1, 'message' => 'Berhasil menerima data push notification', 'data' => $data_transaksi);
+                  $status = "200";
                 }
-
               }
-
-              $msg = array('status' => 1, 'message' => 'Berhasil menerima data push notification', 'data' => $data_transaksi);
-              $status = "200";
             }
             /*else if ($jenis_pembayaran == "OT" || strpos($jenis_pembayaran, "OT") !== false) {
               //update transaksi
@@ -942,5 +937,31 @@ class Payment_notification extends MY_Controller
     } else {
       //echo 'Pesan telah terkirim ';
     }
+  }
+
+  private function _update_spp_detail($transaction, $updated_at)
+  {
+    $transaction_parts = explode('-', $transaction->no_transaksi);
+    $jenjang = isset($transaction_parts[1]) ? $transaction_parts[1] : '';
+    $table = $this->spp_payment_detail->table_for($jenjang);
+    $months = $this->spp_payment_detail->months($transaction->detail_bulan);
+    if ($table === false || $months === false || empty($transaction->id_siswa_aktif) || empty($transaction->id_tahun_ajaran)) {
+      return false;
+    }
+
+    $where = array(
+      'id' => $transaction->id_spp,
+      'id_siswa_aktif' => $transaction->id_siswa_aktif,
+      'id_tahun_ajaran' => $transaction->id_tahun_ajaran
+    );
+
+    foreach ($months as $month) {
+      $this->db->where($where)->update($table, array($month => $updated_at));
+      $check = $this->db->select($month)->where($where)->get($table)->row();
+      if (empty($check) || (string) $check->$month !== (string) $updated_at) {
+        return false;
+      }
+    }
+    return true;
   }
 }

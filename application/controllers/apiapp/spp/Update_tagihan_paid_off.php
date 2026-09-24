@@ -13,6 +13,7 @@ class Update_tagihan_paid_off extends REST_Controller
   function __construct()
   {
     parent::__construct();
+    $this->load->library('Spp_payment_detail');
   }
   public function index_post()
   {
@@ -28,6 +29,10 @@ class Update_tagihan_paid_off extends REST_Controller
     $kode_tagihan = $this->post('kode_tagihan');
 
     $get_transaksi_spp = $this->mymodel->withquery("select * from transaksi_spp where kode_tagihan = '" . $kode_tagihan . "'", "row");
+    if (empty($get_transaksi_spp)) {
+      $this->response(array('status' => 0, 'message' => 'Transaksi SPP tidak ditemukan', 'data' => array()), "200");
+      return;
+    }
     $total_biaya = $get_transaksi_spp->total_biaya * $get_transaksi_spp->count_bill;
 
     //CETAK KWITANSI SPP
@@ -49,35 +54,53 @@ class Update_tagihan_paid_off extends REST_Controller
       "file_kwitansi" => $kode_tagihan . '-' . str_replace(' ', '_', $get_transaksi_spp->user_name) . '.pdf'
     );
 
-    //UPDATE TRANSAKSI SPP
-    $transaksi = $this->mymodel->update("transaksi_spp", $data_transaksi, "kode_tagihan", $kode_tagihan);
-
-    //UPDATE SPP DETAIL
-    $bulan=explode(',',$get_transaksi_spp->detail_bulan);
-    
-    foreach($bulan as $key =>$item){
-      $b=strtolower($item);
-      $data_spp = array(
-        $b => $data_transaksi["updated_at"],
-      );
-      // dd($data_spp);
-      if($this->post('jenjang')=='sd'){
-        $id_spp = $this->mymodel->update("spp_sd", $data_spp, "id", $get_transaksi_spp->id_spp);
-      }elseif($this->post('jenjang')=='smp'){
-        $id_spp = $this->mymodel->update("spp_smp", $data_spp, "id", $get_transaksi_spp->id_spp);
-      }elseif($this->post('jenjang')=='sma'){
-        $id_spp = $this->mymodel->update("spp_sma", $data_spp, "id", $get_transaksi_spp->id_spp);
-      }elseif($this->post('jenjang')=='ft'){
-        $id_spp = $this->mymodel->update("spp_ft", $data_spp, "id", $get_transaksi_spp->id_spp);
-      }
-
+    //UPDATE TRANSAKSI SPP + SPP DETAIL secara atomic.
+    //Guard id_siswa_aktif + id_tahun_ajaran karena id_spp tidak global unik antar jenjang.
+    $this->db->trans_begin();
+    if (!$this->_update_spp_detail($get_transaksi_spp, $data_transaksi["updated_at"])) {
+      $this->db->trans_rollback();
+      $this->response(array('status' => 0, 'message' => 'Gagal memperbarui detail SPP', 'data' => array()), "200");
+      return;
     }
-
+    $where_tagihan = "kode_tagihan = " . $this->db->escape($kode_tagihan) . " and status_transaksi = '1'";
+    $transaksi = $this->mymodel->update("transaksi_spp", $data_transaksi, $where_tagihan);
+    if ($transaksi < 1 || $this->db->trans_status() === false) {
+      $this->db->trans_rollback();
+      $this->response(array('status' => 0, 'message' => 'Gagal memperbarui transaksi SPP', 'data' => array()), "200");
+      return;
+    }
+    $this->db->trans_commit();
 
     $msg = array('status' => 1, 'message' => 'Berhasil update data', 'data' => array());
     $status = "200";
 
     $this->response($msg, $status);
+  }
+
+  private function _update_spp_detail($transaction, $updated_at)
+  {
+    $transaction_parts = explode('-', $transaction->no_transaksi);
+    $jenjang = isset($transaction_parts[1]) ? $transaction_parts[1] : '';
+    $table = $this->spp_payment_detail->table_for($jenjang);
+    $months = $this->spp_payment_detail->months($transaction->detail_bulan);
+    if ($table === false || $months === false || empty($transaction->id_siswa_aktif) || empty($transaction->id_tahun_ajaran)) {
+      return false;
+    }
+
+    $where = array(
+      'id' => $transaction->id_spp,
+      'id_siswa_aktif' => $transaction->id_siswa_aktif,
+      'id_tahun_ajaran' => $transaction->id_tahun_ajaran
+    );
+
+    foreach ($months as $month) {
+      $this->db->where($where)->update($table, array($month => $updated_at));
+      $check = $this->db->select($month)->where($where)->get($table)->row();
+      if (empty($check) || (string) $check->$month !== (string) $updated_at) {
+        return false;
+      }
+    }
+    return true;
   }
 
   function cetak_kwitansi_spp($get = '')
