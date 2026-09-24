@@ -26,6 +26,9 @@ Banyak modul punya 4 varian jenjang dengan suffix yang sama:
 - Tabel: `siswa_kb/tk` (clone siswa_sd − ppsbb/va_number_bri + `id_tingkatan`, default 0),
   `kelas_kb/tk` (clone kelas_sd, tanpa tingkatan Mutasi/Alumni),
   `tingkatan_kb/tk` (label, `usia_min`, `usia_max`, biaya_spp — master untuk validasi usia),
+  `siswa_kb/tk_aktif` (clone siswa_sd_aktif; relasi logis `id_siswa_kb/tk`, kelas → kelas_kb/tk,
+  tanpa FK — dibuat staff via import Excel/form manual modul aktif, TANPA trigger otomatis
+  dari webhook/pembayaran),
   `status_daftar_ulang_kb/tk` (backend only, tanpa modul). Seed biaya:
   pendaftaran KB 1.000.000 / TK 2.100.000; SPP kb 1.600.000 / tk 1.700.000.
 - Bank: **BNI eCollection** (BniEnc, kredensial `bni_client_id` utama). Kode VA:
@@ -35,6 +38,9 @@ Banyak modul punya 4 varian jenjang dengan suffix yang sama:
   pendaftaran publik KB/TK dibuat.
 - Dashboard PSB: `dashboard_psb/grafik_kb`, `grafik_tk`.
 - Modul `status_daftar_ulang_kb/tk` & `spp_kb/tk`: BELUM ADA (out of scope saat ini).
+- **Utang teknis KB/TK** (diputuskan skip — siswa usia 2–6): `siswa_kb/tk_aktif_raport`,
+  endpoint apiapp (login app mobile, presensi app, cron, ortu-link — ±30 endpoint dgn
+  if-chain jenjang hardcoded), `spp_kb/tk`.
 
 Contoh: `siswa_ft`, `siswa_sd`, `siswa_smp`, `siswa_sma` — struktur controller/model/view mirip,
 beda hanya scope jenjang.
