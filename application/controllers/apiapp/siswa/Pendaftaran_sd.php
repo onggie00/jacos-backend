@@ -226,6 +226,49 @@ class Pendaftaran_sd extends REST_Controller {
               );
               if (!empty($data_transaksi)) {
                 //create billing
+                //flag bank aktif alur PSB SD (rollback cepat: ganti value 'bank_psb_sd' di pengaturan_akun ke 'BRI')
+                $bank_aktif = 'BRI';
+                $client_id = '';
+                $prefix = '';
+                $get_flag = $this->mymodel->getall("pengaturan_akun");
+                foreach ($get_flag as $key => $value) {
+                  if ($value->name_setting == "bank_psb_sd") {
+                    $bank_aktif = strtoupper($value->value);
+                  }
+                }
+                if ($bank_aktif == 'BNI') {
+                  //VA BNI (kode 01 = SD)
+                  foreach ($get_flag as $key => $value) {
+                    if ($value->name_setting == "bni_client_id") {
+                      $client_id = $value->value;
+                    }
+                    if ($value->name_setting == "bni_prefix") {
+                      $prefix = $value->value;
+                    }
+                  }
+                  $prefix_cari = $prefix . $client_id . date('y', strtotime('+1 years')) . "01";
+                  $get_no_urut_bni = $this->mymodel->withquery("select va_number, id_siswa_sd as id_siswa from siswa_sd where va_number like '" . $prefix_cari . "%' and va_number != '' and is_mutasi = '2' order by id_siswa_sd DESC", "row");
+                  if (empty($get_no_urut_bni)) {
+                    $no_urut = "0001";
+                  } else {
+                    $no_urut = (int) substr($get_no_urut_bni->va_number, -4);
+                    $no_urut = $no_urut + 1;
+                    $no_urut = sprintf("%04d", $no_urut);
+                  }
+                  $va_number_bni = $prefix_cari . $no_urut;
+                  $payment_response = $this->create_billing(ENVIRONMENT, $total_biaya, $no_transaksi, array("nama" => $this->post('nama_lengkap'), "email" => $this->post('email'), "va_number" => $va_number_bni));
+                  if (empty($payment_response['virtual_account'])) {
+                    $this->mymodel->insertid("error_log_bni", array("status" => isset($payment_response['status']) ? $payment_response['status'] : '', "message" => isset($payment_response['message']) ? $payment_response['message'] : '', "va_number" => $va_number_bni));
+                    $msg = array('status' => 0, 'message' => 'Terjadi Kesalahan Ketika Pembuatan VA', 'data' => array(), 'transaksi' => array());
+                    $this->response($msg, '200');
+                  }
+                  $data_transaksi['nama_bank'] = 'BNI';
+                  $data_transaksi['va_number'] = $payment_response['virtual_account'];
+                  $id_transaksi = $this->mymodel->insertid("transaksi", $data_transaksi);
+                  $this->mymodel->update("siswa_sd", array("no_transaksi" => $no_transaksi, "va_number" => $payment_response['virtual_account']), "id_siswa_sd", $id_siswa);
+                  $res_data = $payment_response;
+                }
+                if ($bank_aktif != 'BNI') {
                 //get prefix client ID for VA
                 #####
                 // $get_setting = $this->mymodel->getall("pengaturan_akun");
@@ -310,6 +353,7 @@ class Pendaftaran_sd extends REST_Controller {
                 $data_transaksi['va_number'] = $va_number_bri;
                 $id_transaksi = $this->mymodel->insertid("transaksi",$data_transaksi);
                 $this->mymodel->update("siswa_sd", array("no_transaksi" => $no_transaksi, "va_number_bri" => $va_number_bri), "id_siswa_sd", $id_siswa);
+                } //end if ($bank_aktif != 'BNI')
                 $this->cetak_slip(array("id_siswa" => $id_siswa, "tipe_siswa" => "sd"));
                 $get_transaksi = $this->mymodel->withquery("select id_transaksi, no_transaksi, va_number, nama_bank, total_biaya, expired_datetime from transaksi where id_transaksi = '".$id_transaksi."'","row");
                 //kirim email slip pembayaran

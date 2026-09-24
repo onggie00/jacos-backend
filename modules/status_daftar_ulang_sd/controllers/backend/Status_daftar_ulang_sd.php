@@ -238,6 +238,23 @@ class Status_daftar_ulang_sd extends Admin
 				// $brivaNo='77777';
 				// $brivaNo = '88888';
 
+				//flag bank aktif alur Daftar Ulang SD (rollback cepat: value 'bank_daftar_ulang_sd' di pengaturan_akun)
+				$bank_aktif = $this->_bank_daftar_ulang_sd();
+				if ($bank_aktif == 'BNI') {
+					$tipe_tagihan = $this->input->post('tipe_tagihan');
+					$bni = $this->_bni_va_daftar_ulang($get_siswa, $no_transaksi, $total_biaya);
+					if (!$bni['ok']) {
+						$this->data['success'] = false;
+						$this->data['message'] = $bni['message'];
+						echo json_encode($this->data);
+						exit;
+					}
+					$va_number = $bni['va_number'];
+					$date_va = $bni['date_va'];
+					$this->mymodel->update("siswa_sd", array("va_number" => $va_number), "id_siswa_sd", $get_daftar_ulang->id_siswa_sd);
+					$this->mymodel->update("status_daftar_ulang_sd", array("va_bri" => $va_number), "id_daftar_ulang", $id);
+				}
+				if ($bank_aktif != 'BNI') {
 				//get no briva
 				$get_setting = $this->mymodel->getall("pengaturan_akun");
 				$tipe_tagihan = $this->input->post('tipe_tagihan');
@@ -312,6 +329,7 @@ class Status_daftar_ulang_sd extends Admin
 
 				$this->mymodel->update("siswa_sd", array("va_number_bri" => $res_data['brivaNo'] . $res_data['custCode']), "id_siswa_sd", $get_daftar_ulang->id_siswa_sd);
 				$this->mymodel->update("status_daftar_ulang_sd", array("va_bri" => $res_data['brivaNo'] . $res_data['custCode']), "id_daftar_ulang", $id);
+				} //end if ($bank_aktif != 'BNI')
 
 
 				// $this->mymodel->update("siswa_sd", array("va_number_bri" => $va_number), "id_siswa_sd", $get_daftar_ulang->id_siswa_sd);
@@ -319,7 +337,7 @@ class Status_daftar_ulang_sd extends Admin
 
 				$data_transaksi = array(
 					"no_transaksi" => $no_transaksi,
-					"nama_bank" => "BRI",
+					"nama_bank" => ($bank_aktif == 'BNI' ? 'BNI' : 'BRI'),
 					"user_email" => $get_siswa->email,
 					"va_number" => $va_number,
 					"user_name" => $get_siswa->nama_lengkap,
@@ -545,6 +563,23 @@ class Status_daftar_ulang_sd extends Admin
 			// $brivaNo='77777';
 			// $brivaNo = '88888';
 
+			//flag bank aktif alur Daftar Ulang SD (rollback cepat: value 'bank_daftar_ulang_sd' di pengaturan_akun)
+			$bank_aktif = $this->_bank_daftar_ulang_sd();
+			if ($bank_aktif == 'BNI') {
+				$tipe_tagihan = (!empty($this->input->get('tipe_tagihan'))) ? 'open' : 'fixed';
+				$bni = $this->_bni_va_daftar_ulang($get_siswa, $no_transaksi, $total_biaya);
+				if (!$bni['ok']) {
+					$this->data['success'] = false;
+					$this->data['message'] = $bni['message'];
+					echo json_encode($this->data);
+					exit;
+				}
+				$va_number = $bni['va_number'];
+				$date_va = $bni['date_va'];
+				$this->mymodel->update("siswa_sd", array("va_number" => $va_number), "id_siswa_sd", $get_daftar_ulang->id_siswa_sd);
+				$this->mymodel->update("status_daftar_ulang_sd", array("va_bri" => $va_number), "id_daftar_ulang", $id);
+			}
+			if ($bank_aktif != 'BNI') {
 			//get no briva
 			$get_setting = $this->mymodel->getall("pengaturan_akun");
 			$tipe_tagihan = (!empty($this->input->get('tipe_tagihan'))) ? 'open' : 'fixed';
@@ -624,13 +659,14 @@ class Status_daftar_ulang_sd extends Admin
 
 			$this->mymodel->update("siswa_sd", array("va_number_bri" => $res_data['brivaNo'] . $res_data['custCode']), "id_siswa_sd", $get_daftar_ulang->id_siswa_sd);
 			$this->mymodel->update("status_daftar_ulang_sd", array("va_bri" => $res_data['brivaNo'] . $res_data['custCode']), "id_daftar_ulang", $id);
+			} //end if ($bank_aktif != 'BNI')
 
 			// $this->mymodel->update("siswa_sd", array("va_number_bri" => $va_number), "id_siswa_sd", $get_daftar_ulang->id_siswa_sd);
 			// $this->mymodel->update("status_daftar_ulang_sd", array("va_bri" => $va_number), "id_daftar_ulang", $id);
 
 			$data_transaksi = array(
 				"no_transaksi" => $no_transaksi,
-				"nama_bank" => "BRI", //$this->input->post('nama_bank'),
+				"nama_bank" => ($bank_aktif == 'BNI' ? 'BNI' : 'BRI'), //$this->input->post('nama_bank'),
 				"user_email" => $get_siswa->email,
 				"va_number" => $va_number,
 				"user_name" => $get_siswa->nama_lengkap,
@@ -732,7 +768,22 @@ class Status_daftar_ulang_sd extends Admin
 			$no_transaksi = "LDUI-SD-" . date("YmdHis") . "-" . $get_daftar_ulang->id_siswa_sd;
 
 			// Cek/Generate VA
+			//flag bank aktif alur Daftar Ulang SD (rollback cepat: value 'bank_daftar_ulang_sd' di pengaturan_akun)
+			$bank_aktif = $this->_bank_daftar_ulang_sd();
+			if ($bank_aktif == 'BNI') {
+				$bni = $this->_bni_va_daftar_ulang($get_siswa, $no_transaksi, $total_biaya);
+				if (!$bni['ok']) {
+					echo json_encode(array('success' => false, 'message' => $bni['message']));
+					exit;
+				}
+				$va_number = $bni['va_number'];
+				$full_va = $va_number;
+				$date_va = $bni['date_va'];
+				$this->mymodel->update("siswa_sd", array("va_number" => $va_number, "no_transaksi" => $no_transaksi), "id_siswa_sd", $get_daftar_ulang->id_siswa_sd);
+				$this->mymodel->update("status_daftar_ulang_sd", array("va_bri" => $va_number), "id_daftar_ulang", $id);
+			}
 			$tipe_tagihan = $get_daftar_ulang->tipe_tagihan;
+			if ($bank_aktif != 'BNI') {
 			if (!empty($get_siswa->va_number_bri)) {
 				$va_number = $get_siswa->va_number_bri;
 			} else {
@@ -792,11 +843,12 @@ class Status_daftar_ulang_sd extends Admin
 				"va_bri" => $full_va,
 				"slip_pembayaran" => $no_transaksi . '-' . $get_siswa->nama_lengkap . '.pdf'
 			], "id_daftar_ulang", $id);
+			} //end if ($bank_aktif != 'BNI')
 
 			// Transaksi
 			$data_transaksi = [
 				"no_transaksi" => $no_transaksi,
-				"nama_bank" => "BRI",
+				"nama_bank" => ($bank_aktif == 'BNI' ? 'BNI' : 'BRI'),
 				"user_email" => $get_siswa->email,
 				"va_number" => $va_number,
 				"user_name" => $get_siswa->nama_lengkap,
@@ -908,6 +960,30 @@ class Status_daftar_ulang_sd extends Admin
 			if ($item->name == 'id[]') {
 				$ids[] = $item->value;
 			}
+		}
+
+		//flag bank aktif alur Daftar Ulang SD (rollback cepat: value 'bank_daftar_ulang_sd' di pengaturan_akun)
+		$bank_aktif = $this->_bank_daftar_ulang_sd();
+		if ($bank_aktif == 'BNI') {
+			// BNI: buat ulang billing dgn masa aktif terkini (createbilling menimpa billing VA sama)
+			foreach ($ids as $key => $i) {
+				$get_daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_sd", "id_daftar_ulang", $i, "row");
+				if (empty($get_daftar_ulang)) { continue; }
+				$get_siswa = $this->mymodel->getbywhere("siswa_sd", "id_siswa_sd", $get_daftar_ulang->id_siswa_sd, "row");
+				if (empty($get_siswa)) { continue; }
+				$get_transaksi = $this->mymodel->getbywhere("transaksi", "va_number", $get_daftar_ulang->va_bri, "row");
+				if (empty($get_transaksi)) { continue; }
+				$bni = $this->_bni_va_daftar_ulang($get_siswa, $get_transaksi->no_transaksi, $get_transaksi->total_biaya);
+				if (!$bni['ok']) {
+					$this->load->library("session");
+					$this->session->set_flashdata('error', $bni['message']);
+					redirect($_SERVER['HTTP_REFERER']);
+				}
+				$this->mymodel->update('transaksi', array('expired_datetime' => date("Y-m-d H:i:s", strtotime("+" . $bni['date_va'] . " hours"))), 'id_transaksi', $get_transaksi->id_transaksi);
+			}
+			$this->load->library("session");
+			$this->session->set_flashdata('success', 'Update Expired Date Berhasil (BNI)');
+			redirect($_SERVER['HTTP_REFERER']);
 		}
 
 		foreach ($ids as $key => $i) {
@@ -1036,6 +1112,68 @@ class Status_daftar_ulang_sd extends Admin
 		$this->pdf->pdf->SetDisplayMode('fullpage');
 		$this->pdf->writeHTML($content);
 		$this->pdf->Output($table . '.pdf', 'H');
+	}
+
+	/**
+	 * Baca flag bank aktif alur Daftar Ulang SD (rollback cepat: value 'bank_daftar_ulang_sd'
+	 * di pengaturan_akun; 'BRI' = perilaku lama, 'BNI' = VA BNI eCollection).
+	 */
+	private function _bank_daftar_ulang_sd()
+	{
+		$bank_aktif = 'BRI';
+		foreach ($this->mymodel->getall("pengaturan_akun") as $value) {
+			if ($value->name_setting == "bank_daftar_ulang_sd") {
+				$bank_aktif = strtoupper($value->value);
+			}
+		}
+		return $bank_aktif;
+	}
+
+	/**
+	 * Buat VA BNI utk tagihan daftar ulang SD.
+	 * Pakai VA BNI PSB siswa (siswa_sd.va_number) bila sudah ada, bila belum generate baru (kode 01).
+	 * Return array: ok(bool), va_number, date_va (jam), message.
+	 */
+	private function _bni_va_daftar_ulang($get_siswa, $no_transaksi, $total_biaya)
+	{
+		$client_id = '';
+		$prefix = '';
+		foreach ($this->mymodel->getall("pengaturan_akun") as $value) {
+			if ($value->name_setting == "bni_client_id") {
+				$client_id = $value->value;
+			}
+			if ($value->name_setting == "bni_prefix") {
+				$prefix = $value->value;
+			}
+		}
+		if (!empty($get_siswa->va_number)) {
+			$va_number = $get_siswa->va_number;
+		} else {
+			$prefix_cari = $prefix . $client_id . date('y', strtotime('+1 years')) . "01";
+			$get_no_urut = $this->mymodel->withquery("select va_number, id_siswa_sd as id_siswa from siswa_sd where va_number like '" . $prefix_cari . "%' and va_number != '' and is_mutasi = '2' order by id_siswa_sd DESC", "row");
+			if (empty($get_no_urut)) {
+				$no_urut = "0001";
+			} else {
+				$no_urut = (int) substr($get_no_urut->va_number, -4);
+				$no_urut = $no_urut + 1;
+				$no_urut = sprintf("%04d", $no_urut);
+			}
+			$va_number = $prefix_cari . $no_urut;
+		}
+		// masa aktif VA (jam) — label 'daftar_ulang' di pengaturan_masa_aktif_va
+		$date_va = 24;
+		foreach ($this->mymodel->getall("pengaturan_masa_aktif_va") as $item) {
+			if ($item->label == 'daftar_ulang') {
+				$date_va = ($item->tipe_date == 'day') ? ($item->value * 24) : $item->value;
+				break;
+			}
+		}
+		$payment_response = $this->create_billing(ENVIRONMENT, $total_biaya, $no_transaksi, array("nama" => $get_siswa->nama_lengkap, "email" => $get_siswa->email, "va_number" => $va_number));
+		if (empty($payment_response['virtual_account'])) {
+			$this->mymodel->insertid("error_log_bni", array("status" => isset($payment_response['status']) ? $payment_response['status'] : '', "message" => isset($payment_response['message']) ? $payment_response['message'] : '', "va_number" => $va_number));
+			return array('ok' => false, 'va_number' => $va_number, 'date_va' => $date_va, 'message' => 'Terjadi Kesalahan Ketika Pembuatan VA BNI');
+		}
+		return array('ok' => true, 'va_number' => $payment_response['virtual_account'], 'date_va' => $date_va, 'message' => '');
 	}
 
 	function create_va_bri($datas)
