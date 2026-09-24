@@ -55,8 +55,14 @@ beda hanya scope jenjang.
 `jadwal_ujian_{ft,sd,smp,sma}`, `ujian_mapel`, `ujian_ruang`, `nilai_raport_{ft,sma,smp}`
 
 **Keuangan:**
-`spp_{ft,sd,smp,sma}`, `transaksi`, `transaksi_spp`, `transaksi_lain_*`, `trans_bri`,
+`spp_{ft,sd,smp,sma,kb,tk}`, `transaksi`, `transaksi_spp`, `transaksi_lain_*`, `trans_bri`,
 `trans_bri_open`, `payment_response_bri`, `program_anggaran` (+ `_sd`/`_sma`/`_smp`)
+
+**SPP KB/TK** (VA BNI, `bni_client_id_spp`, kode VA **KB=80, TK=81**): generate manual
+bulk via modul spp_kb/tk (tombol Generate SPP) atau API `Generate_all_tagihan` +
+`Create_tagihan`; push payment via `Payment_notification_spp` (map `Spp_payment_detail`).
+**Utang teknis**: `keuangan_dashboard_spp` (whitelist 'SD','SMP','SMA','FT' di controller
+aging_detail + model branch UNION + mapping kelas) belum mencakup KB/TK.
 
 **PSB (Penerimaan Siswa Baru):**
 `biaya_pendaftaran`, `ketentuan_pendaftaran_*`, `status_daftar_ulang_{ft,sd,smp,sma}` (+
