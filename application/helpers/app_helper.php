@@ -1432,3 +1432,27 @@ if(!function_exists('cek')) {
 		}
 	}
 }
+/**
+ * Validasi usia (tahun penuh saat ini) terhadap rentang usia_min/usia_max tingkatan KB/TK.
+ * Sumber logika: Siswa_kb::_cek_usia (modul admin) — dipakai bersama endpoint publik PSB KB/TK.
+ * Return TRUE bila lolos.
+ */
+if (!function_exists('psb_cek_usia')) {
+	function psb_cek_usia($tgl_lahir, $usia_min, $usia_max)
+	{
+		if (empty($tgl_lahir)) {
+			return false;
+		}
+		$usia = date('Y') - date('Y', strtotime($tgl_lahir));
+		if (date('md', strtotime($tgl_lahir)) > date('md')) {
+			$usia = $usia - 1;
+		}
+		if ($usia_min !== null && $usia_min !== '' && $usia < (int) $usia_min) {
+			return false;
+		}
+		if ($usia_max !== null && $usia_max !== '' && $usia > (int) $usia_max) {
+			return false;
+		}
+		return true;
+	}
+}

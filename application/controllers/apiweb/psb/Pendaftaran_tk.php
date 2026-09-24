@@ -6,30 +6,26 @@ date_default_timezone_set('Asia/Jakarta');
 
 defined('BASEPATH') OR exit('No direct script access allowed');
 //require APPPATH . '/libraries/REST_Controller.php';
-require FCPATH . '/application/controllers/apiapp/phpmailer/PHPMailerAutoload.php';
+require FCPATH . '/application/controllers/phpmailer/PHPMailerAutoload.php';
 ob_start();
 
-class Pendaftaran_sd extends REST_Controller {
+class Pendaftaran_tk extends REST_Controller {
+
     function __construct()
     {
         parent::__construct();
     }
 
     public function cek_notelp($nohp){
-          if(!preg_match("/[^+0-9]/",trim($nohp))){
-              // cek apakah no hp karakter ke 1 dan 2 adalah angka 62
-          if(substr(trim($nohp), 0, 2)=="62"){
-              $hp    =trim($nohp);
-          }
-              // cek apakah no hp karakter ke 1 adalah angka 0
-          else if(substr(trim($nohp), 0, 1)=="0"){
-              $hp    ="62".substr(trim($nohp), 1);
-          }
-          else{
-            $hp    =trim($nohp);
-          }
-      }
-      return $hp;
+        $nohp = trim($nohp);
+        // hapus semua non-digit (spasi, dash, kurung, +)
+        $nohp = preg_replace('/[^0-9]/', '', $nohp);
+        if($nohp == '') return '';
+        // jika mulai 0 → asumsi lokal Indonesia → ganti 0 dengan 62
+        if(substr($nohp, 0, 1) == '0'){
+            $nohp = '62' . substr($nohp, 1);
+        }
+        return $nohp;
     }
 
     public function index_post()
@@ -46,17 +42,17 @@ class Pendaftaran_sd extends REST_Controller {
         $token_user = md5($this->post("email")." ".date("YmdHis"));
 
         //cek email
-        $cek_email = $this->mymodel->withquery("select id_siswa_sd from siswa_sd where email like '%".$this->db->escape_like_str($this->post("email"))."%'and nama_lengkap like '%".$this->db->escape_like_str($this->post("nama_lengkap"))."%' and tgl_lahir = '".date("Y-m-d", strtotime($this->post("tgl_lahir")))."' and is_show = 1","row");
+        $cek_email = $this->mymodel->withquery("select id_siswa_tk from siswa_tk where email like '%".$this->post("email")."%' and nama_lengkap like '%".$this->post("nama_lengkap")."%' and tgl_lahir = '".date("Y-m-d", strtotime($this->post("tgl_lahir")))."' and is_show = 1","row");
 
         if (empty($cek_email)) {
           $sekolah_asal = "";
           if ($this->post("sekolah_asal") > 0) {
-            $sekolah_asal = $this->mymodel->getbywhere("list_sekolah_tk", "id_list_sekolah_tk",$this->db->escape($this->post("sekolah_asal")),"row")->nama_sekolah;
-            if (!empty($this->post("sekolah_asal_lainnya"))) {
+            $sekolah_asal = $this->mymodel->withquery("select * from list_sekolah_tk where id_list_sekolah_tk = ".$this->post("sekolah_asal"),"row")->nama_sekolah;
+            if(!empty($this->post("sekolah_asal_lainnya"))){
               $sekolah_asal = $this->post("sekolah_asal_lainnya");
             }
           }
-          else if (!empty($this->post("sekolah_asal_lainnya"))) {
+          else if(!empty($this->post("sekolah_asal_lainnya"))){
             $sekolah_asal = $this->post("sekolah_asal_lainnya");
           }
           else{
@@ -89,19 +85,22 @@ class Pendaftaran_sd extends REST_Controller {
             $pekerjaan_ibu = $this->post("pekerjaan_ibu");
           }
           $notelp_ibu = $this->cek_notelp($this->post("notelp_ibu"));
-          $notelp_ayah = $this->cek_notelp($this->post("notelp_ayah")); 
+          $notelp_ayah = $this->cek_notelp($this->post("notelp_ayah"));
+          $gelombang = $this->mymodel->withquery("select gelombang from web_periode_daftar where periode_pendaftaran_mulai <= '".date("Y-m-d H:i:s")."' and periode_pendaftaran_selesai >= '".date("Y-m-d H:i:s")."' and kelas = 'TK' ","row")->gelombang;
+          $tahun_ajaran_aktif = $this->mymodel->withquery("select * from tahun_ajaran_psb where id = '1'","row")->label;
           $data = array(
-            "nama_lengkap" => ucwords(strtolower($this->post("nama_lengkap"))),
+            "nama_lengkap" => trim(ucwords(strtolower($this->post("nama_lengkap"))), " "),
             "email" => $this->post("email"),
             "token" => $token_user,
             "nik" => $this->post("nik"),
-            //"nisn" => $this->post("nisn"),
+            "tahun_ajaran" => $tahun_ajaran_aktif,
+            "gelombang" => $gelombang,
             "tempat_lahir" => $this->post("tempat_lahir"),
             "tgl_lahir" => date("Y-m-d",strtotime($this->post("tgl_lahir"))),
             "jenis_kelamin" => $this->post("jenis_kelamin"),
             "agama" => $this->post("agama"),
             "nama_ibu" => $this->post("nama_ibu"),
-            "nama_ayah" => $this->post("nama_ayah"),
+            "nama_ayah" => $this->input->post('nama_ayah'),
             "notelp_ibu" => $notelp_ibu,
             "notelp_ayah" => $notelp_ayah,
             "pekerjaan_ibu" => $pekerjaan_ibu,
@@ -115,22 +114,18 @@ class Pendaftaran_sd extends REST_Controller {
             "sekolah_asal" => $sekolah_asal,
             "provinsi_sekolah" => $this->post("provinsi_sekolah"),
             "kota_sekolah" => $this->post("kota_sekolah"),
-            "kecamatan_sekolah" => $this->post("kecamatan_sekolah"),
-            "kelurahan_sekolah" => $this->post("kelurahan_sekolah"),
+            "kecamatan_sekolah" => empty($this->post("kecamatan_sekolah")) ? null : $this->post("kecamatan_sekolah"),
+            "kelurahan_sekolah" => empty($this->post("kelurahan_sekolah")) ? null : $this->post("kelurahan_sekolah"),
             "sumber_informasi" => $this->post("sumber_informasi"),
             "alasan_tertarik" => $this->post("alasan_tertarik"),
             "status_lulus" => 1,
             "token_expired" => date("Y-m-d H:i:s", strtotime("+3 days")),
-            "is_mutasi" => 1
+            "id_tingkatan" => $id_tingkatan_post,
+            "is_mutasi" => 2
           );
 
           if (!empty($this->post('nisn'))) {
             $data['nisn'] = $this->post("nisn");
-          }
-          else{
-            $msg = array('success'=>0,'message'=>'NISN wajib diisi','data'=>[]);
-            $this->response($msg,'200');
-            return;
           }
           if (!empty($this->post('npsn'))) {
             $data['npsn'] = $this->post("npsn");
@@ -138,14 +133,14 @@ class Pendaftaran_sd extends REST_Controller {
           
           $cek_tgl_lahir = $this->mymodel->getbywhere("pengaturan_tanggal_lahir","jenjang","sd","row");
 
-          if($cek_tgl_lahir->date<date("Y-m-d",strtotime($this->post("tgl_lahir")))) {
-            $msg = array('success'=>0,'message'=>'Umur belum memenuhi syarat maksimal pendaftaran','data'=>[]);
+          if($cek_tgl_lahir->date<date("Y-m-d",strtotime($this->post("tgl_lahir")))){
+            $msg = array('success'=>0,'message'=>'Umur belum memenuhi syarat minimal pendaftaran','data'=>[]);
                 $this->response($msg,'200');
           }
 
           //foto peserta
           if (!empty($_FILES['foto_peserta']['name'])) {
-            $uploaddir = './uploads/siswa_sd/';
+            $uploaddir = './uploads/siswa_tk/'; if(!is_dir($uploaddir)){ mkdir($uploaddir, 0777); }
             $img = explode('.', $_FILES['foto_peserta']['name']);
             $extension = end($img);
             if($extension!='jpg' && $extension!='png' && $extension!='jpeg'){
@@ -168,7 +163,7 @@ class Pendaftaran_sd extends REST_Controller {
           }
           //foto akte lahir
           if (!empty($_FILES['akte_lahir']['name'])) {
-            $uploaddir = './uploads/siswa_sd/';
+            $uploaddir = './uploads/siswa_tk/'; if(!is_dir($uploaddir)){ mkdir($uploaddir, 0777); }
             $img = explode('.', $_FILES['akte_lahir']['name']);
             $extension = end($img);
             $file_name =  md5(date('y-m-d h:i:s').$_FILES['akte_lahir']['name']).".".$extension;
@@ -187,7 +182,7 @@ class Pendaftaran_sd extends REST_Controller {
           }
           //foto kartu keluarga
           if (!empty($_FILES['kartu_keluarga']['name'])) {
-            $uploaddir = './uploads/siswa_sd/';
+            $uploaddir = './uploads/siswa_tk/'; if(!is_dir($uploaddir)){ mkdir($uploaddir, 0777); }
             $img = explode('.', $_FILES['kartu_keluarga']['name']);
             $extension = end($img);
             $file_name =  md5(date('y-m-d h:i:s').$_FILES['kartu_keluarga']['name']).".".$extension;
@@ -205,14 +200,38 @@ class Pendaftaran_sd extends REST_Controller {
             $this->response($msg,'200');
           }
 
-          if (!empty($data)) {
-            $id_siswa = $this->mymodel->insertid("siswa_sd",$data);
+          //cek email duplicate
+          $cek_email = $this->mymodel->withquery("select id_siswa_tk from siswa_tk where email like '%".$this->post("email")."%' and nama_lengkap like '%".$this->post("nama_lengkap")."%' and tgl_lahir = '".date("Y-m-d", strtotime($this->post("tgl_lahir")))."' and is_show = 1","row");
+          if(!empty($cek_email)){
+            $msg = array('status' => 0, 'message'=>'Email "'.$this->post('email').'" sudah digunakan, silahkan menggunakan email lain.' ,'data'=>$cek_email, 'data_raport' => array(), 'transaksi' => array());
+            $status="200";
+            exit;
+          }
+          //validasi tingkatan & usia (KB)
+          $id_tingkatan_post = (int) $this->post("id_tingkatan");
+          if (empty($id_tingkatan_post)) {
+            $msg = array('status' => 0, 'message' => 'Tingkatan wajib dipilih', 'data' => array(), 'transaksi' => array());
+            $this->response($msg, '200');
+          }
+          $get_tingkatan_tk = $this->mymodel->getbywhere("tingkatan_tk", "id_tingkatan_tk", $id_tingkatan_post, "row");
+          if (empty($get_tingkatan_tk)) {
+            $msg = array('status' => 0, 'message' => 'Tingkatan tidak ditemukan', 'data' => array(), 'transaksi' => array());
+            $this->response($msg, '200');
+          }
+          if (!psb_cek_usia($this->post("tgl_lahir"), $get_tingkatan_tk->usia_min, $get_tingkatan_tk->usia_max)) {
+            $msg = array('status' => 0, 'message' => 'Usia calon siswa tidak sesuai dengan tingkatan ' . $get_tingkatan_tk->label, 'data' => array(), 'transaksi' => array());
+            $this->response($msg, '200');
+          }
+
+          if (!empty($data) && empty($cek_email)) {
+            $id_siswa = $this->mymodel->insertid("siswa_tk",$data);
+            //echo $this->db->last_query();
             if (!empty($id_siswa)) {
               $data['id_siswa'] = $id_siswa;
               //insert transaksi
-              $no_transaksi = "LI-SD-".date("Ymd")."-".$id_siswa;
+              $no_transaksi = "LI-TK-".date("Ymd")."-".$id_siswa;
               //get biaya pendaftaran
-              $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","SD","row");
+              $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","TK","row");
               $total_biaya = $get_biaya->nominal_pendaftaran; //+ $get_biaya->nominal_daftar_ulang;
               $data_transaksi = array(
                 "no_transaksi" => $no_transaksi,
@@ -220,7 +239,7 @@ class Pendaftaran_sd extends REST_Controller {
                 "user_email" => $this->post('email'),
                 "user_name" => $this->post('nama_lengkap'),
                 "user_phone" => "",
-                "description" => "Tagihan Pendaftaran SD a.n ".strtoupper($this->post('nama_lengkap')),
+                "description" => "Tagihan Pendaftaran TK a.n ".strtoupper($this->post('nama_lengkap')),
                 "id_biaya_pendaftaran" => $get_biaya->id_biaya_pendaftaran,
                 "total_biaya" => $total_biaya,
                 "status_transaksi" => "0",
@@ -230,155 +249,62 @@ class Pendaftaran_sd extends REST_Controller {
               if (!empty($data_transaksi)) {
                 $data['expired_datetime'] = $data_transaksi['expired_datetime'];
                 //create billing
-                //flag bank aktif alur Mutasi SD kanal website (rollback cepat: value 'bank_mutasi_sd' di pengaturan_akun ke 'BRI')
-                $bank_aktif = 'BRI';
+                                //create billing VA BNI eCollection (kode 12 = TK) — jenjang baru, langsung BNI tanpa flag BRI
                 $client_id = '';
                 $prefix = '';
-                $get_flag = $this->mymodel->getall("pengaturan_akun");
-                foreach ($get_flag as $key => $value) {
-                  if ($value->name_setting == "bank_mutasi_sd") {
-                    $bank_aktif = strtoupper($value->value);
-                  }
-                }
-                if ($bank_aktif == 'BNI') {
-                  //VA BNI (kode 01 = SD/mutasi)
-                  foreach ($get_flag as $key => $value) {
-                    if ($value->name_setting == "bni_client_id") {
-                      $client_id = $value->value;
-                    }
-                    if ($value->name_setting == "bni_prefix") {
-                      $prefix = $value->value;
-                    }
-                  }
-                  $prefix_cari = $prefix . $client_id . date('y', strtotime('+1 years')) . "01";
-                  $get_no_urut_bni = $this->mymodel->withquery("select va_number, id_siswa_sd as id_siswa from siswa_sd where va_number like '" . $prefix_cari . "%' and va_number != '' and is_mutasi = '1' order by id_siswa_sd DESC", "row");
-                  if (empty($get_no_urut_bni)) {
-                    $no_urut = "0001";
-                  } else {
-                    $no_urut = (int) substr($get_no_urut_bni->va_number, -4);
-                    $no_urut = $no_urut + 1;
-                    $no_urut = sprintf("%04d", $no_urut);
-                  }
-                  $va_number_bni = $prefix_cari . $no_urut;
-                  $payment_response = $this->create_billing(ENVIRONMENT, $total_biaya, $no_transaksi, array("nama" => $this->post('nama_lengkap'), "email" => $this->post('email'), "va_number" => $va_number_bni));
-                  if (empty($payment_response['virtual_account'])) {
-                    $this->mymodel->insertid("error_log_bni", array("status" => isset($payment_response['status']) ? $payment_response['status'] : '', "message" => isset($payment_response['message']) ? $payment_response['message'] : '', "va_number" => $va_number_bni));
-                    $msg = array('status' => 0, 'message' => 'Terjadi Kesalahan Ketika Pembuatan VA', 'data' => array(), 'transaksi' => array());
-                    $this->response($msg, '200');
-                  }
-                  $data_transaksi['nama_bank'] = 'BNI';
-                  $data_transaksi['va_number'] = $payment_response['virtual_account'];
-                  $id_transaksi = $this->mymodel->insertid("transaksi", $data_transaksi);
-                  $this->mymodel->update("siswa_sd", array("no_transaksi" => $no_transaksi, "va_number" => $payment_response['virtual_account']), "id_siswa_sd", $id_siswa);
-                  $res_data = $payment_response;
-                }
-                if ($bank_aktif != 'BNI') {
-                //get prefix client ID for VA
-                #####
-                // $get_setting = $this->mymodel->getall("pengaturan_akun");
-                // foreach ($get_setting as $key => $value) {
-                //   if ($value->name_setting == "bni_client_id") {
-                //     $client_id = $value->value;
-                //   }
-                //   if ($value->name_setting == "bni_prefix") {
-                //     $prefix = $value->value;
-                //   }
-                // }
-                #####
-                //get no briva
                 $get_setting = $this->mymodel->getall("pengaturan_akun");
                 foreach ($get_setting as $key => $value) {
-                  if (ENVIRONMENT == "production") {
-                    if ($value->name_setting == "bri_no_briva_prod_close") {
-                      $brivaNo = $value->value;
-                    }
-                  } else if (ENVIRONMENT == "development" || ENVIRONMENT == "testing") {
-                    if ($value->name_setting == "bri_no_briva_dev_close") {
-                      $brivaNo = $value->value;
-                    }
+                  if ($value->name_setting == "bni_client_id") {
+                    $client_id = $value->value;
+                  }
+                  if ($value->name_setting == "bni_prefix") {
+                    $prefix = $value->value;
                   }
                 }
-                $get_no_urut = $this->mymodel->withquery("select va_number_bri, id_siswa_sd as id_siswa from siswa_sd where va_number_bri like '".$this->db->escape_like_str($brivaNo.date('y', strtotime('+1 years')))."01%' and va_number_bri != '' and is_mutasi = '1' order by id_siswa_sd DESC","row");
+                $prefix_cari = $prefix . $client_id . date('y', strtotime('+1 years')) . "12";
+                $get_no_urut = $this->mymodel->withquery("select va_number, id_siswa_tk as id_siswa from siswa_tk where va_number like '" . $prefix_cari . "%' and va_number != '' and is_mutasi = '2' order by id_siswa_tk DESC", "row");
                 if (empty($get_no_urut)) {
-                  //$no_urut = "0001";
-                  $no_urut = $no_urut = rand(1000,9999);
+                  $no_urut = "0001";
+                } else {
+                  $no_urut = (int) substr($get_no_urut->va_number, -4);
+                  $no_urut = $no_urut + 1;
+                  $no_urut = sprintf("%04d", $no_urut);
                 }
-                else{
-                  $no_urut = (int)substr($get_no_urut->va_number_bri, -4);
-                  $no_urut = $no_urut+1;
-                  //$no_urut = sprintf("%04d", $no_urut);
-                  $no_urut = $no_urut = rand(1000,9999);
+                $va_number_bni = $prefix_cari . $no_urut;
+                $payment_response = $this->create_billing(ENVIRONMENT, $total_biaya, $no_transaksi, array("nama" => $this->post('nama_lengkap'), "email" => $this->post('email'), "va_number" => $va_number_bni));
+                if (empty($payment_response['virtual_account'])) {
+                  $this->mymodel->insertid("error_log_bni", array("status" => isset($payment_response['status']) ? $payment_response['status'] : '', "message" => isset($payment_response['message']) ? $payment_response['message'] : '', "va_number" => $va_number_bni));
+                  $msg = array('status' => 0, 'message' => 'Terjadi Kesalahan Ketika Pembuatan VA', 'data' => array(), 'transaksi' => array());
+                  $this->response($msg, '200');
                 }
-                // $va_number = $prefix.$client_id.date("y", strtotime('+1 years'))."01".$no_urut;
-                #####
-                $va_number_bri = $brivaNo . date("y", strtotime('+1 years')) . "01" . $no_urut;
-                #####
-                //$va_number = "98816113"."10".date("y", strtotime('+1 years')).$no_urut;
-                //$va_number = "98800299"."10".date("y", strtotime('+1 years')).$no_urut;
+                $data_transaksi['nama_bank'] = 'BNI';
+                $data_transaksi['va_number'] = $payment_response['virtual_account'];
+                $id_transaksi = $this->mymodel->insertid("transaksi", $data_transaksi);
+                $this->mymodel->update("siswa_tk", array("no_transaksi" => $no_transaksi, "va_number" => $payment_response['virtual_account']), "id_siswa_tk", $id_siswa);
+                $res_data = $payment_response;
 
-                #####
-                // $payment_response = $this->create_billing(ENVIRONMENT, $total_biaya, $no_transaksi, array("nama" => $this->db->escape($this->post('nama_lengkap')), "email" => $this->db->escape($this->post('email')), "va_number" => $va_number ));
-                // $data['payment_respon']=$payment_response;
-                #####
-                $datas = array(
-                  'brivaNo' => $brivaNo,
-                  'custCode' => substr($va_number_bri, 5),
-                  'nama' => $data['nama_lengkap'],
-                  'amount' => $total_biaya,
-                  'keterangan' => 'Pembayaran Pendaftaran SD',
-                  'expiredDate' => date("Y-m-d H:i:s", strtotime("+3 days"))
-                );
-        
-                $payment_response = $this->create_va_bri($datas);
-
-                #####
-                // if(!$payment_response['virtual_account']){
-                //   $msg = array('status' => 0, 'message'=>'Terjadi Kesalahan Ketika Pembuatan VA' ,'data'=>array());
-                //   $status="200";
-                //   $this->mymodel->insertid("error_log_bni",array("status"=>$payment_response['status'],"message"=>$payment_response['message'],"va_number"=>$va_number));
-                //   $this->response($msg,$status);
-                // }
-                // $data_transaksi['va_number'] = $payment_response['virtual_account'];  
-                #####
-
-                if ($payment_response['responseCode'] != '00') {
-                  $this->data['success'] = false;
-                  $this->data['message'] = $payment_response['errDesc'];
-                  echo json_encode($this->data);
-                  exit;
-                }
-                $res_data = $payment_response['data'];
-                
-                // create transaksi
-                #####
-                // $id_transaksi = $this->mymodel->insertid("transaksi",$data_transaksi);
-                #####
-                $data_transaksi['va_number'] = $va_number_bri;
-                $id_transaksi = $this->mymodel->insertid("transaksi",$data_transaksi);
-                $this->mymodel->update("siswa_sd", array("no_transaksi" => $no_transaksi, "va_number_bri" => $va_number_bri), "id_siswa_sd", $id_siswa);
-                } //end if ($bank_aktif != 'BNI')
-                $this->cetak_slip(array("id_siswa" => $id_siswa, "tipe_siswa" => "sd"));
+                //$this->cetak_slip(array("id_siswa" => $id_siswa, "tipe_siswa" => "sd"));
                 $get_transaksi = $this->mymodel->withquery("select id_transaksi, no_transaksi, va_number, nama_bank, total_biaya, expired_datetime from transaksi where id_transaksi = '".$id_transaksi."'","row");
                 //kirim email slip pembayaran
                 $data_email = array(
                   "email" => $this->post("email"),
                   "nama_lengkap" => $this->post("nama_lengkap"),
                   "tipe_pendaftaran" => "PSB SD",
-                  "jenjang" => "SD",
+                  "jenjang" => "TK",
                   "transaksi" => $get_transaksi,
-                  "nama_panitia" => "Panitia PSB SD Labschool Cibubur ".date("Y", strtotime("+1 years"))."-".date("Y", strtotime("+2 years")),
+                  "nama_panitia" => "Panitia PSB TK Labschool Cibubur ".date("Y", strtotime("+1 years"))."-".date("Y", strtotime("+2 years")),
                   "slip_pembayaran" => $no_transaksi.'-'.$this->post("nama_lengkap").'.pdf',
                 );
                 $this->send_email_file("",$data_email['email'],$data_email);
               }
               #####
-              // $msg = array('status' => 1, 'message'=>'Berhasil melakukan pendaftaran' ,'data'=>$data, 'transaksi' => $data_transaksi );
+              //$msg = array('status' => 1, 'message'=>'Berhasil melakukan pendaftaran' ,'data'=>$data, 'transaksi' => $data_transaksi );
               #####
               $msg = array('status' => 1, 'message'=>'Berhasil melakukan pendaftaran' ,'data'=>$data, 'transaksi' => $res_data );
               $status="200";
             }
             else{
-              $msg = array('status' => 0, 'message'=>'Form tidak diisi sesuai permintaan' ,'data'=>array(), 'transaksi' => array() );
+              $msg = array('status' => 0, 'message'=>'Form tidak diisi sesuai permintaan, silahkan coba lagi ' ,'data'=>$data, 'transaksi' => array() );
               $status="200";
             }
           }
@@ -392,7 +318,7 @@ class Pendaftaran_sd extends REST_Controller {
           $msg = array('status' => 0, 'message'=>'Email siswa sudah terdaftar' ,'data'=>array());
           $status="200";
         }
-
+        
         $this->response($msg,$status);
     }
 
@@ -519,46 +445,6 @@ class Pendaftaran_sd extends REST_Controller {
         return($data_response);
       }
     }
-
-    function create_va_bri($datas)
-  {
-    $this->load->library('BriApi');
-
-    //get config bri key
-    $get_setting = $this->mymodel->getall("pengaturan_akun");
-    foreach ($get_setting as $key => $item) {
-      if (ENVIRONMENT == "development" || ENVIRONMENT == "testing") {
-        if ($item->name_setting == 'bri_dev_url') {
-          $url = $item->value;
-        }
-      } else if (ENVIRONMENT == 'production') {
-        if ($item->name_setting == 'bri_prod_url') {
-          $url = $item->value;
-        }
-      }
-      if ($item->name_setting == 'bri_client_id') {
-        $clientID = $item->value;
-      }
-      if ($item->name_setting == 'bri_client_secret') {
-        $clientSecret = $item->value;
-      }
-      if ($item->name_setting == 'bri_institution_code_close') {
-        $institutionCode = $item->value;
-      }
-    }
-
-    $endpoint     = $url . "oauth/client_credential/accesstoken?grant_type=client_credentials";
-
-    $data = array(
-      'brivaNo' => $datas['brivaNo'],
-      'expiredDate' => $datas['expiredDate'],
-      'custCode' => $datas['custCode'],
-      'nama' => $datas['nama'],
-      'amount' => $datas['amount'],
-      'keterangan' => $datas['keterangan']
-    );
-    return BriApi::create($clientID, $clientSecret, $endpoint, $institutionCode, $data, $url);
-  }
 
     function get_content($url, $post = '') {
       //$usecookie = __DIR__ . "/cookie.txt";
