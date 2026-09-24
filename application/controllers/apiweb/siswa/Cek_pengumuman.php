@@ -74,6 +74,22 @@ class Cek_pengumuman extends REST_Controller {
               $get_ucapan = $this->mymodel->getbywhere("pengumuman_ucapan","jenjang","SD","row");
             }
           }
+          if (!empty($tipe_siswa == "kb") && !empty($email) && !empty($tipe_siswa)) {
+            $data = $this->mymodel->withquery("select s.id_siswa_kb as id_siswa, s.email, s.nama_lengkap, s.va_number, s.no_peserta, s.sekolah_asal , s.status_lulus as status_lulus_int, st.status_lulus, s.foto_peserta from siswa_kb s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%".$email."%' and nama_lengkap like '%".$this->db->escape_like_str($nama_lengkap)."%' and tahun_ajaran ='".$tahun_ajaran."'  ","row");
+            if (!empty($data)) {
+              $data->tipe_siswa = "kb";
+              $data->label_tipe = "KB";
+              $get_ucapan = $this->mymodel->getbywhere("pengumuman_ucapan","jenjang","KB","row");
+            }
+          }
+          if (!empty($tipe_siswa == "tk") && !empty($email) && !empty($tipe_siswa)) {
+            $data = $this->mymodel->withquery("select s.id_siswa_tk as id_siswa, s.email, s.nama_lengkap, s.va_number, s.no_peserta, s.sekolah_asal , s.status_lulus as status_lulus_int, st.status_lulus, s.foto_peserta from siswa_tk s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%".$email."%' and nama_lengkap like '%".$this->db->escape_like_str($nama_lengkap)."%' and tahun_ajaran ='".$tahun_ajaran."'  ","row");
+            if (!empty($data)) {
+              $data->tipe_siswa = "tk";
+              $data->label_tipe = "TK";
+              $get_ucapan = $this->mymodel->getbywhere("pengumuman_ucapan","jenjang","TK","row");
+            }
+          }
           // echo $this->db->last_query();
         if (!empty($data)) {
           $get_judul = $this->mymodel->getbywhere("judul_kartu_sementara","jenjang",$tipe_siswa,"row");

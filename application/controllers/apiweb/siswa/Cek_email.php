@@ -59,6 +59,20 @@ class Cek_email extends REST_Controller {
           }
         }
 
+        if ($tipe_siswa == "kb" && !empty($email) && !empty($nama_lengkap)) {
+          $data = $this->mymodel->withquery("select s.id_siswa_kb as id_siswa, s.email, st.status_lulus from siswa_kb s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%".$this->db->escape_like_str($email)."%' and nama_lengkap like '%".$this->db->escape_like_str($nama_lengkap)."%' and is_show = 1","row");
+          if (!empty($data)) {
+            $data->tipe_siswa = "kb";
+          }
+        }
+
+        if ($tipe_siswa == "tk" && !empty($email) && !empty($nama_lengkap)) {
+          $data = $this->mymodel->withquery("select s.id_siswa_tk as id_siswa, s.email, st.status_lulus from siswa_tk s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%".$this->db->escape_like_str($email)."%' and nama_lengkap like '%".$this->db->escape_like_str($nama_lengkap)."%' and is_show = 1","row");
+          if (!empty($data)) {
+            $data->tipe_siswa = "tk";
+          }
+        }
+
         if (!empty($data) && !empty($tipe_siswa)) {
           $msg = array('status' => 0, 'message'=>'Email sudah terdaftar' ,'data'=>$data);
           $status="200";

@@ -207,6 +207,94 @@ class Cek_data extends REST_Controller
       }
     }
 
+    //kb
+    if ($jenjang=="kb" && !empty($email) && !empty($nama_lengkap)) {
+      $data = $this->mymodel->withquery("select s.id_siswa_kb as id_siswa, s.email, s.nama_lengkap, s.no_peserta, s.no_transaksi, st.status_lulus, s.no_peserta, s.foto_peserta, concat('2') as is_ppsbb from siswa_kb s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%" . $email . "%'
+       and nama_lengkap like '%" . $this->db->escape_like_str(str_replace("'", "\\'", $nama_lengkap)) . "%'
+       and is_show = 1", "row");
+      if (!empty($data)) {
+        $data->tipe_siswa = "kb";
+      }
+      $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".str_replace("'", "\\'", $data->no_transaksi)."' order by id_transaksi DESC", "row");
+      $trx_type = explode("-", $transaksi->no_transaksi);
+      $jenis_pembayaran = $trx_type[0];
+      $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_kb", "id_siswa_kb", $data->id_siswa, "row");
+      if (!empty($data) && $transaksi->status_transaksi == "1") {
+        if ($jenis_pembayaran == 'LDUI') {
+          $data->tipe_transaksi = 'daftar_ulang';
+          $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
+          $data->tgl_daftar_ulang = '';
+          if ($daftar_ulang->kwitansi != '') {
+            $data->kwitansi_daftar_ulang = base_url('uploads/kwitansi/') . $daftar_ulang->kwitansi;
+          }
+          if ($daftar_ulang->status == 2) {
+            $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
+          }
+        } else if ($jenis_pembayaran == 'LI') {
+          $data->tipe_transaksi = 'pendaftaran';
+          $data->jenis_kwitansi = 'UANG PENDAFTARAN';
+          if (empty($data->no_peserta)) {
+            $data->kartu_peserta = "";
+          } else {
+            $data->kartu_peserta = base_url('uploads/kartu_peserta/') . 'kb' . '-' . $data->no_peserta . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
+          }
+        }
+      } else if (!empty($data) && $transaksi->status_transaksi == "0") {
+        if ($jenis_pembayaran == 'LDUI') {
+          $data->tipe_transaksi = 'daftar_ulang';
+          $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
+          $data->tgl_daftar_ulang = '';
+        } else if ($jenis_pembayaran == 'LI') {
+          $data->tipe_transaksi = 'pendaftaran';
+          $data->jenis_kwitansi = 'UANG PENDAFTARAN';
+        }
+      }
+    }
+
+    //tk
+    if ($jenjang=="tk" && !empty($email) && !empty($nama_lengkap)) {
+      $data = $this->mymodel->withquery("select s.id_siswa_tk as id_siswa, s.email, s.nama_lengkap, s.no_peserta, s.no_transaksi, st.status_lulus, s.no_peserta, s.foto_peserta, concat('2') as is_ppsbb from siswa_tk s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%" . $email . "%'
+       and nama_lengkap like '%" . $this->db->escape_like_str(str_replace("'", "\\'", $nama_lengkap)) . "%'
+       and is_show = 1", "row");
+      if (!empty($data)) {
+        $data->tipe_siswa = "tk";
+      }
+      $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".str_replace("'", "\\'", $data->no_transaksi)."' order by id_transaksi DESC", "row");
+      $trx_type = explode("-", $transaksi->no_transaksi);
+      $jenis_pembayaran = $trx_type[0];
+      $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_tk", "id_siswa_tk", $data->id_siswa, "row");
+      if (!empty($data) && $transaksi->status_transaksi == "1") {
+        if ($jenis_pembayaran == 'LDUI') {
+          $data->tipe_transaksi = 'daftar_ulang';
+          $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
+          $data->tgl_daftar_ulang = '';
+          if ($daftar_ulang->kwitansi != '') {
+            $data->kwitansi_daftar_ulang = base_url('uploads/kwitansi/') . $daftar_ulang->kwitansi;
+          }
+          if ($daftar_ulang->status == 2) {
+            $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
+          }
+        } else if ($jenis_pembayaran == 'LI') {
+          $data->tipe_transaksi = 'pendaftaran';
+          $data->jenis_kwitansi = 'UANG PENDAFTARAN';
+          if (empty($data->no_peserta)) {
+            $data->kartu_peserta = "";
+          } else {
+            $data->kartu_peserta = base_url('uploads/kartu_peserta/') . 'tk' . '-' . $data->no_peserta . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
+          }
+        }
+      } else if (!empty($data) && $transaksi->status_transaksi == "0") {
+        if ($jenis_pembayaran == 'LDUI') {
+          $data->tipe_transaksi = 'daftar_ulang';
+          $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
+          $data->tgl_daftar_ulang = '';
+        } else if ($jenis_pembayaran == 'LI') {
+          $data->tipe_transaksi = 'pendaftaran';
+          $data->jenis_kwitansi = 'UANG PENDAFTARAN';
+        }
+      }
+    }
+
     if (!empty($data)) {
       if(!empty($data->foto_peserta)){
         $data->foto_peserta = base_url("uploads/siswa_".strtolower($jenjang)."/").$data->foto_peserta;

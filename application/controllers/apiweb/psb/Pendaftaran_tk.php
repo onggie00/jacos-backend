@@ -47,7 +47,8 @@ class Pendaftaran_tk extends REST_Controller {
         if (empty($cek_email)) {
           $sekolah_asal = "";
           if ($this->post("sekolah_asal") > 0) {
-            $sekolah_asal = $this->mymodel->withquery("select * from list_sekolah_tk where id_list_sekolah_tk = ".$this->post("sekolah_asal"),"row")->nama_sekolah;
+            $row_sekolah_asal = $this->mymodel->withquery("select * from list_sekolah_tk where id_list_sekolah_tk = ".$this->post("sekolah_asal"),"row");
+            $sekolah_asal = (isset($row_sekolah_asal->nama_sekolah)) ? $row_sekolah_asal->nama_sekolah : "";
             if(!empty($this->post("sekolah_asal_lainnya"))){
               $sekolah_asal = $this->post("sekolah_asal_lainnya");
             }

@@ -42,11 +42,16 @@ Banyak modul punya 4 varian jenjang dengan suffix yang sama:
 - Modul `status_daftar_ulang_kb/tk` & `spp_kb/tk`: BELUM ADA (out of scope saat ini).
 - **Utang teknis KB/TK** (diputuskan skip — siswa usia 2–6): `siswa_kb/tk_aktif_raport`,
   endpoint siswa-aktif app di **DUA kanal** — `apiapp/siswa/` dan `apiweb/siswa/`
-  (85 file, mirror; Mobile App tidak dipakai KB/TK) —, endpoint cetak di
+  (86 file; `apiweb/siswa/` = campuran fitur PSB & fitur app — cabang PSB-nya
+  (cek_data, cek_pengumuman, cek_email, cek_tanggal_lahir) SUDAH didukung kb/tk;
+  sisanya fitur app/pasca-pendaftaran tetap skip —, endpoint cetak di
   `apiweb_sec_db/`, `spp_kb/tk` di `keuangan_dashboard_spp` (lihat atas).
 - **PSB KB/TK publik**: endpoint website di `apiweb/psb/Pendaftaran_kb.php` &
   `Pendaftaran_tk.php` (VA BNI kode 11/12, validasi usia via helper `psb_cek_usia()`
-  di app_helper). Mobile App tidak punya alur pendaftaran (redirect ke website).
+  di app_helper; `sekolah_asal` OPSIONAL utk KB/TK). Mobile App tidak punya alur
+  pendaftaran (redirect ke website). Cek status/pengumuman via `apiweb/siswa/`
+  cek_data/cek_pengumuman/cek_email/cek_tanggal_lahir (cabang kb/tk + seed
+  pengumuman_ucapan/judul_kartu_sementara/pengaturan_tanggal_lahir).
 - **Migrasi VA SD BRI→BNI berlaku di KEDUA kanal** (`apiapp/siswa/` dan
   `apiweb/psb/` — pendaftaran & mutasi; flag `bank_psb_sd`/`bank_mutasi_sd` sama).
 
