@@ -891,10 +891,10 @@ class Dashboard_psb extends Admin
 		}
 
 		$post = $this->input->post();
-		$jenjang = strtolower((string) $post['jenjang']);
+		$jenjang = strtolower((string) (isset($post['jenjang']) ? $post['jenjang'] : ''));
 		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft', 'kb', 'tk');
 		if (!in_array($jenjang, $allowed_jenjang, true)) {
-			echo json_encode(array("status" => false, "message" => "Jenjang tidak valid"));
+			echo json_encode(array("status" => false, "message" => "Jenjang tidak valid")); exit;
 			return;
 		}
 		$m = $this->jenjang_map($jenjang);
@@ -902,29 +902,29 @@ class Dashboard_psb extends Admin
 		$extra_where = $m['extra'];
 		$tr_extra = ($jenjang == 'ft') ? " and tr.no_transaksi not like '%PPSBB%'" : "";
 
-		$tipe_grafik = (string) $post['tipe'];
+		$tipe_grafik = (string) (isset($post['tipe']) ? $post['tipe'] : '');
 		if (!in_array($tipe_grafik, array('tanggal', 'gelombang'), true)) {
-			echo json_encode(array("status" => false, "message" => "Tipe grafik tidak valid"));
+			echo json_encode(array("status" => false, "message" => "Tipe grafik tidak valid")); exit;
 			return;
 		}
 
 		if($tipe_grafik == "tanggal"){
 			$start_date = (string) $this->input->post("start_date");
 			if (!empty($start_date) && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date)) {
-				echo json_encode(array("status" => false, "message" => "Start date tidak valid"));
+				echo json_encode(array("status" => false, "message" => "Start date tidak valid")); exit;
 				return;
 			}
 			$start_date = (empty($start_date)) ? date("Y-m-d", strtotime("-1 month"))." 00:00:00" : $start_date." 00:00:00";
 
 			$end_date = (string) $this->input->post("end_date");
 			if (!empty($end_date) && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $end_date)) {
-				echo json_encode(array("status" => false, "message" => "End date tidak valid"));
+				echo json_encode(array("status" => false, "message" => "End date tidak valid")); exit;
 				return;
 			}
 			$end_date = (empty($end_date)) ? date("Y-m-d")." 23:59:59" : $end_date." 23:59:59";
 
 			if (strtotime($start_date) > strtotime($end_date)) {
-				echo json_encode(array("status" => false, "message" => "Start date tidak boleh melebihi end date"));
+				echo json_encode(array("status" => false, "message" => "Start date tidak boleh melebihi end date")); exit;
 				return;
 			}
 
@@ -965,16 +965,16 @@ class Dashboard_psb extends Admin
 			$get_transaksi = $this->mymodel->withquery("select * from transaksi tr ".$where_transaksi." and tr.no_transaksi like '%".strtoupper($jenjang)."%'".$tr_extra." and tr.is_show = '1' order by created_at DESC","result");
 		}
 		else if($tipe_grafik == "gelombang"){
-			$tahun_ajaran = (string) $post['tahun_ajaran'];
+			$tahun_ajaran = (string) (isset($post['tahun_ajaran']) ? $post['tahun_ajaran'] : '');
 			$tahun_ajaran = str_replace("_", "/", $tahun_ajaran);
 			if (!empty($tahun_ajaran) && !preg_match('/^\d{4}\/\d{4}$/', $tahun_ajaran)) {
-				echo json_encode(array("status" => false, "message" => "Tahun ajaran tidak valid"));
+				echo json_encode(array("status" => false, "message" => "Tahun ajaran tidak valid")); exit;
 				return;
 			}
 
-			$gelombang = (string) $post['gelombang'];
+			$gelombang = (string) (isset($post['gelombang']) ? $post['gelombang'] : '');
 			if (!in_array($gelombang, array('', '1', '2', '3'), true)) {
-				echo json_encode(array("status" => false, "message" => "Gelombang tidak valid"));
+				echo json_encode(array("status" => false, "message" => "Gelombang tidak valid")); exit;
 				return;
 			}
 			$where = "";
@@ -1093,7 +1093,7 @@ class Dashboard_psb extends Admin
 			// "recordsFiltered" => count($get_data),
 			"data" => $get_data,
 		);
-		echo json_encode($data);
+		echo json_encode($data); exit;
 	}
 
 	public function detail_siswa(){
@@ -1104,7 +1104,7 @@ class Dashboard_psb extends Admin
 		$jenjang = strtolower((string) $this->input->post('jenjang'));
 		$allowed_jenjang = array('sd', 'smp', 'sma', 'ft', 'ppsbbft', 'kb', 'tk');
 		if (!in_array($jenjang, $allowed_jenjang, true)) {
-			echo json_encode(array("status" => false, "message" => "Jenjang tidak valid"));
+			echo json_encode(array("status" => false, "message" => "Jenjang tidak valid")); exit;
 			return;
 		}
 
@@ -1113,7 +1113,7 @@ class Dashboard_psb extends Admin
 
 		$id = (int) $this->input->post('id_siswa');
 		if ($id <= 0) {
-			echo json_encode(array("status" => false, "message" => "ID siswa tidak valid"));
+			echo json_encode(array("status" => false, "message" => "ID siswa tidak valid")); exit;
 			return;
 		}
 
@@ -1126,7 +1126,7 @@ class Dashboard_psb extends Admin
 		);
 
 		if (empty($siswa)) {
-			echo json_encode(array("status" => false, "message" => "Siswa tidak ditemukan"));
+			echo json_encode(array("status" => false, "message" => "Siswa tidak ditemukan")); exit;
 			return;
 		}
 
