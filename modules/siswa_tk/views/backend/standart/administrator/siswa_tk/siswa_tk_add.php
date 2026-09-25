@@ -34,11 +34,11 @@
 <!-- Content Header (Page header) -->
 <section class="content-header">
     <h1>
-        Siswa SD <small><?= cclang('new', ['Siswa SD']); ?> </small>
+        Siswa TK <small><?= cclang('new', ['Siswa TK']); ?> </small>
     </h1>
     <ol class="breadcrumb">
         <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li class=""><a href="<?= site_url('administrator/siswa_tk'); ?>">Siswa SD</a></li>
+        <li class=""><a href="<?= site_url('administrator/siswa_tk'); ?>">Siswa TK</a></li>
         <li class="active"><?= cclang('new'); ?></li>
     </ol>
 </section>
@@ -56,8 +56,8 @@
                                 <img class="img-circle" src="<?= BASE_ASSET; ?>/img/add2.png" alt="User Avatar">
                             </div>
                             <!-- /.widget-user-image -->
-                            <h3 class="widget-user-username">Siswa SD</h3>
-                            <h5 class="widget-user-desc"><?= cclang('new', ['Siswa SD']); ?></h5>
+                            <h3 class="widget-user-username">Siswa TK</h3>
+                            <h5 class="widget-user-desc"><?= cclang('new', ['Siswa TK']); ?></h5>
                             <hr>
                         </div>
                         <?= form_open('', [

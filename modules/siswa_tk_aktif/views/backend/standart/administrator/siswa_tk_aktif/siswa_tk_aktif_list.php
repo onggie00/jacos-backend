@@ -49,7 +49,7 @@
             <!-- Box Header -->
             <div class="box-header with-border">
                <h3 class="box-title">
-                  <i class="fa fa-graduation-cap"></i> Data Siswa SD Aktif
+                  <i class="fa fa-graduation-cap"></i> Data Siswa TK Aktif
                   <span class="label bg-yellow" style="margin-left:10px"><?= $siswa_tk_aktif_counts; ?> Data</span>
                </h3>
                <div class="box-tools pull-right">
@@ -289,7 +289,7 @@
                                  <?php elseif(!empty($this->input->get('q'))): ?>
                                     Data siswa tidak ditemukan untuk pencarian "<?= htmlspecialchars($this->input->get('q')); ?>"
                                  <?php else: ?>
-                                    Data siswa SD aktif belum tersedia
+                                    Data siswa TK aktif belum tersedia
                                  <?php endif; ?>
                               </span>
                            </td>

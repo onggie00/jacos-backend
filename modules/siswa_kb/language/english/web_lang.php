@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-$lang['siswa_kb'] = 'Siswa SD';
+$lang['siswa_kb'] = 'Siswa KB';
 $lang['id_siswa_kb'] = 'Id Siswa KB';
 $lang['nama_lengkap'] = 'Nama Lengkap';
 $lang['email'] = 'Email';

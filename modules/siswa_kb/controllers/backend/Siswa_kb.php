@@ -61,7 +61,7 @@ class Siswa_kb extends Admin
 
 		$this->data['pagination'] = $this->pagination($config);
 
-		$this->template->title('Siswa SD List');
+		$this->template->title('Siswa KB List');
 		$this->render('backend/standart/administrator/siswa_kb/siswa_kb_list', $this->data);
 	}
 
@@ -74,7 +74,7 @@ class Siswa_kb extends Admin
 	{
 		$this->is_allowed('siswa_kb_add');
 
-		$this->template->title('Siswa SD New');
+		$this->template->title('Siswa KB New');
 		$this->render('backend/standart/administrator/siswa_kb/siswa_kb_add', $this->data);
 	}
 
@@ -323,7 +323,7 @@ class Siswa_kb extends Admin
 
 		// dd($this->create_billing('development', 50000, '19212192-tesA', array("nama" => 'COBA PARTIAL PAY', "email" => $this->data['siswa_kb']->email, "va_number" => '9881611323010669')));
 		// dd($this->inquiry_billing('development','19212192-tesA'));
-		$this->template->title('Siswa SD Update');
+		$this->template->title('Siswa KB Update');
 		$this->render('backend/standart/administrator/siswa_kb/siswa_kb_update', $this->data);
 	}
 
@@ -1095,7 +1095,7 @@ class Siswa_kb extends Admin
 
 		$this->data['siswa_kb'] = $this->model_siswa_kb->join_avaiable()->filter_avaiable()->find($id);
 
-		$this->template->title('Siswa SD Detail');
+		$this->template->title('Siswa KB Detail');
 		$this->render('backend/standart/administrator/siswa_kb/siswa_kb_view', $this->data);
 	}
 	public function view_no_peserta($no_peserta)
@@ -1104,7 +1104,7 @@ class Siswa_kb extends Admin
 
 		$this->data['siswa_kb'] = $this->mymodel->getbywhere("siswa_kb", "no_peserta", $no_peserta, "row");
 
-		$this->template->title('Siswa SD Detail');
+		$this->template->title('Siswa KB Detail');
 		$this->render('backend/standart/administrator/siswa_kb/siswa_kb_view', $this->data);
 	}
 

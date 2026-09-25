@@ -50,7 +50,6 @@ SELECT 'KB Kecil',2,3 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `tingkatan_kb` W
 INSERT INTO `tingkatan_kb` (`label`,`usia_min`,`usia_max`)
 SELECT 'KB Besar',3,4 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `tingkatan_kb` WHERE `label`='KB Besar');
 INSERT INTO `tingkatan_kb` (`label`,`usia_min`,`usia_max`)
-SELECT 'KB Umum',2,4 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `tingkatan_kb` WHERE `label`='KB Umum');
 INSERT INTO `tingkatan_tk` (`label`,`usia_min`,`usia_max`)
 SELECT 'TK A',4,5 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `tingkatan_tk` WHERE `label`='TK A');
 INSERT INTO `tingkatan_tk` (`label`,`usia_min`,`usia_max`)
@@ -549,3 +548,11 @@ WHERE NOT EXISTS (SELECT 1 FROM `menu` WHERE `link`='administrator/dashboard_psb
 INSERT INTO `menu` (`label`,`type`,`link`,`sort`,`parent`,`menu_type_id`,`active`)
 SELECT 'PSB TK','menu','administrator/dashboard_psb/grafik_tk',6,383,1,1 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `menu` WHERE `link`='administrator/dashboard_psb/grafik_tk' AND `parent`=383);
+
+-- 15. Data kelas KB/TK (2 per tingkatan) -------------------------------------------
+INSERT INTO `kelas_kb` (`id_tingkatan`,`nama_kelas`,`label`,`is_active`) VALUES
+ (1,'KB Kecil A','KB Kecil A',1),(1,'KB Kecil B','KB Kecil B',1),
+ (2,'KB Besar A','KB Besar A',1),(2,'KB Besar B','KB Besar B',1);
+INSERT INTO `kelas_tk` (`id_tingkatan`,`nama_kelas`,`label`,`is_active`) VALUES
+ (1,'TK A A','TK A A',1),(1,'TK A B','TK A B',1),
+ (2,'TK B A','TK B A',1),(2,'TK B B','TK B B',1);

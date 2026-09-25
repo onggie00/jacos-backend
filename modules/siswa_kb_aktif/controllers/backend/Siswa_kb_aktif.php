@@ -112,7 +112,7 @@ class Siswa_kb_aktif extends Admin
 	{
 		$this->is_allowed('siswa_kb_aktif_add');
 
-		$this->template->title('Siswa SD Tambah Raport');
+		$this->template->title('Siswa KB Tambah Raport');
 		$this->render('backend/standart/administrator/siswa_kb_aktif/siswa_kb_aktif_add_raport', $this->data);
 	}
 
@@ -822,7 +822,7 @@ class Siswa_kb_aktif extends Admin
 		}
 		// Redirect output to a client’s web browser (Excel5) 
 		header('Content-Type: application/vnd.ms-excel'); 
-		header('Content-Disposition: attachment;filename="Data Siswa SD Aktif - '.date("Y-m-d Hi").'.xls"'); 
+		header('Content-Disposition: attachment;filename="Data Siswa KB Aktif - '.date("Y-m-d Hi").'.xls"'); 
 		header('Cache-Control: max-age=0');
 		$objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5'); 
 		$objWriter->save('php://output');
@@ -956,7 +956,7 @@ class Siswa_kb_aktif extends Admin
 		}
 
 		header('Content-Type: application/vnd.ms-excel');
-		header('Content-Disposition: attachment;filename="Data Lengkap Siswa SD Aktif - ' . date('Y-m-d Hi') . '.xls"');
+		header('Content-Disposition: attachment;filename="Data Lengkap Siswa KB Aktif - ' . date('Y-m-d Hi') . '.xls"');
 		header('Cache-Control: max-age=0');
 		PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel5')->save('php://output');
 	}

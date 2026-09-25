@@ -54,3 +54,41 @@ INSERT INTO transaksi (no_transaksi, nama_bank, user_email, user_name, user_phon
 SELECT s.no_transaksi, 'BNI', s.email, s.nama_lengkap, '', CONCAT('Tagihan Pendaftaran TK a.n ', UPPER(s.nama_lengkap)), 10, 2100000, 0, s.created_at, DATE_ADD(s.created_at, INTERVAL 3 DAY)
 FROM siswa_tk s WHERE s.email LIKE '%.seedtk@example.com'
 AND NOT EXISTS (SELECT 1 FROM transaksi t WHERE t.no_transaksi = s.no_transaksi);
+
+-- ---------------------------- KELAS (2 per tingkatan) ------------------------------
+INSERT INTO kelas_kb (id_tingkatan, nama_kelas, label, is_active)
+SELECT t.id_tingkatan, t.nama, t.nama, 1 FROM (
+  SELECT 1 id_tingkatan,'KB Kecil A' nama UNION ALL SELECT 1,'KB Kecil B'
+  UNION ALL SELECT 2,'KB Besar A' UNION ALL SELECT 2,'KB Besar B'
+) t WHERE NOT EXISTS (SELECT 1 FROM kelas_kb k WHERE k.nama_kelas = t.nama);
+
+INSERT INTO kelas_tk (id_tingkatan, nama_kelas, label, is_active)
+SELECT t.id_tingkatan, t.nama, t.nama, 1 FROM (
+  SELECT 1 id_tingkatan,'TK A A' nama UNION ALL SELECT 1,'TK A B'
+  UNION ALL SELECT 2,'TK B A' UNION ALL SELECT 2,'TK B B'
+) t WHERE NOT EXISTS (SELECT 1 FROM kelas_tk k WHERE k.nama_kelas = t.nama);
+
+-- ---------------------------- SISWA AKTIF (per kelas) ------------------------------
+-- siswa KB -> kelas: Kecil A: 1,2,3 | Kecil B: 4,9,10 | Besar A: 5,6,7 | Besar B: 8,11,12
+INSERT INTO siswa_kb_aktif (nama_lengkap, nis, id_tahun_ajaran, id_kelas, id_siswa_kb, acc_ujian, is_active, spp_custom, spp_type, id_tingkatan, tgl_lahir)
+SELECT s.nama_lengkap, CONCAT('2771', LPAD(s.id_siswa_kb, 4, '0')), 10,
+  CASE WHEN s.id_siswa_kb IN (1,2,3) THEN (SELECT id_kelas_kb FROM kelas_kb WHERE nama_kelas='KB Kecil A')
+       WHEN s.id_siswa_kb IN (4,9,10) THEN (SELECT id_kelas_kb FROM kelas_kb WHERE nama_kelas='KB Kecil B')
+       WHEN s.id_siswa_kb IN (5,6,7) THEN (SELECT id_kelas_kb FROM kelas_kb WHERE nama_kelas='KB Besar A')
+       ELSE (SELECT id_kelas_kb FROM kelas_kb WHERE nama_kelas='KB Besar B') END,
+  s.id_siswa_kb, 0, 1, 0, 'FULL', s.id_tingkatan, s.tgl_lahir
+FROM siswa_kb s
+WHERE s.email LIKE '%.seedkb@example.com'
+AND NOT EXISTS (SELECT 1 FROM siswa_kb_aktif a WHERE a.id_siswa_kb = s.id_siswa_kb);
+
+-- siswa TK -> kelas: A A: 1,2,3 | A B: 4 | B A: 5-9 | B B: 10,11,12
+INSERT INTO siswa_tk_aktif (nama_lengkap, nis, id_tahun_ajaran, id_kelas, id_siswa_tk, acc_ujian, is_active, spp_custom, spp_type, id_tingkatan, tgl_lahir)
+SELECT s.nama_lengkap, CONCAT('2772', LPAD(s.id_siswa_tk, 4, '0')), 10,
+  CASE WHEN s.id_siswa_tk IN (1,2,3) THEN (SELECT id_kelas_tk FROM kelas_tk WHERE nama_kelas='TK A A')
+       WHEN s.id_siswa_tk = 4 THEN (SELECT id_kelas_tk FROM kelas_tk WHERE nama_kelas='TK A B')
+       WHEN s.id_siswa_tk BETWEEN 5 AND 9 THEN (SELECT id_kelas_tk FROM kelas_tk WHERE nama_kelas='TK B A')
+       ELSE (SELECT id_kelas_tk FROM kelas_tk WHERE nama_kelas='TK B B') END,
+  s.id_siswa_tk, 0, 1, 0, 'FULL', s.id_tingkatan, s.tgl_lahir
+FROM siswa_tk s
+WHERE s.email LIKE '%.seedtk@example.com'
+AND NOT EXISTS (SELECT 1 FROM siswa_tk_aktif a WHERE a.id_siswa_tk = s.id_siswa_tk);

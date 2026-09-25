@@ -32,11 +32,11 @@
 <!-- Content Header (Page header) -->
 <section class="content-header">
     <h1>
-        Siswa SD <small>Edit Siswa SD</small>
+        Siswa KB <small>Edit Siswa KB</small>
     </h1>
     <ol class="breadcrumb">
         <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li class=""><a href="<?= site_url('administrator/siswa_kb'); ?>">Siswa SD</a></li>
+        <li class=""><a href="<?= site_url('administrator/siswa_kb'); ?>">Siswa KB</a></li>
         <li class="active">Edit</li>
     </ol>
 </section>
@@ -54,8 +54,8 @@
                                 <img class="img-circle" src="<?= BASE_ASSET; ?>/img/add2.png" alt="User Avatar">
                             </div>
                             <!-- /.widget-user-image -->
-                            <h3 class="widget-user-username">Siswa SD</h3>
-                            <h5 class="widget-user-desc">Edit Siswa SD</h5>
+                            <h3 class="widget-user-username">Siswa KB</h3>
+                            <h5 class="widget-user-desc">Edit Siswa KB</h5>
                             <hr>
                         </div>
                         <?= form_open(base_url('administrator/siswa_kb/edit_save/' . $this->uri->segment(4)), [

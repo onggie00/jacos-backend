@@ -23,11 +23,11 @@ jQuery(document).ready(domo);
 <!-- Content Header (Page header) -->
 <section class="content-header">
    <h1>
-      Siswa SD      <small><?= cclang('detail', ['Siswa SD']); ?> </small>
+      Siswa TK      <small><?= cclang('detail', ['Siswa TK']); ?> </small>
    </h1>
    <ol class="breadcrumb">
       <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
-      <li class=""><a  href="<?= site_url('administrator/siswa_tk'); ?>">Siswa SD</a></li>
+      <li class=""><a  href="<?= site_url('administrator/siswa_tk'); ?>">Siswa TK</a></li>
       <li class="active"><?= cclang('detail'); ?></li>
    </ol>
 </section>
@@ -48,8 +48,8 @@ jQuery(document).ready(domo);
                         <img class="img-circle" src="<?= BASE_ASSET; ?>/img/view.png" alt="User Avatar">
                      </div>
                      <!-- /.widget-user-image -->
-                     <h3 class="widget-user-username">Siswa SD</h3>
-                     <h5 class="widget-user-desc">Detail Siswa SD</h5>
+                     <h3 class="widget-user-username">Siswa TK</h3>
+                     <h5 class="widget-user-desc">Detail Siswa TK</h5>
                      <hr>
                   </div>
 

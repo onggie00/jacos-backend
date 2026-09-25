@@ -12,11 +12,11 @@
 <!-- Content Header (Page header) -->
 <section class="content-header">
     <h1>
-        Siswa SD Aktif <small><?= cclang('new', ['Siswa SD Aktif']); ?> </small>
+        Siswa TK Aktif <small><?= cclang('new', ['Siswa TK Aktif']); ?> </small>
     </h1>
     <ol class="breadcrumb">
         <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
-        <li class=""><a href="<?= site_url('administrator/siswa_tk_aktif'); ?>">Siswa SD Aktif</a></li>
+        <li class=""><a href="<?= site_url('administrator/siswa_tk_aktif'); ?>">Siswa TK Aktif</a></li>
         <li class="active"><?= cclang('new'); ?></li>
     </ol>
 </section>
@@ -35,7 +35,7 @@
                             </div>
                             <!-- /.widget-user-image -->
                             <h3 class="widget-user-username">Tambah Raport</h3>
-                            <h5 class="widget-user-desc">Tambah raport Siswa SD aktif</h5>
+                            <h5 class="widget-user-desc">Tambah raport Siswa TK aktif</h5>
                             <hr>
                         </div>
                         <?= form_open('', [
@@ -47,11 +47,11 @@
                         ]); ?>
 
                         <div class="form-group form-add">
-                            <label for="id_siswa_tk" class="col-sm-2 control-label">Id Siswa SD
+                            <label for="id_siswa_tk" class="col-sm-2 control-label">Id Siswa TK
                                 <i class="required">*</i>
                             </label>
                             <div class="col-sm-8">
-                                <select class="form-control" name="id_siswa_tk[]" id="id_siswa_tk" data-placeholder="Select Id Siswa SD">
+                                <select class="form-control" name="id_siswa_tk[]" id="id_siswa_tk" data-placeholder="Select Id Siswa TK">
                                     <option value=""></option>
                                     <?php foreach (get_all_siswa_aktif_sd() as $row) : ?>
                                         <option value="<?= $row->id_siswa_tk_aktif ?>"><?= $row->nama_lengkap . "(" . $row->label . ")"; ?></option>
@@ -112,11 +112,11 @@
         $("#addForm").click(function() {
             i++
             var newField = `<div class="form-group form-add">
-                            <label for="id_siswa_tk" class="col-sm-2 control-label">Id Siswa SD
+                            <label for="id_siswa_tk" class="col-sm-2 control-label">Id Siswa TK
                                 <i class="required">*</i>
                             </label>
                             <div class="col-sm-8">
-                                <select class="form-control chosen chosen-select-deselect" name="id_siswa_tk[]" id="id_siswa_tk_${i}" data-placeholder="Select Id Siswa SD">
+                                <select class="form-control chosen chosen-select-deselect" name="id_siswa_tk[]" id="id_siswa_tk_${i}" data-placeholder="Select Id Siswa TK">
                                     <option value=""></option>
                                     <?php foreach (get_all_siswa_aktif_sd() as $row) : ?>
                                         <option value="<?= $row->id_siswa_tk_aktif ?>"><?= $row->nama_lengkap . "(" . $row->label . ")"; ?></option>

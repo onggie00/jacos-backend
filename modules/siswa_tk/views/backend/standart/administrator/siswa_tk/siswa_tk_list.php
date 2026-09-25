@@ -117,7 +117,7 @@
          <div class="box box-warning">
             <div class="box-header with-border">
                <h3 class="box-title">
-                  <i class="fa fa-graduation-cap"></i> Data Siswa SD
+                  <i class="fa fa-graduation-cap"></i> Data Siswa TK
                   <span class="label bg-yellow" style="margin-left:10px"><?= $siswa_tk_counts; ?> Data</span>
                </h3>
                <div class="box-tools pull-right">
@@ -194,7 +194,7 @@
                </form>
                      <h5 class="widget-user-desc"><?= cclang('list_all', [cclang('siswa_tk')]); ?> <i class="label bg-yellow"><?= $siswa_tk_counts; ?> <?= cclang('items'); ?></i></h5>
                   </div>
-                  <!-- <!-- <?= $calender ?> --> -->
+                  <!-- <?= $calender ?> -->
                   <form name="form_siswa_tk" id="form_siswa_tk" action="<?= base_url('administrator/siswa_tk/index'); ?>">
 
                      <div class="table-responsive">
@@ -316,7 +316,7 @@
                               <?php if ($siswa_tk_counts == 0) : ?>
                                  <tr>
                                     <td colspan="100">
-                                       Siswa SD data is not available
+                                       Siswa TK data is not available
                                     </td>
                                  </tr>
                               <?php endif; ?>
