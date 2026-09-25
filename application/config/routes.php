@@ -104,7 +104,7 @@ $route['mhcu_care/slots']  = 'mhcu_care/slots';
 $route['mhcu_care/submit'] = 'mhcu_care/submit';
 
 // Login admin JSON API (email+password) utk testing API — lihat Login_with_password.php
-$route['login_with_password'] = 'login_with_password';
+$route['login_with_password'] = 'auth/backend/auth/login_with_password';
 
 $route['administrator/web-page'] = 'page/backend/page/admin';
 

@@ -57,6 +57,76 @@ class Auth extends Admin
 		$this->template->build('backend/standart/administrator/login', $data);
 	}
 
+	/**
+	* Login admin via email + password (tanpa SSO Microsoft) — khusus testing/manual.
+	* GET  = tampilkan form HTML
+	* POST = autentikasi -> redirect administrator/dashboard
+	* Dapat dimatikan: pengaturan_akun name_setting=login_with_password_enabled value=0
+	* Brute-force dibatasi ddos_protection Aauth (login attempts).
+	*/
+	public function login_with_password()
+	{
+		if ($this->aauth->is_loggedin()) {
+			redirect('administrator/dashboard','refresh');
+		}
+
+		$row_flag = $this->db->select('value')->where('name_setting', 'login_with_password_enabled')->get('pengaturan_akun')->row();
+		if (!empty($row_flag) && strtoupper(trim($row_flag->value)) === '0') {
+			show_error('Endpoint login dinonaktifkan', 403);
+		}
+
+		$error = '';
+		$email_value = '';
+		if ($this->input->method(TRUE) === 'POST') {
+			$email_value = trim((string)$this->input->post('email'));
+			$password = (string)$this->input->post('password');
+			if ($email_value === '' || $password === '') {
+				$error = 'Email dan password wajib diisi.';
+			} else if ($this->aauth->login($email_value, $password, FALSE)) {
+				redirect('administrator/dashboard','refresh');
+			} else {
+				$error = 'Email atau password salah.';
+			}
+		}
+
+		$html_error = $error !== '' ? '<div style="background:#fdecea;color:#b71c1c;border:1px solid #f5c6cb;padding:10px;border-radius:4px;margin-bottom:14px;">' . htmlspecialchars($error) . '</div>' : '';
+		$html = '<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login Admin — Jacos</title>
+<style>
+	body { font-family: Arial, Helvetica, sans-serif; background:#f4f6f9; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+	.card { background:#fff; border:1px solid #e3e6f0; border-radius:6px; padding:28px; width:340px; box-shadow:0 2px 6px rgba(0,0,0,.06); }
+	.card h1 { font-size:18px; margin:0 0 4px; color:#333; }
+	.card p.sub { margin:0 0 18px; color:#888; font-size:12px; }
+	label { display:block; font-size:12px; color:#555; margin:10px 0 4px; }
+	input[type=email], input[type=password] { width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid #ced4da; border-radius:4px; font-size:14px; }
+	button { width:100%; margin-top:16px; padding:10px; background:#00a65a; border:none; color:#fff; font-size:14px; border-radius:4px; cursor:pointer; }
+	button:hover { background:#008d4c; }
+	.note { margin-top:14px; font-size:11px; color:#999; }
+</style>
+</head>
+<body>
+	<div class="card">
+		<h1>Login Admin</h1>
+		<p class="sub">Login manual email + password (tanpa SSO Microsoft)</p>
+		' . $html_error . '
+		<form method="post" action="">
+			<label>Email</label>
+			<input type="email" name="email" value="' . htmlspecialchars($email_value) . '" required>
+			<label>Password</label>
+			<input type="password" name="password" required>
+			<button type="submit">Login</button>
+		</form>
+		<p class="note">Setelah login Anda diarahkan ke dashboard administrator. Endpoint dapat dimatikan via pengaturan_akun (login_with_password_enabled = 0).</p>
+	</div>
+</body>
+</html>';
+		$this->output->set_output($html);
+	}
+
 	public function oauth_microsoft()
 	{
 		$appid = CLIENT_ID;
