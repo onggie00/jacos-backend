@@ -130,7 +130,7 @@
                            </td>
                                                        
                            <td><span class="trunc" title="<?= _ent($web_informasi_psb->judul); ?>"><b><?= _ent($web_informasi_psb->judul); ?></b></span></td> 
-                           <td><span class="trunc" title="<?= _ent($web_informasi_psb->deskripsi); ?>"><?= character_limiter(_ent($web_informasi_psb->deskripsi), 80); ?></span></td> 
+                           <td><span class="trunc" title="<?= _ent($web_informasi_psb->deskripsi); ?>"><?= _ent(mb_substr($web_informasi_psb->deskripsi, 0, 80)) . (mb_strlen($web_informasi_psb->deskripsi) > 80 ? '...' : ''); ?></span></td> 
                            <td class="text-center">
                               <?php if (!empty($web_informasi_psb->img_file)): ?>
                                 <?php if (is_image($web_informasi_psb->img_file)): ?>

@@ -227,7 +227,7 @@ class Model_status_daftar_ulang_sd extends MY_Model {
 
         $this->db->join('siswa_sd', 'siswa_sd.id_siswa_sd = status_daftar_ulang_sd.id_siswa_sd', 'LEFT');
         $this->db->join('transaksi', 'transaksi.va_number = status_daftar_ulang_sd.va_bri and transaksi.no_transaksi like "%LDUI%"', 'LEFT');
-        $this->db->group_by('status_daftar_ulang_sd.va_bri');
+        $this->db->group_by('status_daftar_ulang_sd.id_daftar_ulang');
         $this->db->select('status_daftar_ulang_sd.*,
             siswa_sd.nama_lengkap,
             siswa_sd.email,
@@ -236,7 +236,7 @@ class Model_status_daftar_ulang_sd extends MY_Model {
             siswa_sd.tahun_ajaran,
             siswa_sd.gelombang,
             siswa_sd.va_number_bri,
-            transaksi.expired_datetime');
+            MAX(transaksi.expired_datetime) as expired_datetime');
 
 
         return $this;

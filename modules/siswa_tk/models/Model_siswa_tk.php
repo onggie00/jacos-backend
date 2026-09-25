@@ -129,15 +129,15 @@ class Model_siswa_tk extends MY_Model
                            districts.name as districts_name,
                            regencies.name as regencies_name,
                            status_lulus.status_lulus as status_lulus,
-                           transaksi.created_at as tanggal_daftar,
-                           transaksi.updated_at as tanggal_pembayaran,
-                           daftar_ulang.tgl_daftar_ulang,
-                           daftar_ulang.tgl_aktivasi as tanggal_aktivasi,
-                           daftar_ulang.tgl_bayar as tanggal_bayar_daftar_ulang,
+                           MAX(transaksi.created_at) as tanggal_daftar,
+                           MAX(transaksi.updated_at) as tanggal_pembayaran,
+                           MAX(daftar_ulang.tgl_daftar_ulang) as tgl_daftar_ulang,
+                           MAX(daftar_ulang.tgl_aktivasi) as tanggal_aktivasi,
+                           MAX(daftar_ulang.tgl_bayar) as tanggal_bayar_daftar_ulang,
                            (CASE
-                                WHEN daftar_ulang.status = 0 THEN "Menunggu Aktivasi"
-                                WHEN daftar_ulang.status = 1 THEN "Menunggu Pembayaran"
-                                WHEN daftar_ulang.status = 2 THEN "Lunas"
+                                WHEN MAX(daftar_ulang.status) = 0 THEN "Menunggu Aktivasi"
+                                WHEN MAX(daftar_ulang.status) = 1 THEN "Menunggu Pembayaran"
+                                WHEN MAX(daftar_ulang.status) = 2 THEN "Lunas"
                                 ELSE "-"
                             END) as status_daftar_ulang,
                             (CASE WHEN siswa_tk.is_mutasi = 1 THEN "YA" ELSE "TIDAK" END) as is_mutasi,
@@ -171,15 +171,15 @@ class Model_siswa_tk extends MY_Model
                             regencies.name as kota,
                             provinces.name as provinsi,
                            status_lulus.status_lulus as status_lulus,
-                           transaksi.created_at as tanggal_daftar,
-                           transaksi.updated_at as tanggal_pembayaran,
-                           daftar_ulang.tgl_daftar_ulang,
-                           daftar_ulang.tgl_aktivasi as tanggal_aktivasi,
-                           daftar_ulang.tgl_bayar as tanggal_bayar_daftar_ulang,
+                           MAX(transaksi.created_at) as tanggal_daftar,
+                           MAX(transaksi.updated_at) as tanggal_pembayaran,
+                           MAX(daftar_ulang.tgl_daftar_ulang) as tgl_daftar_ulang,
+                           MAX(daftar_ulang.tgl_aktivasi) as tanggal_aktivasi,
+                           MAX(daftar_ulang.tgl_bayar) as tanggal_bayar_daftar_ulang,
                            (CASE
-                                WHEN daftar_ulang.status = 0 THEN "Menunggu Aktivasi"
-                                WHEN daftar_ulang.status = 1 THEN "Menunggu Pembayaran"
-                                WHEN daftar_ulang.status = 2 THEN "Lunas"
+                                WHEN MAX(daftar_ulang.status) = 0 THEN "Menunggu Aktivasi"
+                                WHEN MAX(daftar_ulang.status) = 1 THEN "Menunggu Pembayaran"
+                                WHEN MAX(daftar_ulang.status) = 2 THEN "Lunas"
                                 ELSE "-"
                             END) as status_daftar_ulang,
                             (CASE WHEN siswa_tk.is_mutasi = 1 THEN "YA" ELSE "TIDAK" END) as is_mutasi,
