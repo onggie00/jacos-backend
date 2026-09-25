@@ -82,14 +82,15 @@ class Auth extends Admin
 			$password = (string)$this->input->post('password');
 			if ($email_value === '' || $password === '') {
 				$error = 'Email dan password wajib diisi.';
-			} else if ($this->aauth->login($email_value, $password, FALSE)) {
-				redirect('administrator/dashboard','refresh');
+		} else if ($this->aauth->login($email_value, $password, FALSE)) {
+				redirect('administrator/dashboard_psb/grafik_sd','refresh');
 			} else {
 				$error = 'Email atau password salah.';
 			}
 		}
 
 		$html_error = $error !== '' ? '<div style="background:#fdecea;color:#b71c1c;border:1px solid #f5c6cb;padding:10px;border-radius:4px;margin-bottom:14px;">' . htmlspecialchars($error) . '</div>' : '';
+		$bg_url = base_url('uploads/bg_login_min.jpg');
 		$html = '<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -97,7 +98,7 @@ class Auth extends Admin
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Login Admin — Jacos</title>
 <style>
-	body { font-family: Arial, Helvetica, sans-serif; background:#f4f6f9; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+	body { font-family: Arial, Helvetica, sans-serif; background: #f4f6f9 url(\'' . $bg_url . '\') center/cover no-repeat fixed; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
 	.card { background:#fff; border:1px solid #e3e6f0; border-radius:6px; padding:28px; width:340px; box-shadow:0 2px 6px rgba(0,0,0,.06); }
 	.card h1 { font-size:18px; margin:0 0 4px; color:#333; }
 	.card p.sub { margin:0 0 18px; color:#888; font-size:12px; }
