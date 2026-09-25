@@ -35,6 +35,11 @@ class Web_informasi_psb extends Admin
 		$this->data['web_informasi_psbs'] = $this->model_web_informasi_psb->get($filter, $field, $this->limit_page, $offset);
 		$this->data['web_informasi_psb_counts'] = $this->model_web_informasi_psb->count_all($filter, $field);
 
+		// statistik utk info-box dashboard modul
+		$this->data['stat_total'] = (int) $this->mymodel->withquery("SELECT COUNT(*) AS c FROM web_informasi_psb", "row")->c;
+		$this->data['stat_gambar'] = (int) $this->mymodel->withquery("SELECT COUNT(*) AS c FROM web_informasi_psb WHERE img_file IS NOT NULL AND img_file <> ''", "row")->c;
+		$this->data['stat_bulan_ini'] = (int) $this->mymodel->withquery("SELECT COUNT(*) AS c FROM web_informasi_psb WHERE DATE_FORMAT(created_at, '%Y-%m') = '" . date('Y-m') . "'", "row")->c;
+
 		$config = [
 			'base_url'     => 'administrator/web_informasi_psb/index/',
 			'total_rows'   => $this->model_web_informasi_psb->count_all($filter, $field),

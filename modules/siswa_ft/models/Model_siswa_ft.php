@@ -111,21 +111,21 @@ class Model_siswa_ft extends MY_Model
                            provinces.name as provinces_name,
                            peminatan_ft.peminatan as peminatan_ft_peminatan,
                            status_lulus.status_lulus as status_lulus_status_lulus,
-                           transaksi.created_at as tanggal_daftar,
-                           transaksi.updated_at as tanggal_pembayaran,
-                           daftar_ulang.tgl_daftar_ulang,
-                           daftar_ulang.tgl_aktivasi as tanggal_aktivasi,
-                           daftar_ulang.tgl_bayar as tanggal_bayar_daftar_ulang,
+                           MAX(transaksi.created_at) as tanggal_daftar,
+                           MAX(transaksi.updated_at) as tanggal_pembayaran,
+                           MAX(daftar_ulang.tgl_daftar_ulang) as tgl_daftar_ulang,
+                           MAX(daftar_ulang.tgl_aktivasi) as tanggal_aktivasi,
+                           MAX(daftar_ulang.tgl_bayar) as tanggal_bayar_daftar_ulang,
                            (CASE
-                                WHEN daftar_ulang.status = 0 THEN "Menunggu Aktivasi"
-                                WHEN daftar_ulang.status = 1 THEN "Menunggu Pembayaran"
-                                WHEN daftar_ulang.status = 2 THEN "Lunas"
+                                WHEN MAX(daftar_ulang.status) = 0 THEN "Menunggu Aktivasi"
+                                WHEN MAX(daftar_ulang.status) = 1 THEN "Menunggu Pembayaran"
+                                WHEN MAX(daftar_ulang.status) = 2 THEN "Lunas"
                                 ELSE "-"
                             END) as status_daftar_ulang,
-                            nilai_raport_ft.file_raport,
-                            nilai_raport_ft.file_raport2,
-                            nilai_raport_ft.file_raport3,
-                            nilai_raport_ft.file_raport4 
+                            MAX(nilai_raport_ft.file_raport) as file_raport,
+                            MAX(nilai_raport_ft.file_raport2) as file_raport2,
+                            MAX(nilai_raport_ft.file_raport3) as file_raport3,
+                            MAX(nilai_raport_ft.file_raport4) as file_raport4 
                            ');
 
 
@@ -160,21 +160,21 @@ class Model_siswa_ft extends MY_Model
                            provinces.name as provinsi,
                            peminatan_ft.peminatan as peminatan_ft_peminatan,
                            status_lulus.status_lulus as status_lulus_status_lulus,
-                           transaksi.created_at as tanggal_daftar,
-                           transaksi.updated_at as tanggal_pembayaran,
-                           daftar_ulang.tgl_daftar_ulang,
-                           daftar_ulang.tgl_aktivasi as tanggal_aktivasi,
-                           daftar_ulang.tgl_bayar as tanggal_bayar_daftar_ulang,
+                           MAX(transaksi.created_at) as tanggal_daftar,
+                           MAX(transaksi.updated_at) as tanggal_pembayaran,
+                           MAX(daftar_ulang.tgl_daftar_ulang) as tgl_daftar_ulang,
+                           MAX(daftar_ulang.tgl_aktivasi) as tanggal_aktivasi,
+                           MAX(daftar_ulang.tgl_bayar) as tanggal_bayar_daftar_ulang,
                            (CASE
-                                WHEN daftar_ulang.status = 0 THEN "Menunggu Aktivasi"
-                                WHEN daftar_ulang.status = 1 THEN "Menunggu Pembayaran"
-                                WHEN daftar_ulang.status = 2 THEN "Lunas"
+                                WHEN MAX(daftar_ulang.status) = 0 THEN "Menunggu Aktivasi"
+                                WHEN MAX(daftar_ulang.status) = 1 THEN "Menunggu Pembayaran"
+                                WHEN MAX(daftar_ulang.status) = 2 THEN "Lunas"
                                 ELSE "-"
                             END) as status_daftar_ulang,
-                            nilai_raport_ft.file_raport,
-                            nilai_raport_ft.file_raport2,
-                            nilai_raport_ft.file_raport3,
-                            nilai_raport_ft.file_raport4 
+                            MAX(nilai_raport_ft.file_raport) as file_raport,
+                            MAX(nilai_raport_ft.file_raport2) as file_raport2,
+                            MAX(nilai_raport_ft.file_raport3) as file_raport3,
+                            MAX(nilai_raport_ft.file_raport4) as file_raport4 
                            ');
 
 

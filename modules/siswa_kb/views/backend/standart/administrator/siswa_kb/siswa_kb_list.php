@@ -194,7 +194,7 @@
                </form>
                      <h5 class="widget-user-desc"><?= cclang('list_all', [cclang('siswa_kb')]); ?> <i class="label bg-yellow"><?= $siswa_kb_counts; ?> <?= cclang('items'); ?></i></h5>
                   </div>
-                  <!-- <?= $calender ?> -->
+                  <!-- <!-- <?= $calender ?> --> -->
                   <form name="form_siswa_kb" id="form_siswa_kb" action="<?= base_url('administrator/siswa_kb/index'); ?>">
 
                      <div class="table-responsive">

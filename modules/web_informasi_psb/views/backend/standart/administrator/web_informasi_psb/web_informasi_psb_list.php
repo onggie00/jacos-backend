@@ -4,18 +4,83 @@
 <!-- Content Header (Page header) -->
 <section class="content-header">
    <h1>
-      <?= cclang('web_informasi_psb') ?><small><?= cclang('list_all'); ?></small>
+      <i class="fa fa-newspaper-o"></i> <?= cclang('web_informasi_psb') ?><small><?= cclang('list_all'); ?></small>
    </h1>
    <ol class="breadcrumb">
       <li><a href="#"><i class="fa fa-dashboard"></i> Home</a></li>
       <li class="active"><?= cclang('web_informasi_psb') ?></li>
    </ol>
 </section>
+
+<style>
+/* Info Boxes */
+.info-box-custom { min-height:90px; border-radius:6px; margin-bottom:15px; display:flex; align-items:center; padding:15px 20px; box-shadow:0 2px 4px rgba(0,0,0,0.08); color:#fff; position:relative; overflow:hidden; }
+.info-box-custom .info-icon { font-size:40px; opacity:0.35; position:absolute; right:15px; top:50%; transform:translateY(-50%); }
+.info-box-custom .info-label { font-size:12px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9; margin-bottom:5px; display:block; font-weight:500; }
+.info-box-custom .info-value { font-size:28px; font-weight:700; line-height:1.2; display:block; color:#fff; }
+.info-box-custom .info-detail { font-size:11px; opacity:0.85; margin-top:4px; display:block; color:#fff; }
+.bg-grad-blue { background:linear-gradient(135deg,#3c8dbc 0%,#367fa9 100%); }
+.bg-grad-green { background:linear-gradient(135deg,#00a65a 0%,#008d4c 100%); }
+.bg-grad-purple { background:linear-gradient(135deg,#605ca8 0%,#555299 100%); }
+.bg-grad-orange { background:linear-gradient(135deg,#f39c12 0%,#db8b0a 100%); }
+
+/* Table */
+.table { font-size:13px; }
+.table th { background:#f8f9fa; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.3px; color:#555; vertical-align:middle; white-space:nowrap; }
+.table td { vertical-align:middle; }
+.table tr:hover { background:#f5f5f5; }
+
+/* Action Buttons */
+.btn-action { padding:3px 8px; font-size:11px; border-radius:3px; margin:1px; display:inline-block; color:#fff; }
+.btn-action i { margin-right:3px; }
+.btn-action-view { background:#3498db; }
+.btn-action-view:hover { background:#2980b9; color:#fff; text-decoration:none; }
+.btn-action-edit { background:#27ae60; }
+.btn-action-edit:hover { background:#229954; color:#fff; text-decoration:none; }
+.btn-action-delete { background:#e74c3c; }
+.btn-action-delete:hover { background:#c0392b; color:#fff; text-decoration:none; }
+
+/* Thumbnail & badge */
+.img-thumb { width:56px; height:42px; object-fit:cover; border-radius:4px; border:1px solid #e0e0e0; }
+.label-tanggal { background:#eef2f7; color:#555; padding:4px 8px; border-radius:3px; font-size:11px; display:inline-block; }
+.trunc { max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; vertical-align:middle; }
+</style>
 <!-- Main content -->
 <section class="content">
-   <div class="row" >
-      
+   <div class="row">
+
       <div class="col-md-12">
+
+         <div class="row">
+            <div class="col-md-4">
+               <div class="info-box-custom bg-grad-blue">
+                  <i class="fa fa-newspaper-o info-icon"></i>
+                  <div>
+                     <span class="info-label">Total Informasi</span>
+                     <span class="info-value"><?= $stat_total; ?></span>
+                  </div>
+               </div>
+            </div>
+            <div class="col-md-4">
+               <div class="info-box-custom bg-grad-green">
+                  <i class="fa fa-picture-o info-icon"></i>
+                  <div>
+                     <span class="info-label">Dengan Gambar</span>
+                     <span class="info-value"><?= $stat_gambar; ?></span>
+                  </div>
+               </div>
+            </div>
+            <div class="col-md-4">
+               <div class="info-box-custom bg-grad-orange">
+                  <i class="fa fa-calendar info-icon"></i>
+                  <div>
+                     <span class="info-label">Ditambahkan Bulan Ini</span>
+                     <span class="info-value"><?= $stat_bulan_ini; ?></span>
+                  </div>
+               </div>
+            </div>
+         </div>
+
          <div class="box box-warning">
             <div class="box-body ">
                <!-- Widget: user widget style 1 -->
@@ -64,34 +129,36 @@
                               <input type="checkbox" class="flat-red check" name="id[]" value="<?= $web_informasi_psb->id_web_informasi_psb; ?>">
                            </td>
                                                        
-                           <td><?= _ent($web_informasi_psb->judul); ?></td> 
-                           <td><?= _ent($web_informasi_psb->deskripsi); ?></td> 
-                           <td>
+                           <td><span class="trunc" title="<?= _ent($web_informasi_psb->judul); ?>"><b><?= _ent($web_informasi_psb->judul); ?></b></span></td> 
+                           <td><span class="trunc" title="<?= _ent($web_informasi_psb->deskripsi); ?>"><?= character_limiter(_ent($web_informasi_psb->deskripsi), 80); ?></span></td> 
+                           <td class="text-center">
                               <?php if (!empty($web_informasi_psb->img_file)): ?>
                                 <?php if (is_image($web_informasi_psb->img_file)): ?>
                                 <a class="fancybox" rel="group" href="<?= BASE_URL . 'uploads/web_informasi_psb/' . $web_informasi_psb->img_file; ?>">
-                                  <img src="<?= BASE_URL . 'uploads/web_informasi_psb/' . $web_informasi_psb->img_file; ?>" class="image-responsive" alt="image web_informasi_psb" title="img_file web_informasi_psb" width="40px">
+                                  <img src="<?= BASE_URL . 'uploads/web_informasi_psb/' . $web_informasi_psb->img_file; ?>" class="img-thumb" alt="image web_informasi_psb" title="img_file web_informasi_psb">
                                 </a>
                                 <?php else: ?>
                                   <a href="<?= BASE_URL . 'uploads/web_informasi_psb/' . $web_informasi_psb->img_file; ?>">
-                                   <img src="<?= get_icon_file($web_informasi_psb->img_file); ?>" class="image-responsive image-icon" alt="image web_informasi_psb" title="img_file <?= $web_informasi_psb->img_file; ?>" width="40px"> 
+                                   <img src="<?= get_icon_file($web_informasi_psb->img_file); ?>" class="img-thumb" alt="image web_informasi_psb" title="img_file <?= $web_informasi_psb->img_file; ?>"> 
                                  </a>
                                 <?php endif; ?>
+                              <?php else: ?>
+                                 <span class="label label-default">tanpa gambar</span>
                               <?php endif; ?>
                            </td>
                             
-                           <td><?= _ent($web_informasi_psb->created_at); ?></td> 
+                           <td><span class="label-tanggal"><i class="fa fa-calendar"></i> <?= _ent($web_informasi_psb->created_at); ?></span></td> 
                            <td width="200">
                             
                                                               <?php is_allowed('web_informasi_psb_view', function() use ($web_informasi_psb){?>
-                                 <a href="<?= site_url('administrator/web_informasi_psb/single_pdf/' .$web_informasi_psb->id_web_informasi_psb); ?>" class="label-default"><i class="fa fa-file-pdf-o"></i> <?= cclang('PDF') ?>
-                              <a href="<?= site_url('administrator/web_informasi_psb/view/' . $web_informasi_psb->id_web_informasi_psb); ?>" class="label-default"><i class="fa fa-newspaper-o"></i> <?= cclang('view_button'); ?>
+                                 <a href="<?= site_url('administrator/web_informasi_psb/single_pdf/' .$web_informasi_psb->id_web_informasi_psb); ?>" class="btn-action btn-action-view" title="PDF"><i class="fa fa-file-pdf-o"></i> PDF</a>
+                                 <a href="<?= site_url('administrator/web_informasi_psb/view/' . $web_informasi_psb->id_web_informasi_psb); ?>" class="btn-action btn-action-view" title="<?= cclang('view_button'); ?>"><i class="fa fa-newspaper-o"></i> <?= cclang('view_button'); ?></a>
                               <?php }) ?>
                               <?php is_allowed('web_informasi_psb_update', function() use ($web_informasi_psb){?>
-                              <a href="<?= site_url('administrator/web_informasi_psb/edit/' . $web_informasi_psb->id_web_informasi_psb); ?>" class="label-default"><i class="fa fa-edit "></i> <?= cclang('update_button'); ?></a>
+                              <a href="<?= site_url('administrator/web_informasi_psb/edit/' . $web_informasi_psb->id_web_informasi_psb); ?>" class="btn-action btn-action-edit" title="<?= cclang('update_button'); ?>"><i class="fa fa-edit"></i> <?= cclang('update_button'); ?></a>
                               <?php }) ?>
                               <?php is_allowed('web_informasi_psb_delete', function() use ($web_informasi_psb){?>
-                              <a href="javascript:void(0);" data-href="<?= site_url('administrator/web_informasi_psb/delete/' . $web_informasi_psb->id_web_informasi_psb); ?>" class="label-default remove-data"><i class="fa fa-close"></i> <?= cclang('remove_button'); ?></a>
+                              <a href="javascript:void(0);" data-href="<?= site_url('administrator/web_informasi_psb/delete/' . $web_informasi_psb->id_web_informasi_psb); ?>" class="btn-action btn-action-delete remove-data" title="<?= cclang('remove_button'); ?>"><i class="fa fa-close"></i> <?= cclang('remove_button'); ?></a>
                                <?php }) ?>
 
                            </td>                        </tr>
