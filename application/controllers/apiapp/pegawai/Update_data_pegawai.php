@@ -207,45 +207,34 @@ class Update_data_pegawai extends REST_Controller
 			$old = $val['lama'] ?? '-';
 			$new = $val['baru'] ?? '-';
 			$rows .= '<tr>
-				<td style="padding:8px;border:1px solid #ddd;">' . $no++ . '</td>
-				<td style="padding:8px;border:1px solid #ddd;font-weight:600;">' . htmlspecialchars($label) . '</td>
-				<td style="padding:8px;border:1px solid #ddd;">' . htmlspecialchars($old) . '</td>
-				<td style="padding:8px;border:1px solid #ddd;color:#2e7d32;font-weight:600;">' . htmlspecialchars($new) . '</td>
+				<td style="padding:8px;border:1px solid #D6E8F5;text-align:center;">' . $no++ . '</td>
+				<td style="padding:8px;border:1px solid #D6E8F5;font-weight:600;">' . htmlspecialchars($label) . '</td>
+				<td style="padding:8px;border:1px solid #D6E8F5;">' . htmlspecialchars($old) . '</td>
+				<td style="padding:8px;border:1px solid #D6E8F5;color:#2e7d32;font-weight:600;">' . htmlspecialchars($new) . '</td>
 			</tr>';
 		}
 
-		$body = '
-		<!DOCTYPE html>
-		<html>
-		<head><meta charset="utf-8"></head>
-		<body style="font-family:Arial,sans-serif;font-size:14px;color:#333;margin:0;padding:20px;">
-			<div style="max-width:600px;margin:auto;">
-				<div style="background:#1976d2;color:#fff;padding:12px 20px;border-radius:6px 6px 0 0;">
-					<h3 style="margin:0;">Notifikasi Perubahan Data Pegawai</h3>
-				</div>
-				<div style="border:1px solid #ddd;border-top:none;padding:20px;border-radius:0 0 6px 6px;">
-					<p style="margin:0 0 5px;"><strong>Nama:</strong> ' . htmlspecialchars($updated_by) . '</p>
-					<p style="margin:0 0 15px;"><strong>Waktu:</strong> ' . htmlspecialchars($datetime) . '</p>
-					<table style="width:100%;border-collapse:collapse;margin-bottom:15px;">
-						<thead>
-							<tr style="background:#f5f5f5;">
-								<th style="padding:8px;border:1px solid #ddd;width:40px;">No</th>
-								<th style="padding:8px;border:1px solid #ddd;">Field</th>
-								<th style="padding:8px;border:1px solid #ddd;">Sebelumnya</th>
-								<th style="padding:8px;border:1px solid #ddd;">Sesudah</th>
-							</tr>
-						</thead>
-						<tbody>' . $rows . '</tbody>
-					</table>
-					<p style="margin:0;font-size:12px;color:#999;">Email ini dikirim otomatis oleh sistem.</p>
-				</div>
-			</div>
-		</body>
-		</html>';
+		$body = $this->load->view('email/_header', array('email_title' => 'Notifikasi Perubahan Data Pegawai'), true);
+		$body .= '
+			<p style="margin:0 0 5px;"><strong>Nama:</strong> ' . htmlspecialchars($updated_by) . '</p>
+			<p style="margin:0 0 15px;"><strong>Waktu:</strong> ' . htmlspecialchars($datetime) . '</p>
+			<table style="width:100%;border-collapse:collapse;margin-bottom:15px;font-size:13px;">
+				<thead>
+					<tr style="background-color:#F5FAFD;color:#5E7A8E;">
+						<th style="padding:8px;border:1px solid #D6E8F5;width:40px;">No</th>
+						<th style="padding:8px;border:1px solid #D6E8F5;">Field</th>
+						<th style="padding:8px;border:1px solid #D6E8F5;">Sebelumnya</th>
+						<th style="padding:8px;border:1px solid #D6E8F5;">Sesudah</th>
+					</tr>
+				</thead>
+				<tbody>' . $rows . '</tbody>
+			</table>
+			<p style="margin:0;font-size:12px;color:#999;">Email ini dikirim otomatis oleh sistem.</p>
+		';
+		$body .= $this->load->view('email/_footer', array(), true);
 
 		$attachments = array();
 		$this->load->library('resend_mailer');
-		$subject = $subject;
 		$this->resend_mailer->send($to, $subject, $body, $attachments);
 	}
   
