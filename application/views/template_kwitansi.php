@@ -23,15 +23,21 @@ if (!function_exists('jacos_kwitansi_cb')) {
 }
 $tanggal_bayar_en = date("d F Y", strtotime(!empty($tanggal_bayar) ? $tanggal_bayar : date("Y-m-d")));
 // Level: KB -> P1/P2 (id_tingkatan 1/2), TK -> K1/K2, SD -> Primary
+// jenjang dari webhook/admin datang uppercase (trx_id[1] dari no_transaksi) -> samakan dulu
+$jenjang_l = strtolower(isset($jenjang) ? $jenjang : '');
 $id_ting = isset($id_tingkatan) ? $id_tingkatan : '';
-$cb_p1 = jacos_kwitansi_cb($jenjang == 'kb' && $id_ting == '1');
-$cb_p2 = jacos_kwitansi_cb($jenjang == 'kb' && $id_ting == '2');
-$cb_k1 = jacos_kwitansi_cb($jenjang == 'tk' && $id_ting == '1');
-$cb_k2 = jacos_kwitansi_cb($jenjang == 'tk' && $id_ting == '2');
-$cb_primary = jacos_kwitansi_cb($jenjang == 'sd');
-// Payment Method: label dari web_payment_method, cocok persis dengan opsi desain
+$cb_p1 = jacos_kwitansi_cb($jenjang_l == 'kb' && $id_ting == '1');
+$cb_p2 = jacos_kwitansi_cb($jenjang_l == 'kb' && $id_ting == '2');
+$cb_k1 = jacos_kwitansi_cb($jenjang_l == 'tk' && $id_ting == '1');
+$cb_k2 = jacos_kwitansi_cb($jenjang_l == 'tk' && $id_ting == '2');
+$cb_primary = jacos_kwitansi_cb($jenjang_l == 'sd');
+// Payment Method: label dari web_payment_method; kosong/tidak dikenal -> default Cash (tampilan saja)
 $pm = isset($payment_method) ? $payment_method : '';
+if ($pm != 'VA BNI' && $pm != 'Transfer BNI/BCA' && $pm != 'QRIS BNI/BCA') {
+	$pm = 'Cash';
+}
 $cb_cash = jacos_kwitansi_cb($pm == 'Cash');
+$cb_va = jacos_kwitansi_cb($pm == 'VA BNI');
 $cb_transfer = jacos_kwitansi_cb($pm == 'Transfer BNI/BCA');
 $cb_qris = jacos_kwitansi_cb($pm == 'QRIS BNI/BCA');
 $amount = number_format(isset($total_biaya) ? (float)$total_biaya : 0, 0, "", ".");
@@ -52,7 +58,7 @@ $keterangan_txt = nl2br(html_escape($keterangan_txt));
 	<!-- Header -->
 	<table style="width: 194mm;">
 		<tr>
-			<td style="width: 45%;"><img style="width: 132px;" src="<?php echo FCPATH; ?>/uploads/image_assets/logo_jacos_horizontal.png" /></td>
+			<td style="width: 45%;"><img style="height: 60px;" src="<?php echo FCPATH; ?>/uploads/image_assets/JACOS-VERTIKAL.png" /></td>
 			<td style="width: 55%; text-align: right; vertical-align: bottom; font-size: 9pt; font-weight: bold; color: #1071B0;">jacos.id | @jacos.school | +62 821-4000-0477<br/>Swadaya Raya Street 02, Duren Sawit, East Jakarta.</td>
 		</tr>
 	</table>
@@ -112,7 +118,7 @@ $keterangan_txt = nl2br(html_escape($keterangan_txt));
 		<tr>
 			<td style="font-size: 10pt; font-weight: bold; padding: 2px 0;">Payment Method</td>
 			<td style="font-size: 10pt; font-weight: bold; padding: 2px 0;">:</td>
-			<td style="width: 69%; font-size: 11pt; color: #595959; padding: 2px 2px;"><?php echo $cb_cash; ?> Cash - <?php echo $cb_transfer; ?> Transfer BNI/BCA - <?php echo $cb_qris; ?> QRIS BNI/BCA</td>
+			<td style="width: 69%; font-size: 11pt; color: #595959; padding: 2px 2px;"><?php echo $cb_cash; ?> Cash - <?php echo $cb_va; ?> VA BNI - <?php echo $cb_transfer; ?> Transfer BNI/BCA - <?php echo $cb_qris; ?> QRIS BNI/BCA</td>
 		</tr>
 	</table>
 
