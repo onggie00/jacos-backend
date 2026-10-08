@@ -64,6 +64,8 @@ class Transaksi extends Admin
 		$this->is_allowed('transaksi_update');
 
 		$this->data['transaksi'] = $this->model_transaksi->find($id);
+		//daftar metode pembayaran utk dropdown (is_show = 1)
+		$this->data['payment_methods'] = $this->mymodel->withquery("select id, nama from web_payment_method where is_show = 1 order by id", "result");
 
 		$this->template->title('Transaksi Update');
 		$this->render('backend/standart/administrator/transaksi/transaksi_update', $this->data);
@@ -96,6 +98,10 @@ class Transaksi extends Admin
 				'is_show' => $this->input->post('is_show'),
 			];
 
+			//metode pembayaran (kosong -> null)
+			$payment_method_id = $this->input->post('payment_method_id');
+			$save_data['payment_method_id'] = ($payment_method_id !== '' && $payment_method_id !== null) ? (int)$payment_method_id : null;
+
 			$pesan_cetak = '';
 
 			$old_data=$this->model_transaksi->find($id);
@@ -114,9 +120,10 @@ class Transaksi extends Admin
 					$jenjang = $trx[1];
 					$id_siswa = $trx[3];
 					//peta kode jenjang di no_transaksi ke tabel siswa & kode unit no peserta
+					//unit HARUS sama dengan webhook Payment_notification.php (SD=12, SDM=13, KB=51, TK=52, dll.)
 					$peta_jenjang = array(
-						"SD" => array("tabel" => "sd", "unit" => "11"),
-						"PSBSD" => array("tabel" => "sd", "unit" => "11"),
+						"SD" => array("tabel" => "sd", "unit" => "12"),
+						"PSBSD" => array("tabel" => "sd", "unit" => "12"),
 						"SDM" => array("tabel" => "sd", "unit" => "13"),
 						"SMP" => array("tabel" => "smp", "unit" => "21"),
 						"PSBSMP" => array("tabel" => "smp", "unit" => "22"),
@@ -126,6 +133,8 @@ class Transaksi extends Admin
 						"PPSBBSMA" => array("tabel" => "sma", "unit" => "31"),
 						"FT" => array("tabel" => "ft", "unit" => "42"),
 						"PPSBBFT" => array("tabel" => "ft", "unit" => "41"),
+						"KB" => array("tabel" => "kb", "unit" => "51"),
+						"TK" => array("tabel" => "tk", "unit" => "52"),
 					);
 					if (isset($peta_jenjang[$jenjang])) {
 						$tabel_siswa = $peta_jenjang[$jenjang]["tabel"];
@@ -311,6 +320,73 @@ class Transaksi extends Admin
         }
 
 		redirect_back();
+	}
+
+		/**
+	* Cetak kwitansi via action list (hanya transaksi lunas)
+	* Reuse cetak_kwitansi() (curl ke apiapp/siswa/export_pdf_kwitansi) seperti di edit_save
+	* @var $id String
+	*/
+	public function cetak_kwitansi_action($id = null)
+	{
+		if (!$this->is_allowed('transaksi_view', false)) {
+			echo json_encode(array('success' => false, 'message' => cclang('sorry_you_do_not_have_permission_to_access')));
+			exit;
+		}
+
+		$transaksi = $this->model_transaksi->find($id);
+		if (empty($transaksi)) {
+			echo json_encode(array('success' => false, 'message' => 'Transaksi tidak ditemukan'));
+			exit;
+		}
+		if ($transaksi->status_transaksi != "1") {
+			echo json_encode(array('success' => false, 'message' => 'Kwitansi hanya bisa dicetak untuk transaksi lunas'));
+			exit;
+		}
+
+		$trx = explode("-", $transaksi->no_transaksi);
+		$jenjang = isset($trx[1]) ? $trx[1] : '';
+		$id_siswa = isset($trx[3]) ? $trx[3] : '';
+		$peta_jenjang = array(
+			"SD" => "sd", "PSBSD" => "sd", "SDM" => "sd",
+			"SMP" => "smp", "PSBSMP" => "smp", "PPSBBSMP" => "smp",
+			"SMA" => "sma", "PSBSMA" => "sma", "PPSBBSMA" => "sma",
+			"FT" => "ft", "PPSBBFT" => "ft",
+			"KB" => "kb", "TK" => "tk",
+		);
+		if (!isset($peta_jenjang[$jenjang])) {
+			echo json_encode(array('success' => false, 'message' => 'Jenjang transaksi tidak dikenali: ' . _ent($jenjang)));
+			exit;
+		}
+		$tabel_siswa = $peta_jenjang[$jenjang];
+		$id_field_siswa = "id_siswa_" . $tabel_siswa;
+		$get_siswa = $this->mymodel->withquery("select * from siswa_" . $tabel_siswa . " where " . $id_field_siswa . " = '" . $id_siswa . "'", "row");
+		if (empty($get_siswa)) {
+			echo json_encode(array('success' => false, 'message' => 'Data siswa tidak ditemukan'));
+			exit;
+		}
+		$nama_ortu = (!empty($get_siswa->nama_ibu) && $get_siswa->nama_ibu != "-") ? $get_siswa->nama_ibu : $get_siswa->nama_ayah;
+
+		$rs = $this->cetak_kwitansi(array(
+			"id_siswa" => $id_siswa,
+			"tipe_siswa" => $tabel_siswa,
+			"jenjang" => $tabel_siswa,
+			"nama_lengkap" => $get_siswa->nama_lengkap,
+			"nama_ortu" => $nama_ortu,
+			"total_biaya" => $transaksi->total_biaya,
+			"total_biaya_terbilang" => terbilang($transaksi->total_biaya) . " Rupiah",
+			"va_number" => $transaksi->va_number,
+			"no_transaksi" => $transaksi->no_transaksi,
+			"jalur" => "PSB",
+			"jenis_kwitansi" => "uang pendaftaran"
+		));
+
+		$link_kwitansi = base_url('uploads/kwitansi/') . $transaksi->no_transaksi . '-' . $get_siswa->nama_lengkap . '.pdf';
+		$res_kwitansi = json_decode($rs);
+		if (!empty($res_kwitansi->data->url_file)) {
+			$link_kwitansi = $res_kwitansi->data->url_file;
+		}
+		echo json_encode(array('success' => true, 'url' => $link_kwitansi));
 	}
 
 		/**

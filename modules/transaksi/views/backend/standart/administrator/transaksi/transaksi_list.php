@@ -111,10 +111,14 @@
                      <option <?= $this->input->get('f') == 'nisn' ? 'selected' : ''; ?> value="nisn">NISN</option>
                      <option <?= $this->input->get('f') == 'no_peserta' ? 'selected' : ''; ?> value="no_peserta">No. Peserta</option>
                   </select>
-                  <select class="form-control" name="s" id="sort" style="width:130px;height:34px;font-size:12px">
+                  <select class="form-control" name="s" id="sort" style="width:160px;height:34px;font-size:12px">
                      <option value="">Sort By</option>
                      <option <?= $this->input->get('s') == 'updated_at' ? 'selected' : ''; ?> value="updated_at">Updated At</option>
                      <option <?= $this->input->get('s') == 'created_at' ? 'selected' : ''; ?> value="created_at">Created At</option>
+                     <option <?= $this->input->get('s') == 'status_transaksi' ? 'selected' : ''; ?> value="status_transaksi">Status Transaksi</option>
+                     <option <?= $this->input->get('s') == 'nama_lengkap' ? 'selected' : ''; ?> value="nama_lengkap">Nama Lengkap Siswa</option>
+                     <option <?= $this->input->get('s') == 'nama_bank' ? 'selected' : ''; ?> value="nama_bank">Nama Bank</option>
+                     <option <?= $this->input->get('s') == 'total_biaya' ? 'selected' : ''; ?> value="total_biaya">Total Biaya</option>
                   </select>
                   <select class="form-control" name="d" id="sort_type" style="width:110px;height:34px;font-size:12px">
                      <option <?= $this->input->get('d') == 'desc' ? 'selected' : ''; ?> value="desc">Descending</option>
@@ -139,36 +143,42 @@
                               <input type="checkbox" class="flat-red" id="check_all" name="check_all" title="check all">
                            </th>
                            <th><?= cclang('no_transaksi'); ?></th>
-                           <th><?= cclang('nama_bank'); ?></th>
-                           <th><?= cclang('va_number'); ?></th>
-                           <th><?= cclang('user_email'); ?></th>
-                           <th><?= cclang('user_name'); ?></th>
-                           <th><?= cclang('user_phone'); ?></th>
                            <th>Biodata Siswa</th>
-                           <th><?= cclang('description'); ?></th>
-                           <th><?= cclang('jenjang'); ?></th>
+                           <th><?= cclang('nama_bank'); ?></th>
                            <th><?= cclang('total_biaya'); ?></th>
-                           <th>Akumulasi Payment</th>
+                           <th>Metode Bayar</th>
                            <th><?= cclang('status_transaksi'); ?></th>
-                           <th><?= cclang('expired_datetime'); ?></th>
-                           <th><?= cclang('created_at'); ?></th>
-                           <th><?= cclang('updated_at'); ?></th>
-                           <th width="160">Aksi</th>
+                           <th width="180">Aksi</th>
                         </tr>
                      </thead>
                      <tbody id="tbody_transaksi">
                      <?php if ($transaksi_counts > 0) : ?>
+                     <?php
+                        // map detail transaksi utk modal (kolom yang dikeluarkan dari list)
+                        $detail_map = array();
+                     ?>
                      <?php foreach($transaksis as $transaksi): ?>
+                        <?php
+                           $detail_map[$transaksi->id_transaksi] = array(
+                              'no_transaksi' => (string)$transaksi->no_transaksi,
+                              'va_number' => (string)$transaksi->va_number,
+                              'user_email' => (string)$transaksi->user_email,
+                              'user_name' => (string)$transaksi->user_name,
+                              'user_phone' => (string)$transaksi->user_phone,
+                              'description' => (string)$transaksi->description,
+                              'jenjang' => (string)$transaksi->jenjang,
+                              'payment_amount' => (string)$transaksi->payment_amount,
+                              'expired_datetime' => (string)$transaksi->expired_datetime,
+                              'created_at' => (string)$transaksi->created_at,
+                              'updated_at' => (string)$transaksi->updated_at,
+                           );
+                           $metode_bayar = !empty($transaksi->metode_pembayaran) ? $transaksi->metode_pembayaran : 'Cash';
+                        ?>
                         <tr>
                            <td class="labs-text-center">
                               <input type="checkbox" class="flat-red check" name="id[]" value="<?= $transaksi->id_transaksi; ?>">
                            </td>
                            <td><span class="labs-fw-semi"><?= _ent($transaksi->no_transaksi); ?></span></td>
-                           <td class="labs-text-center"><span class="labs-badge labs-badge--default"><?= _ent($transaksi->nama_bank); ?></span></td>
-                           <td><?= _ent($transaksi->va_number); ?></td>
-                           <td class="labs-cell-muted"><?= _ent($transaksi->user_email); ?></td>
-                           <td><?= _ent($transaksi->user_name); ?></td>
-                           <td class="labs-cell-muted"><?= _ent($transaksi->user_phone); ?></td>
                            <!-- Biodata siswa dari join 4 tabel siswa_* -->
                            <?php
                               $biodata_nama = '';
@@ -197,10 +207,9 @@
                                  <span class="labs-text-light"><i class="fa fa-user"></i> -</span>
                               <?php endif; ?>
                            </td>
-                           <td class="labs-cell-muted"><?= _ent($transaksi->description); ?></td>
-                           <td class="labs-text-center"><span class="labs-badge labs-badge--info labs-badge--solid"><?= _ent($transaksi->jenjang); ?></span></td>
+                           <td class="labs-text-center"><span class="labs-badge labs-badge--default"><?= _ent($transaksi->nama_bank); ?></span></td>
                            <td class="labs-cell-numeric labs-fw-semi">Rp <?= number_format((int) $transaksi->total_biaya, 0, ',', '.'); ?></td>
-                           <td class="labs-cell-numeric">Rp <?= number_format((int) $transaksi->payment_amount, 0, ',', '.'); ?></td>
+                           <td class="labs-text-center"><span class="labs-badge labs-badge--info"><?= _ent($metode_bayar); ?></span></td>
                            <?php
                               if ($transaksi->status_transaksi == 0) {
                                  $status = "Menunggu Pembayaran";
@@ -211,11 +220,12 @@
                               }
                            ?>
                            <td class="labs-text-center"><span class="labs-badge labs-badge--<?= $status_badge; ?>"><?= _ent($status); ?></span></td>
-                           <td class="labs-cell-muted"><?= _ent($transaksi->expired_datetime); ?></td>
-                           <td class="labs-cell-muted"><?= _ent($transaksi->created_at); ?></td>
-                           <td class="labs-cell-muted"><?= _ent($transaksi->updated_at); ?></td>
                            <td style="white-space:nowrap">
                               <div class="labs-row-actions" style="justify-content:center">
+                                 <a href="javascript:void(0);" class="labs-btn labs-btn--default labs-btn--sm btn-detail-transaksi" data-id="<?= $transaksi->id_transaksi; ?>" title="Detail Transaksi"><i class="fa fa-search-plus"></i></a>
+                                 <?php if ($transaksi->status_transaksi == 1) { is_allowed('transaksi_view', function() use ($transaksi){?>
+                                 <a href="javascript:void(0);" class="labs-btn labs-btn--success labs-btn--sm btn-cetak-kwitansi" data-id="<?= $transaksi->id_transaksi; ?>" title="Cetak Kwitansi"><i class="fa fa-print"></i></a>
+                                 <?php }); } ?>
                                  <?php is_allowed('transaksi_view', function() use ($transaksi){?>
                                  <a href="<?= site_url('administrator/transaksi/view/' . $transaksi->id_transaksi); ?>" class="labs-btn labs-btn--info labs-btn--sm" title="<?= cclang('view_button'); ?>"><i class="fa fa-newspaper-o"></i></a>
                                  <?php }) ?>
@@ -232,7 +242,7 @@
                      <?php endforeach; ?>
                      <?php else : ?>
                         <tr>
-                           <td colspan="17">
+                           <td colspan="8">
                               <div class="labs-empty">
                                  <i class="fa fa-inbox"></i>
                                  <?php if(!empty($this->input->get('q'))): ?>
@@ -271,9 +281,84 @@
 </section>
 <!-- /.content -->
 
+<!-- Modal Detail Transaksi -->
+<div class="modal fade" id="modal_detail_transaksi" tabindex="-1" role="dialog">
+   <div class="modal-dialog" role="document">
+      <div class="modal-content">
+         <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title"><i class="fa fa-exchange"></i> Detail Transaksi <small id="detail_no_transaksi"></small></h4>
+         </div>
+         <div class="modal-body">
+            <table class="table table-striped" style="margin-bottom:0">
+               <tbody id="detail_body"></tbody>
+            </table>
+         </div>
+         <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Tutup</button>
+         </div>
+      </div>
+   </div>
+</div>
+
 <!-- Page script -->
 <script>
+  var detail_map = <?= json_encode($detail_map); ?>;
   $(document).ready(function(){
+
+    //modal detail transaksi (kolom yang dikeluarkan dari list)
+    $('.btn-detail-transaksi').click(function(){
+      var id = $(this).attr('data-id');
+      var d = detail_map[id] || {};
+      var rows = [
+        ['Va Number', d.va_number],
+        ['User Email', d.user_email],
+        ['User Name', d.user_name],
+        ['User Phone', d.user_phone],
+        ['Description', d.description],
+        ['Jenjang', d.jenjang],
+        ['Akumulasi Payment', (d.payment_amount != '' ? 'Rp ' + Number(d.payment_amount).toLocaleString('id-ID') : '-')],
+        ['Expired Datetime', d.expired_datetime],
+        ['Created At', d.created_at],
+        ['Updated At', d.updated_at]
+      ];
+      var html = '';
+      for (var i = 0; i < rows.length; i++) {
+        var val = (rows[i][1] == null || rows[i][1] == '' || rows[i][1] == 'null') ? '-' : rows[i][1];
+        html += '<tr><th style="width:40%">' + rows[i][0] + '</th><td>' + val + '</td></tr>';
+      }
+      $('#detail_no_transaksi').text(d.no_transaksi || '');
+      $('#detail_body').html(html);
+      $('#modal_detail_transaksi').modal('show');
+      return false;
+    });
+
+    //cetak kwitansi (hanya transaksi lunas)
+    $('.btn-cetak-kwitansi').click(function(){
+      var id = $(this).attr('data-id');
+      var btn = $(this);
+      btn.prop('disabled', true);
+      $.ajax({
+        url: BASE_URL + '/administrator/transaksi/cetak_kwitansi_action/' + id,
+        type: 'GET',
+        dataType: 'json'
+      })
+      .done(function(res) {
+        if (res.success) {
+          window.open(res.url, '_blank');
+          toastr.success('Kwitansi berhasil digenerate', 'Berhasil');
+        } else {
+          toastr.error(res.message, 'Error', { timeOut: 5000 });
+        }
+      })
+      .fail(function() {
+        toastr.error('Gagal menghubungi server', 'Error');
+      })
+      .always(function() {
+        btn.prop('disabled', false);
+      });
+      return false;
+    });
 
     $('.remove-data').click(function(){
 

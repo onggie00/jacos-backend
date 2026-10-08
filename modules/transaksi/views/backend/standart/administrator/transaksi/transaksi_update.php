@@ -81,6 +81,22 @@
                             </div>
                         </div>
                         <div class="form-group ">
+                            <label for="payment_method_id" class="col-sm-2 control-label">Metode Pembayaran
+                            </label>
+                            <div class="col-sm-8">
+                                <select class="form-control" name="payment_method_id" id="payment_method_id">
+                                    <option value="">- Pilih Metode -</option>
+                                    <?php if (!empty($payment_methods)) { foreach ($payment_methods as $pm) { ?>
+                                    <option value="<?= $pm->id; ?>" <?= $transaksi->payment_method_id == $pm->id ? 'selected' : ''; ?>><?= _ent($pm->nama); ?></option>
+                                    <?php } } ?>
+                                </select>
+                                <small class="info help-block">
+                                <b>Metode pembayaran untuk kwitansi (kosong berarti Cash di kwitansi).</b>
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="form-group ">
                             <label for="va_number" class="col-sm-2 control-label">Tampilkan data
                             </label>
                             <div class="col-sm-8">

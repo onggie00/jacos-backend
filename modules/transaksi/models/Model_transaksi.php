@@ -75,18 +75,25 @@ class Model_transaksi extends MY_Model {
         $jenjang_smp = "'SMP','PSBSMP','PPSBBSMP'";
         $jenjang_sma = "'SMA','PSBSMA','PPSBBSMA'";
         $jenjang_ft = "'FT'";
+        $jenjang_kb = "'KB'";
+        $jenjang_tk = "'TK'";
 
         $this->db->join('biaya_pendaftaran', 'biaya_pendaftaran.id_biaya_pendaftaran = transaksi.id_biaya_pendaftaran', 'LEFT');
+        $this->db->join('web_payment_method', 'web_payment_method.id = transaksi.payment_method_id', 'LEFT');
         $this->db->join('siswa_sd', "siswa_sd.id_siswa_sd = SUBSTRING_INDEX(transaksi.no_transaksi, '-', -1) AND SUBSTRING_INDEX(SUBSTRING_INDEX(transaksi.no_transaksi, '-', 2), '-', -1) IN (" . $jenjang_sd . ")", 'LEFT');
         $this->db->join('siswa_smp', "siswa_smp.id_siswa_smp = SUBSTRING_INDEX(transaksi.no_transaksi, '-', -1) AND SUBSTRING_INDEX(SUBSTRING_INDEX(transaksi.no_transaksi, '-', 2), '-', -1) IN (" . $jenjang_smp . ")", 'LEFT');
         $this->db->join('siswa_sma', "siswa_sma.id_siswa_sma = SUBSTRING_INDEX(transaksi.no_transaksi, '-', -1) AND SUBSTRING_INDEX(SUBSTRING_INDEX(transaksi.no_transaksi, '-', 2), '-', -1) IN (" . $jenjang_sma . ")", 'LEFT');
         $this->db->join('siswa_ft', "siswa_ft.id_siswa_ft = SUBSTRING_INDEX(transaksi.no_transaksi, '-', -1) AND SUBSTRING_INDEX(SUBSTRING_INDEX(transaksi.no_transaksi, '-', 2), '-', -1) IN (" . $jenjang_ft . ")", 'LEFT');
+        $this->db->join('siswa_kb', "siswa_kb.id_siswa_kb = SUBSTRING_INDEX(transaksi.no_transaksi, '-', -1) AND SUBSTRING_INDEX(SUBSTRING_INDEX(transaksi.no_transaksi, '-', 2), '-', -1) IN (" . $jenjang_kb . ")", 'LEFT');
+        $this->db->join('siswa_tk', "siswa_tk.id_siswa_tk = SUBSTRING_INDEX(transaksi.no_transaksi, '-', -1) AND SUBSTRING_INDEX(SUBSTRING_INDEX(transaksi.no_transaksi, '-', 2), '-', -1) IN (" . $jenjang_tk . ")", 'LEFT');
         $this->db->where('transaksi.is_show',1);
-        $this->db->select('transaksi.*,biaya_pendaftaran.jenjang');
+        $this->db->select('transaksi.*,biaya_pendaftaran.jenjang, web_payment_method.nama AS metode_pembayaran');
         $this->db->select('siswa_sd.id_siswa_sd AS id_siswa_sd, siswa_sd.nama_lengkap AS nama_lengkap_sd, siswa_sd.nisn AS nisn_sd, siswa_sd.no_peserta AS no_peserta_sd');
         $this->db->select('siswa_smp.id_siswa_smp AS id_siswa_smp, siswa_smp.nama_lengkap AS nama_lengkap_smp, siswa_smp.nisn AS nisn_smp, siswa_smp.no_peserta AS no_peserta_smp');
         $this->db->select('siswa_sma.id_siswa_sma AS id_siswa_sma, siswa_sma.nama_lengkap AS nama_lengkap_sma, siswa_sma.nisn AS nisn_sma, siswa_sma.no_peserta AS no_peserta_sma');
         $this->db->select('siswa_ft.id_siswa_ft AS id_siswa_ft, siswa_ft.nama_lengkap AS nama_lengkap_ft, siswa_ft.nisn AS nisn_ft, siswa_ft.no_peserta AS no_peserta_ft');
+        $this->db->select('siswa_kb.id_siswa_kb AS id_siswa_kb, siswa_kb.nama_lengkap AS nama_lengkap_kb, siswa_kb.nisn AS nisn_kb, siswa_kb.no_peserta AS no_peserta_kb');
+        $this->db->select('siswa_tk.id_siswa_tk AS id_siswa_tk, siswa_tk.nama_lengkap AS nama_lengkap_tk, siswa_tk.nisn AS nisn_tk, siswa_tk.no_peserta AS no_peserta_tk');
 
 
         return $this;
@@ -128,6 +135,8 @@ class Model_transaksi extends MY_Model {
 
         $sort_by = (empty($sort)) ? 'id_transaksi' : $sort;
         $sort_type = (empty($sort_type)) ? 'desc' : $sort_type;
+        // whitelist kolom sort (SQL injection guard)
+        $allow_sort = array('id_transaksi', 'no_transaksi', 'nama_bank', 'va_number', 'total_biaya', 'status_transaksi', 'expired_datetime', 'created_at', 'updated_at');
 
         $this->join_avaiable()->filter_avaiable();
 
@@ -137,7 +146,14 @@ class Model_transaksi extends MY_Model {
         }
 
         $this->db->limit($limit, $offset);
-        $this->db->order_by('transaksi.' . $sort_by, $sort_type);
+        if (in_array($sort_by, $allow_sort)) {
+            $this->db->order_by('transaksi.' . $sort_by, $sort_type);
+        } else if ($sort_by == 'nama_lengkap') {
+            // sort nama siswa via alias join (raw order string, tanpa escaping backtick)
+            $this->db->order_by('COALESCE(nama_lengkap_sd, nama_lengkap_smp, nama_lengkap_sma, nama_lengkap_ft, nama_lengkap_kb, nama_lengkap_tk) ' . strtoupper($sort_type), null, false);
+        } else {
+            $this->db->order_by('transaksi.id_transaksi', $sort_type);
+        }
         $query = $this->db->get($this->table_name);
 
         return $query->result();
