@@ -63,6 +63,11 @@ class Export_pdf_kwitansi extends MY_Controller {
         if (!empty($data)) {
 
         //$data->no_peserta = $no_peserta;
+        $payment_method_label = "";
+        if (!empty($get_transaksi->id_payment_method)) {
+          $pm_row = $this->mymodel->getbywhere("web_payment_method", "id", $get_transaksi->id_payment_method, "row");
+          $payment_method_label = (!empty($pm_row)) ? $pm_row->nama : "";
+        }
         $datas = array(
           "tipe_siswa" => $tipe_siswa, 
           "jenjang" => $jenjang, 
@@ -76,7 +81,11 @@ class Export_pdf_kwitansi extends MY_Controller {
           "no_transaksi" => $no_transaksi, 
           "jalur" => $jalur , 
           "jenis_kwitansi" => $jenis_kwitansi,
-          "tipe_tagihan" => $get_transaksi->tipe_tagihan
+          "tipe_tagihan" => $get_transaksi->tipe_tagihan,
+          "id_tingkatan" => isset($get_siswa->id_tingkatan) ? $get_siswa->id_tingkatan : "",
+          "payment_method" => $payment_method_label,
+          "keterangan" => isset($get_transaksi->description) ? $get_transaksi->description : "",
+          "tanggal_bayar" => ($get_transaksi->status_transaksi == 1 && !empty($get_transaksi->updated_at)) ? $get_transaksi->updated_at : ""
         );
 
         $pdf = new HTML2PDF('P', 'A4', 'en');

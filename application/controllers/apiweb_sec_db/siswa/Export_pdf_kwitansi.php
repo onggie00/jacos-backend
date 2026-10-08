@@ -61,7 +61,9 @@ class Export_pdf_kwitansi extends MY_Controller {
         if (!empty($data)) {
 
         //$data->no_peserta = $no_peserta;
-        $datas = array("tipe_siswa" => $tipe_siswa, "jenjang" => $jenjang, "nama_ortu" => $nama_ortu, "nama_lengkap" => $nama_lengkap, "va_number" => $va_number, "tahun_ajaran" => $tahun_ajaran, "total_biaya" => $total_biaya, "total_biaya_terbilang" => $total_biaya_terbilang , "id_siswa" => $id_siswa, "no_transaksi" => $no_transaksi, "jalur" => $jalur , "jenis_kwitansi" => $jenis_kwitansi);
+        $datas = array("tipe_siswa" => $tipe_siswa, "jenjang" => $jenjang, "nama_ortu" => $nama_ortu, "nama_lengkap" => $nama_lengkap, "va_number" => $va_number, "tahun_ajaran" => $tahun_ajaran, "total_biaya" => $total_biaya, "total_biaya_terbilang" => $total_biaya_terbilang , "id_siswa" => $id_siswa, "no_transaksi" => $no_transaksi, "jalur" => $jalur , "jenis_kwitansi" => $jenis_kwitansi,
+          "id_tingkatan" => isset($get_siswa->id_tingkatan) ? $get_siswa->id_tingkatan : "",
+          "payment_method" => "", "keterangan" => "", "tanggal_bayar" => "");
 
         $pdf = new HTML2PDF('P', 'A4', 'en');
         ob_start();
