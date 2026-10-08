@@ -35,6 +35,8 @@ class Login extends REST_Controller {
               $data->token_expired=date("Y-m-d H:i:s",strtotime("+3 days"));
             }
           $data->role="employee";
+          // Fase switch bahasa: default setting (best effort)
+          bahasa_default_after_login(array(array('email' => $data->email_ms_office, 'role' => 'pegawai')));
           $msg = array('status' => 1, 'message'=>'Berhasil melakukan login' ,'data'=>$data);
           $status="200";
         }

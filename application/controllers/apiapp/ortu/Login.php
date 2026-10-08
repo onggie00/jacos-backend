@@ -99,6 +99,8 @@ class Login extends REST_Controller {
 
         if (!empty($data)) {
           $data->role="parent";
+          // Fase switch bahasa: default setting (best effort)
+          bahasa_default_after_login(array(array('email' => $data->email_ms_office, 'role' => 'ortu', 'jenjang' => $data->jenjang)));
           $msg = array('status' => 1, 'message'=>'Berhasil melakukan login' ,'data'=>$data);
           $status="200";
         }

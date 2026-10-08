@@ -77,6 +77,8 @@ class Login_v2 extends REST_Controller {
         if (!empty($data)) {
           $data->role="director";
           $data_login[] = $data;
+          // Fase switch bahasa: default setting (best effort)
+          bahasa_default_after_login(array(array('email' => $data->email_ms_office, 'role' => 'pimpinan', 'jenjang' => $data->jenjang)));
           $msg = array('status' => 1, 'message'=>'Berhasil melakukan login' ,'data'=>$data_login);
           $status="200";
           $this->response($msg,$status);

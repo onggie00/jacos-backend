@@ -146,6 +146,12 @@ class Login extends REST_Controller {
             $data_guru->role="teacher";
             $data_login[] = $data_guru;
           }
+          // Fase switch bahasa: default setting (best effort)
+          $bahasa_akun = array(array('email' => $data->email_ms_office, 'role' => 'pimpinan', 'jenjang' => $data->jenjang));
+          if (!empty($data_guru)) {
+            $bahasa_akun[] = array('email' => $data_guru->email_ms_office, 'role' => 'guru', 'jenjang' => $data_guru->jenjang);
+          }
+          bahasa_default_after_login($bahasa_akun);
           $msg = array('status' => 1, 'message'=>'Berhasil melakukan login' ,'data'=>$data_login);
           $status="200";
         }

@@ -142,10 +142,16 @@ class Login extends REST_Controller {
         if (!empty($data)) {
           $data->role="teacher";
           $data_login[] = $data;
-          if(!empty($data_pimpinan)){
-            $data_pimpinan->role = "director";
-            $data_login[] = $data_pimpinan;
+          if(!empty($data_pimpinan)){
+            $data_pimpinan->role = "director";
+            $data_login[] = $data_pimpinan;
+          }
+          // Fase switch bahasa: default setting (best effort)
+          $bahasa_akun = array(array('email' => $data->email_ms_office, 'role' => 'guru', 'jenjang' => $data->jenjang));
+          if (!empty($data_pimpinan)) {
+            $bahasa_akun[] = array('email' => $data_pimpinan->email_ms_office, 'role' => 'pimpinan', 'jenjang' => $data_pimpinan->jenjang);
           }
+          bahasa_default_after_login($bahasa_akun);
           $msg = array('status' => 1, 'message'=>'Berhasil melakukan login' ,'data'=>$data_login);
           $status="200";
         }

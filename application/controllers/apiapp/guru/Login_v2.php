@@ -217,10 +217,19 @@ class Login_v2 extends REST_Controller {
             $data->role = "director";
             $data_login[] = $data;
           }
-          if(!empty($data_ortu)){
-            $data_ortu->role="parent";
-            $data_login[] = $data_ortu;
+          if(!empty($data_ortu)){
+            $data_ortu->role="parent";
+            $data_login[] = $data_ortu;
+          }
+          // Fase switch bahasa: default setting (best effort)
+          $bahasa_akun = array(array('email' => $data_guru->email_ms_office, 'role' => 'guru', 'jenjang' => $data_guru->jenjang));
+          if (!empty($data)) {
+            $bahasa_akun[] = array('email' => $data->email_ms_office, 'role' => 'pimpinan', 'jenjang' => $data->jenjang);
           }
+          if (!empty($data_ortu)) {
+            $bahasa_akun[] = array('email' => $data_ortu->email_ms_office, 'role' => 'ortu', 'jenjang' => $data_ortu->jenjang);
+          }
+          bahasa_default_after_login($bahasa_akun);
           $msg = array('status' => 1, 'message'=>'Berhasil melakukan login' ,'data'=>$data_login);
           $status="200";
         }
