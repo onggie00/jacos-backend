@@ -663,26 +663,14 @@ class Bri_snap_notification extends MY_Controller
 
     public function send_email_paid($file = '', $to = '', $data)
     {
-        $mail = new PHPMailer;
-        $mail->isSMTP();
-        $mail->SMTPDebug = 0;
-        $mail->Host = 'smtp.office365.com';
-        $mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
-        $mail->SMTPAuth = true;
-        $mail->Username = 'noreply@jacos.id';
-        $mail->Password = ''; // [JACOS] TODO(manual): password SMTP Jacos — kredensial lama dihapus
-        $mail->SMTPSecure = 'tls';
-        $mail->Port = 587;
-        $mail->addReplyTo('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
-        $mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
-        $mail->addAddress($to);
-        $mail->Subject = '[No Reply] KWITANSI DAN KARTU PESERTA SISWA JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
-        $mail->isHTML(true);
+        $attachments = array();
+        $this->load->library('resend_mailer');
+        $subject = '[No Reply] KWITANSI DAN KARTU PESERTA SISWA JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
         if (!empty($data['kartu_peserta'])) {
-            $mail->AddAttachment('./uploads/kartu_peserta/' . $data['kartu_peserta']);
+            $this->resend_mailer->add_attachment($attachments, FCPATH.'uploads/kartu_peserta/' . $data['kartu_peserta']);
         }
         if (!empty($data['kwitansi'])) {
-            $mail->AddAttachment('./uploads/kwitansi/' . $data['kwitansi']);
+            $this->resend_mailer->add_attachment($attachments, FCPATH.'uploads/kwitansi/' . $data['kwitansi']);
         }
         $data_['to'] = $to;
         $data_['nama_lengkap'] = $data['nama_lengkap'];
@@ -692,32 +680,19 @@ class Bri_snap_notification extends MY_Controller
         $data_['tipe_pendaftaran'] = $data['tipe_pendaftaran'];
         $data_['transaksi'] = $data['transaksi'];
         $mailContent = $this->load->view('template_email_pembayaran', $data_, true);
-        $mail->Body = $mailContent;
-        $mail->send();
+        $this->resend_mailer->send($to, $subject, $mailContent, $attachments);
     }
 
     public function send_email_paid_daftar_ulang($file = '', $to = '', $data)
     {
-        $mail = new PHPMailer;
-        $mail->isSMTP();
-        $mail->SMTPDebug = 0;
-        $mail->Host = 'smtp.office365.com';
-        $mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
-        $mail->SMTPAuth = true;
-        $mail->Username = 'noreply@jacos.id';
-        $mail->Password = ''; // [JACOS] TODO(manual): password SMTP Jacos — kredensial lama dihapus
-        $mail->SMTPSecure = 'tls';
-        $mail->Port = 587;
-        $mail->addReplyTo('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
-        $mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
-        $mail->addAddress($to);
-        $mail->Subject = '[No Reply] KWITANSI DAN KARTU SISWA SEMENTARA JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
-        $mail->isHTML(true);
+        $attachments = array();
+        $this->load->library('resend_mailer');
+        $subject = '[No Reply] KWITANSI DAN KARTU SISWA SEMENTARA JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
         if (!empty($data['kartu_siswa_sementara'])) {
-            $mail->AddAttachment('./uploads/kartu_siswa_sementara/' . $data['kartu_siswa_sementara']);
+            $this->resend_mailer->add_attachment($attachments, FCPATH.'uploads/kartu_siswa_sementara/' . $data['kartu_siswa_sementara']);
         }
         if (!empty($data['kwitansi'])) {
-            $mail->AddAttachment('./uploads/kwitansi/' . $data['kwitansi']);
+            $this->resend_mailer->add_attachment($attachments, FCPATH.'uploads/kwitansi/' . $data['kwitansi']);
         }
         $data_['to'] = $to;
         $data_['nama_lengkap'] = $data['nama_lengkap'];
@@ -726,8 +701,7 @@ class Bri_snap_notification extends MY_Controller
         $data_['tipe_pendaftaran'] = $data['tipe_pendaftaran'];
         $data_['email'] = $data['email'];
         $mailContent = $this->load->view('template_email_pendaftaran_ulang', $data_, true);
-        $mail->Body = $mailContent;
-        $mail->send();
+        $this->resend_mailer->send($to, $subject, $mailContent, $attachments);
     }
 
     private function _update_spp_detail($transaction, $updated_at)

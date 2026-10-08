@@ -183,41 +183,18 @@ class Payment_notification_tagihan_bni extends MY_Controller
   public function send_email_paid($file = "", $to = '', $data)
   {
     $to = urldecode($to);
-    $mail = new PHPMailer;
-    // Konfigurasi SMTP
-    $mail->isSMTP();
-    $mail->SMTPDebug = 1;
-    // $mail->Host = 'mail.namagz.com';
-    $mail->Host = 'smtp.office365.com';
-    $mail->SMTPOptions = array(
-      'ssl' => array(
-        'verify_peer' => false,
-        'verify_peer_name' => false,
-        'allow_self_signed' => true
-      )
-    );
-    $mail->SMTPAuth = true;
-    $mail->Username = 'noreply@jacos.id';
-    $mail->Password = ''; // [JACOS] TODO(manual): password SMTP Jacos — kredensial lama dihapus
-    $mail->SMTPSecure = 'tls';
-    $mail->Port = 587;
-
-    $mail->addReplyTo('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
-    $mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
-
-    // Menambahkan penerima
-    $mail->addAddress($to);
+    $attachments = array();
+    $this->load->library('resend_mailer');
 
     // Subjek email
-    $mail->Subject = '[No Reply] KWITANSI JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
+    $subject = '[No Reply] KWITANSI JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
 
     // Mengatur format email ke HTML
-    $mail->isHTML(true);
     if (!empty($data['kartu_peserta'])) {
-      $mail->AddAttachment('./uploads/tagihan_lain/' . $data['kartu_peserta']);
+      $this->resend_mailer->add_attachment($attachments, FCPATH.'uploads/tagihan_lain/' . $data['kartu_peserta']);
     }
     if (!empty($data['kwitansi'])) {
-      $mail->AddAttachment('./uploads/tagihan_lain/' . $data['kwitansi']);
+      $this->resend_mailer->add_attachment($attachments, FCPATH.'uploads/tagihan_lain/' . $data['kwitansi']);
     }
     // Konten/isi
     $data_['to'] = $to;
@@ -228,16 +205,10 @@ class Payment_notification_tagihan_bni extends MY_Controller
     $data_['tipe_pendaftaran'] = $data['tipe_pendaftaran'];
     $data_['transaksi'] = $data['transaksi'];
     $mailContent = $this->load->view('template_email_pembayaran', $data_, true);
-    $mail->Body = $mailContent;
     // Menambahakn lampiran
 
     // Kirim email
-    if (!$mail->send()) {
-      //echo 'Pesan tidak dapat dikirim.';
-      //echo 'Mailer Error: ' . $mail->ErrorInfo;
-    } else {
-      //echo 'Pesan telah terkirim ';
-    }
+    $this->resend_mailer->send($to, $subject, $mailContent, $attachments);
   }
 
 }

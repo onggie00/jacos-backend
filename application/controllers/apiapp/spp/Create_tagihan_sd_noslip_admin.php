@@ -519,43 +519,20 @@ class Create_tagihan_sd_noslip_admin extends REST_Controller
   public function send_email_file($file="",$to='',$data)
   {
     $to = urldecode($to);
-    $mail = new PHPMailer;
-    // Konfigurasi SMTP
-    $mail->isSMTP();
-    $mail->SMTPDebug =0;
-    // $mail->Host = 'mail.namagz.com';
-    $mail->Host = 'smtp.office365.com';
-    $mail->SMTPOptions = array(
-       'ssl' => array(
-         'verify_peer' => false,
-         'verify_peer_name' => false,
-         'allow_self_signed' => true
-        )
-    );
-    $mail->SMTPAuth = true;
-    $mail->Username = 'noreply@jacos.id';
-    $mail->Password = ''; // [JACOS] TODO(manual): password SMTP Jacos — kredensial lama dihapus
-    $mail->SMTPSecure = 'tls';
-    $mail->Port = 587;
-
-    $mail->addReplyTo('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
-    $mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
-
-    // Menambahkan penerima
-    $mail->addAddress($to);
+    $attachments = array();
+    $this->load->library('resend_mailer');
 
     // Menambahkan beberapa penerima
 
 
     // Subjek email
-    $mail->Subject = '[No Reply] SLIP PEMBAYARAN PENDAFTARAN SISWA BARU';
+    $subject = '[No Reply] SLIP PEMBAYARAN PENDAFTARAN SISWA BARU';
 
     // Mengatur format email ke HTML
-    $mail->isHTML(true);
     //$mail->AddEmbeddedImage('./assets/image/admin/bg_footer_mail_black.png', 'bg_footer_mail_black'); //ini yg dipakai utk
     //$mail->addStringAttachment(file_get_contents(base_url("assets/image/admin/")."bg_footer_mail"), "bg_footer_mail");
     if (!empty($data['slip_pembayaran'])) {
-      $mail->AddAttachment('./uploads/slip_pembayaran/'.$data['slip_pembayaran']);
+      $this->resend_mailer->add_attachment($attachments, FCPATH.'uploads/slip_pembayaran/'.$data['slip_pembayaran']);
       //$mail->AddEmbeddedImage('./uploads/slip_pembayaran/'.$data->slip_pembayaran, 'slip_pembayaran');
     }
     // Konten/isi
@@ -566,15 +543,9 @@ class Create_tagihan_sd_noslip_admin extends REST_Controller
      $data_['tipe_pendaftaran'] = $data['tipe_pendaftaran'];
      $data_['transaksi'] = $data['transaksi'];
      $mailContent = $this->load->view('template_email_pendaftaran',$data_,true);
-     $mail->Body = $mailContent;
     // Menambahakn lampiran
 
     // Kirim email
-    if(!$mail->send()){
-        //echo 'Pesan tidak dapat dikirim.';
-        //echo 'Mailer Error: ' . $mail->ErrorInfo;
-    }else{
-        //echo 'Pesan telah terkirim ';
-    }
+    $this->resend_mailer->send($to, $subject, $mailContent, $attachments);
   }
 }
