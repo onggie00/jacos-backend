@@ -56,7 +56,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
           if (empty($data->no_peserta)) {
@@ -70,7 +70,7 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
         }
@@ -98,7 +98,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
           if (empty($data->no_peserta)) {
@@ -112,7 +112,7 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
         }
@@ -140,7 +140,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
           if (empty($data->no_peserta)) {
@@ -154,7 +154,7 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
         }
@@ -184,7 +184,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
           if (empty($data->no_peserta)) {
@@ -200,7 +200,7 @@ class Cek_data extends REST_Controller
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
           // $data->status_transaksi = "Menunggu Aktivasi VA Daftar Ulang";
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
         }
@@ -230,7 +230,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
           if (empty($data->no_peserta)) {
@@ -244,7 +244,7 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
         }
@@ -274,7 +274,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
           if (empty($data->no_peserta)) {
@@ -288,7 +288,7 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           $data->jenis_kwitansi = 'UANG PENDAFTARAN';
         }
@@ -322,7 +322,7 @@ class Cek_data extends REST_Controller
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
           // $data->status_transaksi = "Menunggu Aktivasi VA Daftar Ulang";
-          } else if ($jenis_pembayaran == 'LI') {
+          } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
             $data->tipe_transaksi = 'pendaftaran';
             $data->jenis_kwitansi = 'UANG PENDAFTARAN';
           }

@@ -92,7 +92,7 @@ class Payment_notification_spp extends MY_Controller
           $no_urut = "";
           $tipe_siswa = "";
           $id_siswa = "";
-          if ($jenis_pembayaran == "LI" || $jenis_pembayaran == "LDUI") {
+          if ($jenis_pembayaran == "LI" || $jenis_pembayaran == "JI" || $jenis_pembayaran == "LDUI") {
             if ($jenjang == "SD") {
               $unit = "12";
               //get no_peserta terakhir di tahun ajaran tsb
@@ -286,7 +286,7 @@ class Payment_notification_spp extends MY_Controller
           }
 
           if (!empty($data_asli['payment_ntb'])) {
-            if ($jenis_pembayaran == "LI") {
+            if ($jenis_pembayaran == "LI" || $jenis_pembayaran == "JI") {
               //UNTUK SISWA BARU
               //generate kartu peserta
               $get_transaksi_status = $this->mymodel->withquery("select status_transaksi from transaksi where no_transaksi = '" . $data_asli['trx_id'] . "'", "row");

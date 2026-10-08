@@ -94,7 +94,7 @@ class Payment_notification_ft extends MY_Controller
           $no_urut = "";
           $tipe_siswa = "";
           $id_siswa = "";
-          if ($jenis_pembayaran == "LI" || $jenis_pembayaran == "LDUI") {
+          if ($jenis_pembayaran == "LI" || $jenis_pembayaran == "JI" || $jenis_pembayaran == "LDUI") {
             if ($jenjang == "FT" || $jenjang == "PPSBBFT") {
               //unit code no_peserta: Jalur Prestasi (PPSBBFT) = 41, Jalur Tes (FT) = 42
               if ($jenjang == "PPSBBFT") {
@@ -174,7 +174,7 @@ class Payment_notification_ft extends MY_Controller
 
 
           if (!empty($data_asli['payment_ntb'])) {
-            if ($jenis_pembayaran == "LI") {
+            if ($jenis_pembayaran == "LI" || $jenis_pembayaran == "JI") {
               //UNTUK SISWA BARU
               //generate kartu peserta
               $get_transaksi_status = $this->mymodel->withquery("select status_transaksi from transaksi where no_transaksi = '" . $data_asli['trx_id'] . "'", "row");

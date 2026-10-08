@@ -64,8 +64,8 @@ class Export_pdf_kwitansi extends MY_Controller {
 
         //$data->no_peserta = $no_peserta;
         $payment_method_label = "";
-        if (!empty($get_transaksi->id_payment_method)) {
-          $pm_row = $this->mymodel->getbywhere("web_payment_method", "id", $get_transaksi->id_payment_method, "row");
+        if (!empty($get_transaksi->payment_method_id)) {
+          $pm_row = $this->mymodel->getbywhere("web_payment_method", "id", $get_transaksi->payment_method_id, "row");
           $payment_method_label = (!empty($pm_row)) ? $pm_row->nama : "";
         }
         $datas = array("tipe_siswa" => $tipe_siswa, "jenjang" => $jenjang, "nama_ortu" => $nama_ortu, "nama_lengkap" => $nama_lengkap, "va_number" => $va_number, "tahun_ajaran" => $tahun_ajaran, "total_biaya" => $total_biaya, "total_biaya_terbilang" => $total_biaya_terbilang , "id_siswa" => $id_siswa, "no_transaksi" => $no_transaksi, "jalur" => $jalur , "jenis_kwitansi" => $jenis_kwitansi,

@@ -225,18 +225,23 @@ class Pendaftaran_tk extends REST_Controller {
           }
 
           if (!empty($data) && empty($cek_email)) {
+            //insert siswa (ala Pendaftaran_ft: PENDING sampai VA/tagihan jadi)
+            $this->db->trans_begin();
+            $data['no_transaksi'] = 'PENDING';
+            $data['va_number'] = 'PENDING';
             $id_siswa = $this->mymodel->insertid("siswa_tk",$data);
             //echo $this->db->last_query();
             if (!empty($id_siswa)) {
               $data['id_siswa'] = $id_siswa;
               //insert transaksi
-              $no_transaksi = "LI-TK-".date("Ymd")."-".$id_siswa;
+              //no_transaksi: JI = Jacos Invoice (lama: LI Labschool Invoice)
+              $no_transaksi = "JI-TK-".date("Ymd")."-".$id_siswa;
               //get biaya pendaftaran
               $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","TK","row");
               $total_biaya = $get_biaya->nominal_pendaftaran; //+ $get_biaya->nominal_daftar_ulang;
               $data_transaksi = array(
                 "no_transaksi" => $no_transaksi,
-                "nama_bank" => 'BRI',//$this->db->escape($this->post('nama_bank')),
+                "nama_bank" => 'BNI',
                 "user_email" => $this->post('email'),
                 "user_name" => $this->post('nama_lengkap'),
                 "user_phone" => "",
@@ -250,39 +255,82 @@ class Pendaftaran_tk extends REST_Controller {
               if (!empty($data_transaksi)) {
                 $data['expired_datetime'] = $data_transaksi['expired_datetime'];
                 //create billing
-                                //create billing VA BNI eCollection (kode 12 = TK) — jenjang baru, langsung BNI tanpa flag BRI
+                                //create billing — VA BNI eCollection, ala Pendaftaran_ft (key umum, kode_tahun 4 digit, digit jalur TK = 2)
                 $client_id = '';
+                $secret_key = '';
                 $prefix = '';
+                $kode_tahun = substr($tahun_ajaran_aktif,2,2).substr($tahun_ajaran_aktif,7,2);
+                $digit_jalur = "2"; //KB=1, TK=2, SD=3
                 $get_setting = $this->mymodel->getall("pengaturan_akun");
                 foreach ($get_setting as $key => $value) {
                   if ($value->name_setting == "bni_client_id") {
                     $client_id = $value->value;
                   }
+                  if ($value->name_setting == "bni_secret_key") {
+                    $secret_key = $value->value;
+                  }
                   if ($value->name_setting == "bni_prefix") {
                     $prefix = $value->value;
                   }
                 }
-                $prefix_cari = $prefix . $client_id . date('y', strtotime('+1 years')) . "12";
-                $get_no_urut = $this->mymodel->withquery("select va_number, id_siswa_tk as id_siswa from siswa_tk where va_number like '" . $prefix_cari . "%' and va_number != '' and is_mutasi = '2' order by id_siswa_tk DESC", "row");
-                if (empty($get_no_urut)) {
-                  $no_urut = "0001";
-                } else {
-                  $no_urut = (int) substr($get_no_urut->va_number, -4);
-                  $no_urut = $no_urut + 1;
-                  $no_urut = sprintf("%04d", $no_urut);
+                if ($client_id == '' || $secret_key == '' || $prefix == '') {
+                  //setting BNI kosong: jangan generate VA, cukup tagihan saja (user diarahkan transfer manual di website PSB)
+                  $data_transaksi['va_number'] = null;
+                  $id_transaksi = $this->mymodel->insertid("transaksi", $data_transaksi);
+                  $this->mymodel->update("siswa_tk", array("no_transaksi" => $no_transaksi, "va_number" => null), "id_siswa_tk", $id_siswa);
+                  $res_data = $data_transaksi;
                 }
-                $va_number_bni = $prefix_cari . $no_urut;
-                $payment_response = $this->create_billing(ENVIRONMENT, $total_biaya, $no_transaksi, array("nama" => $this->post('nama_lengkap'), "email" => $this->post('email'), "va_number" => $va_number_bni));
-                if (empty($payment_response['virtual_account'])) {
-                  $this->mymodel->insertid("error_log_bni", array("status" => isset($payment_response['status']) ? $payment_response['status'] : '', "message" => isset($payment_response['message']) ? $payment_response['message'] : '', "va_number" => $va_number_bni));
-                  $msg = array('status' => 0, 'message' => 'Terjadi Kesalahan Ketika Pembuatan VA', 'data' => array(), 'transaksi' => array());
-                  $this->response($msg, '200');
+                else {
+                  $get_no_urut = $this->mymodel->withquery("select va_number, id_siswa_tk as id_siswa from siswa_tk where va_number like '".$prefix.$client_id.$kode_tahun.$digit_jalur."%' and va_number != '' order by id_siswa_tk DESC", "row");
+                  if (empty($get_no_urut)) {
+                    $no_urut = "001";
+                  }
+                  else {
+                    $no_urut = (int) substr($get_no_urut->va_number, -3);
+                    $no_urut = $no_urut + 1;
+                    $no_urut = sprintf("%03d", $no_urut);
+                  }
+                  $va_number = $prefix.$client_id.$kode_tahun.$digit_jalur.$no_urut;
+                  $payment_response = $this->create_billing(ENVIRONMENT, $total_biaya, $no_transaksi, array("nama" => $this->post('nama_lengkap'), "email" => $this->post('email'), "va_number" => $va_number));
+                  $i = 1;
+                  while (empty($payment_response['virtual_account']) && $i < 100) {
+                    $i++;
+                    $no_transaksi = "JI-TK-".date("Ymd").$i."-".$id_siswa;
+                    $data_transaksi['no_transaksi'] = $no_transaksi;
+                    $no_urut = (int) substr($get_no_urut->va_number, -3);
+                    $no_urut = $no_urut + $i;
+                    $no_urut = sprintf("%03d", $no_urut);
+                    $va_number = $prefix.$client_id.$kode_tahun.$digit_jalur.$no_urut;
+                    $payment_response = $this->create_billing(ENVIRONMENT, $total_biaya, $no_transaksi, array("nama" => $this->post('nama_lengkap'), "email" => $this->post('email'), "va_number" => $va_number));
+                  }
+                  if (empty($payment_response['virtual_account'])) {
+                    $this->db->trans_rollback();
+                    $this->mymodel->insertid("error_log_bni", array("status" => isset($payment_response['status']) ? $payment_response['status'] : '', "message" => isset($payment_response['message']) ? $payment_response['message']." ".json_encode($payment_response) : '', "va_number" => $va_number));
+                    $msg = array('status' => 0, 'message' => 'Terjadi Kesalahan Ketika Pembuatan VA', 'data' => array(), 'transaksi' => array());
+                    $status = "200";
+                    $this->response($msg, $status);
+                  }
+                  $data_transaksi['nama_bank'] = 'BNI';
+                  $data_transaksi['va_number'] = $payment_response['virtual_account'];
+                  $id_transaksi = $this->mymodel->insertid("transaksi", $data_transaksi);
+                  if (empty($id_transaksi)) {
+                    $this->db->trans_rollback();
+                    $msg = array('status' => 0, 'message' => 'Terjadi Kesalahan Ketika Pembuatan Transaksi', 'data' => array(), 'transaksi' => array());
+                    $status = "200";
+                    $this->response($msg, $status);
+                  }
+                  $this->mymodel->update("siswa_tk", array("no_transaksi" => $no_transaksi, "va_number" => $payment_response['virtual_account']), "id_siswa_tk", $id_siswa);
+                  $res_data = $payment_response;
                 }
-                $data_transaksi['nama_bank'] = 'BNI';
-                $data_transaksi['va_number'] = $payment_response['virtual_account'];
-                $id_transaksi = $this->mymodel->insertid("transaksi", $data_transaksi);
-                $this->mymodel->update("siswa_tk", array("no_transaksi" => $no_transaksi, "va_number" => $payment_response['virtual_account']), "id_siswa_tk", $id_siswa);
-                $res_data = $payment_response;
+                if ($this->db->trans_status() === FALSE) {
+                  $this->db->trans_rollback();
+                  $msg = array('status' => 0, 'message' => 'Terjadi kesalahan saat menyimpan data pendaftaran', 'data' => array(), 'transaksi' => array());
+                  $status = "200";
+                  $this->response($msg, $status);
+                }
+                else {
+                  $this->db->trans_commit();
+                }
 
                 //$this->cetak_slip(array("id_siswa" => $id_siswa, "tipe_siswa" => "sd"));
                 $get_transaksi = $this->mymodel->withquery("select id_transaksi, no_transaksi, va_number, nama_bank, total_biaya, expired_datetime from transaksi where id_transaksi = '".$id_transaksi."'","row");
@@ -305,6 +353,7 @@ class Pendaftaran_tk extends REST_Controller {
               $status="200";
             }
             else{
+              $this->db->trans_rollback();
               $msg = array('status' => 0, 'message'=>'Form tidak diisi sesuai permintaan, silahkan coba lagi ' ,'data'=>$data, 'transaksi' => array() );
               $status="200";
             }

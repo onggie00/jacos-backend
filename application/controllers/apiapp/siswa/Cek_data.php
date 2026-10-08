@@ -54,7 +54,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->kartu_sementara != '') {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           if (empty($data->no_peserta)) {
             $data->kartu_peserta = "";
@@ -66,7 +66,7 @@ class Cek_data extends REST_Controller
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->tgl_daftar_ulang = '';
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
         }
       }
@@ -89,7 +89,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->kartu_sementara != '') {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           if (empty($data->no_peserta)) {
             $data->kartu_peserta = "";
@@ -101,7 +101,7 @@ class Cek_data extends REST_Controller
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->tgl_daftar_ulang = '';
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
         }
       }
@@ -127,7 +127,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->kartu_sementara != '') {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           if (empty($data->no_peserta)) {
             $data->kartu_peserta = "";
@@ -139,7 +139,7 @@ class Cek_data extends REST_Controller
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->tgl_daftar_ulang = '';
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
         }
       }
@@ -166,7 +166,7 @@ class Cek_data extends REST_Controller
           if ($daftar_ulang->kartu_sementara != '') {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
           if (empty($data->no_peserta)) {
             $data->kartu_peserta = "";
@@ -180,7 +180,7 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->tgl_daftar_ulang = '';
           // $data->status_transaksi = "Menunggu Aktivasi VA Daftar Ulang";
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           $data->tipe_transaksi = 'pendaftaran';
         }
       }
@@ -200,7 +200,7 @@ class Cek_data extends REST_Controller
           } else if ($daftar_ulang->status == "2") {
             $data->status_transaksi = "Lunas";
           }
-        } else if ($jenis_pembayaran == 'LI') {
+        } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
           if ($transaksi->status_transaksi == "0") {
             $data->status_transaksi = "Menunggu Pembayaran";
           } else if ($transaksi->status_transaksi == "1") {
