@@ -327,9 +327,12 @@ class Setting_bahasa_model extends CI_Model {
      *
      * @return string kode_bahasa
      */
+    /** memo per request (instance; static akan persisten antar request di mod_php) */
+    protected $kode_memo = array();
+
     public function get_kode_bahasa($email, $role)
     {
-        static $memo = array();
+        $memo =& $this->kode_memo;
 
         $email = $this->_norm_email($email);
         $role  = $this->_norm_role($role);

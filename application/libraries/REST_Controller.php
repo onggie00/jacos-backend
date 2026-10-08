@@ -761,6 +761,23 @@ abstract class REST_Controller extends MX_Controller  {
             $http_code = (int) $http_code;
         }
 
+        // [JACOS] Fase switch bahasa — SATU titik sambung translator.
+        // Hanya data array, hanya HTTP 2xx, hanya endpoint pilot; kegagalan
+        // apa pun = data asli. Detail di helpers/translator_apply_helper.php.
+        $translator_http = (int) $http_code; // '' / NULL => 0; REST akan default 200
+        if (is_array($data) && ($translator_http === 0 || ($translator_http >= 200 && $translator_http < 300))) {
+            try {
+                if (!function_exists('translator_apply_to_response')) {
+                    require_once APPPATH . 'helpers/translator_apply_helper.php';
+                }
+                $data = translator_apply_to_response($data, $http_code);
+            } catch (Throwable $e) {
+                log_message('error', 'Translator hook gagal: ' . substr($e->getMessage(), 0, 120));
+            } catch (Exception $e) {
+                log_message('error', 'Translator hook gagal: ' . substr($e->getMessage(), 0, 120));
+            }
+        }
+
         // Set the output as NULL by default
         $output = NULL;
 
