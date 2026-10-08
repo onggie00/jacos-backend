@@ -311,7 +311,7 @@ class Pendaftaran_sma extends REST_Controller {
                   $va_class = "05";
                 }
                 $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","PPSBB SMA","row");
-                $no_transaksi = "LI-PPSBBSMA-".date("Ymd")."-".$id_siswa;
+                $no_transaksi = "JI-PPSBBSMA-".date("Ymd")."-".$id_siswa;
 
                 $get_setting = $this->mymodel->getall("pengaturan_akun");
                 foreach ($get_setting as $key => $value) {
@@ -343,7 +343,7 @@ class Pendaftaran_sma extends REST_Controller {
                   $va_class = "05";
                 }
                 $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","PSB SMA","row");
-                $no_transaksi = "LI-PSBSMA-".date("Ymd")."-".$id_siswa;
+                $no_transaksi = "JI-PSBSMA-".date("Ymd")."-".$id_siswa;
                 $get_setting = $this->mymodel->getall("pengaturan_akun");
                 foreach ($get_setting as $key => $value) {
                   if ($value->name_setting == "bni_client_id") {

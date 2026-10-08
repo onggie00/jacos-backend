@@ -325,7 +325,7 @@ class Briva extends Admin
 		$get_siswa = $this->mymodel->getbywhere("siswa_ft","id_siswa_ft",$id_siswa,"row");
 
 		//insert transaksi
-		$no_transaksi = "LI-FT-".date("Ymd")."-".$id_siswa;
+		$no_transaksi = "JI-FT-".date("Ymd")."-".$id_siswa;
 		//get biaya pendaftaran
 		$get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","FRANCE TRACK","row");
 		$total_biaya = $get_biaya->nominal_pendaftaran; //+ $get_biaya->nominal_daftar_ulang;

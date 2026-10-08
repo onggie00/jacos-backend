@@ -301,7 +301,7 @@ class Pendaftaran_smp extends REST_Controller {
 
               if ($ppsbb == "1") {
                 $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","PPSBB SMP","row");
-                $no_transaksi = "LI-PPSBBSMP-".date("Ymd")."-".$id_siswa;
+                $no_transaksi = "JI-PPSBBSMP-".date("Ymd")."-".$id_siswa;
                 $get_setting = $this->mymodel->getall("pengaturan_akun");
                 foreach ($get_setting as $key => $value) {
                   if ($value->name_setting == "bni_client_id") {
@@ -325,7 +325,7 @@ class Pendaftaran_smp extends REST_Controller {
               }
               else{
                 $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","PSB SMP","row");
-                $no_transaksi = "LI-PSBSMP-".date("Ymd")."-".$id_siswa;
+                $no_transaksi = "JI-PSBSMP-".date("Ymd")."-".$id_siswa;
                 $get_setting = $this->mymodel->getall("pengaturan_akun");
                 foreach ($get_setting as $key => $value) {
                   if ($value->name_setting == "bni_client_id") {

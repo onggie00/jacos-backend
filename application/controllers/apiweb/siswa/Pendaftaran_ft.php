@@ -324,14 +324,14 @@ class Pendaftaran_ft extends REST_Controller {
               //insert transaksi
               $ppsbb = $this->post("ppsbb");
               if ($ppsbb == "1") {
-                $no_transaksi = "LI-PPSBBFT-".date("Ymd")."-".$id_siswa;
+                $no_transaksi = "JI-PPSBBFT-".date("Ymd")."-".$id_siswa;
                 //get biaya pendaftaran
                 $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","PPSBB FRANCE TRACK","row");
                 $total_biaya = $get_biaya->nominal_pendaftaran;
                 $tipe_pendaftaran_label = "PPSBB FRANCE TRACK";
               }
               else{
-                $no_transaksi = "LI-FT-".date("Ymd")."-".$id_siswa;
+                $no_transaksi = "JI-FT-".date("Ymd")."-".$id_siswa;
                 //get biaya pendaftaran
                 $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","FRANCE TRACK","row");
                 $total_biaya = $get_biaya->nominal_pendaftaran;
@@ -386,7 +386,7 @@ class Pendaftaran_ft extends REST_Controller {
                 /* var_dump($payment_response); */
                 if(empty($payment_response['virtual_account'])){
                   for ($i=2; $i < 100; $i++) { 
-                    $no_transaksi = "LI-FT-".date("Ymd").$i."-".$id_siswa;
+                    $no_transaksi = "JI-FT-".date("Ymd").$i."-".$id_siswa;
                     $data_transaksi['no_transaksi'] = $no_transaksi;
                     $no_urut = (int)substr($get_no_urut->va_number, -3);
                     $no_urut = $no_urut+$i;

@@ -1028,7 +1028,7 @@ class Dashboard_psb extends Admin
 				foreach ($get_transaksi as $key2 => $value2) {
 					//status pembayaran pendaftaran
 					$jenis_transaksi = substr($value2->no_transaksi, 0, strpos($value2->no_transaksi, strtoupper($jenjang)));
-					if(strtoupper($value->nama_lengkap) == strtoupper(trim($value2->user_name)) && strtoupper($value->email) == strtoupper(trim($value2->user_email)) && ($jenis_transaksi == "LI-" || $jenis_transaksi == "LDUI-") ){
+					if(strtoupper($value->nama_lengkap) == strtoupper(trim($value2->user_name)) && strtoupper($value->email) == strtoupper(trim($value2->user_email)) && ($jenis_transaksi == "LI-" || $jenis_transaksi == "JI-" || $jenis_transaksi == "LDUI-") ){
 						if($value2->status_transaksi == 1){
 							$value->status_pendaftaran = "Lunas";
 						}

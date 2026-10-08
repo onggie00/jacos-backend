@@ -207,7 +207,7 @@ class Pendaftaran_sd extends REST_Controller {
             if (!empty($id_siswa)) {
               $data['id_siswa'] = $id_siswa;
               //insert transaksi
-              $no_transaksi = "LI-SD-".date("Ymd")."-".$id_siswa;
+              $no_transaksi = "JI-SD-".date("Ymd")."-".$id_siswa;
               //get biaya pendaftaran
               $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","SD","row");
               $total_biaya = $get_biaya->nominal_pendaftaran; //+ $get_biaya->nominal_daftar_ulang;

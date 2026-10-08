@@ -239,7 +239,7 @@ class Siswa_sd extends Admin
 
 			if ($save_siswa_sd) {
 				//CREATE TRANSAKSI LUNAS
-				$no_transaksi = "LI-SD-" . date("Ymd") . "-" . $save_siswa_sd;
+				$no_transaksi = "JI-SD-" . date("Ymd") . "-" . $save_siswa_sd;
 				//get biaya pendaftaran
 				$get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran", "jenjang", "SD", "row");
 				$total_biaya = $get_biaya->nominal_pendaftaran;
@@ -900,7 +900,7 @@ class Siswa_sd extends Admin
 					
 					if(!$check){
 						//CREATE TRANSAKSI LUNAS
-						$no_transaksi = "LI-SD-" . date("Ymd") . "-" . $insertId;
+						$no_transaksi = "JI-SD-" . date("Ymd") . "-" . $insertId;
 						//get biaya pendaftaran
 						$get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran", "jenjang", "SD", "row");
 						$total_biaya = $get_biaya->nominal_pendaftaran;

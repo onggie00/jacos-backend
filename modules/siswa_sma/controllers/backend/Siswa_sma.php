@@ -225,10 +225,10 @@ class Siswa_sma extends Admin
 				//CREATE TRANSAKSI LUNAS
 				//get biaya pendaftaran
 				if($save_data['jenis_ppsbb']==3){
-					$no_transaksi = "LI-PSBSMA-" . date("Ymd") . "-" . $save_siswa_sma;
+					$no_transaksi = "JI-PSBSMA-" . date("Ymd") . "-" . $save_siswa_sma;
 					$get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran", "jenjang", "PSB SMA", "row");
 				}else{
-					$no_transaksi = "LI-PPSBBSMA-" . date("Ymd") . "-" . $save_siswa_sma;
+					$no_transaksi = "JI-PPSBBSMA-" . date("Ymd") . "-" . $save_siswa_sma;
 					$get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran", "jenjang", "PPSBB SMA", "row");
 				}
 				$total_biaya = $get_biaya->nominal_pendaftaran;
@@ -1488,10 +1488,10 @@ class Siswa_sma extends Admin
 					}
 					if(empty($check)){
 						if($data_pendaftaran['ppsbb']==1){
-							$no_transaksi = "LI-PPSBBSMA-" . date("Ymd") . "-" . $insertId;
+							$no_transaksi = "JI-PPSBBSMA-" . date("Ymd") . "-" . $insertId;
 							$jenjang='PSB SMA';
 						}else{
-							$no_transaksi = "LI-PSBSMA-" . date("Ymd") . "-" . $insertId;
+							$no_transaksi = "JI-PSBSMA-" . date("Ymd") . "-" . $insertId;
 							$jenjang='PPSBB SMA';
 	
 						}

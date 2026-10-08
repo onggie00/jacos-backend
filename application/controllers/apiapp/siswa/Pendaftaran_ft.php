@@ -291,7 +291,7 @@ class Pendaftaran_ft extends REST_Controller {
               );
               $id_raport = $this->mymodel->insertid("nilai_raport_ft",$data_raport);
               //insert transaksi
-              $no_transaksi = "LI-FT-".date("Ymd")."-".$id_siswa;
+              $no_transaksi = "JI-FT-".date("Ymd")."-".$id_siswa;
               //get biaya pendaftaran
               $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","FRANCE TRACK","row");
               $total_biaya = $get_biaya->nominal_pendaftaran; //+ $get_biaya->nominal_daftar_ulang;
