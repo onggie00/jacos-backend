@@ -18,7 +18,7 @@ class Translator_test extends MX_Controller {
     public function index($deepl_real = '')
     {
         if (!$this->input->is_cli_request()) {
-            show_error('CLI only', 403);
+            show_404();
             return;
         }
         $this->load->library('Translator');

@@ -15,7 +15,7 @@ class Db_guard extends MX_Controller {
     public function index()
     {
         if (!$this->input->is_cli_request()) {
-            show_error('CLI only', 403);
+            show_404();
             return;
         }
 

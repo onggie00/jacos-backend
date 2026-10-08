@@ -140,6 +140,7 @@ class Translator {
         // tulis balik berdasarkan path konkret (bukan referensi PHP)
         $this->whitelist->terapkan($data, $items, $hasil);
 
+        $this->catat_usage_deepl();
         $this->stats['waktu_ms'] = (int) ((microtime(true) - $t0) * 1000);
         return $data;
     }
@@ -171,8 +172,36 @@ class Translator {
             );
         }
         $hasil = $this->proses_items($payload, $kode_bahasa);
+        $this->catat_usage_deepl();
         $this->stats['waktu_ms'] = (int) ((microtime(true) - $t0) * 1000);
         return $hasil; // urutan sama dgn input
+    }
+
+    /**
+     * A1: catat pemakaian DeepL ke translation_usage_bulanan — SEKALI per
+     * pemanggilan translate (agregat), INSERT ... ON DUPLICATE KEY UPDATE.
+     * Tidak menulis apa pun bila deepl_chars = 0 (kamus/override/cache).
+     * Kegagalan hanya di-log; tidak memengaruhi response.
+     */
+    private function catat_usage_deepl()
+    {
+        if ($this->stats['deepl_chars'] <= 0 || $this->stats['deepl_requests'] <= 0) {
+            return;
+        }
+        try {
+            $bulan = date('Y-m');
+            translator_safe_query(
+                "INSERT INTO translation_usage_bulanan (bulan, penyedia, jumlah_request, jumlah_karakter, jumlah_string, updated_at) VALUES (?, 'deepl', ?, ?, ?, NOW()) " .
+                "ON DUPLICATE KEY UPDATE jumlah_request = jumlah_request + VALUES(jumlah_request), jumlah_karakter = jumlah_karakter + VALUES(jumlah_karakter), jumlah_string = jumlah_string + VALUES(jumlah_string)",
+                array($bulan, $this->stats['deepl_requests'], $this->stats['deepl_chars'], $this->stats['total_string']),
+                'write',
+                false
+            );
+        } catch (Throwable $e) {
+            log_message('error', 'Translator: gagal catat usage: ' . substr($e->getMessage(), 0, 100));
+        } catch (Exception $e) {
+            log_message('error', 'Translator: gagal catat usage: ' . substr($e->getMessage(), 0, 100));
+        }
     }
 
     /* =====================================================

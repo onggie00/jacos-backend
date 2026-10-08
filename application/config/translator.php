@@ -35,6 +35,10 @@ $config['translator_batch_max_body_bytes'] = 28000; // batas kasar ukuran body p
 $config['translator_retry_on'] = array(429, 500, 502, 503, 504); // status yg boleh retry 1x
 $config['translator_max_retries'] = 1;
 
+// ---- kuota ----
+// Batas karakter DeepL per bulan (informasi & peringatan di modul admin fase 6).
+$config['translator_monthly_char_limit'] = 500000;
+
 // ---- lookup bahasa di hook (hanya memilih bahasa tampilan; BUKAN otorisasi) ----
 // FALSE: token cukup DIKENAL (ada di DB) walau kedaluwarsa -> tetap dapat
 //        bahasa pilihan user (banyak endpoint legacy tidak cek expiry; kalau
