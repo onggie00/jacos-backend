@@ -42,10 +42,10 @@ class Agenda extends REST_Controller {
         if (!empty($data)) {
           foreach ($data as $key => $value) {
             if (!empty($value->img_thumbnail)) {
-              $value->img_thumbnail = /* base_url(). */"https://admin.labschoolcibubur.sch.id/"."/uploads/agenda/".$value->img_thumbnail;
+              $value->img_thumbnail = base_url()."uploads/agenda/".$value->img_thumbnail;
             }
             if (!empty($value->img_agenda)) {
-              $value->img_agenda = /* base_url(). */"https://admin.labschoolcibubur.sch.id/"."/uploads/agenda/".$value->img_agenda;
+              $value->img_agenda = base_url()."uploads/agenda/".$value->img_agenda;
             }
           }
           $msg = array('status' => 1, 'message'=>'Berhasil ambil data' ,'data'=>$data);

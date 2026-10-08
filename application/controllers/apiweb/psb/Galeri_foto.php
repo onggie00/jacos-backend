@@ -25,7 +25,7 @@ class Galeri_foto extends REST_Controller {
         $data = $this->mymodel->withquery("select * from galeri_foto","result");
           foreach($data as $key => $value){
             if (!empty($value->foto)) {
-              $value->foto = /* base_url() */"https://admin.labschoolcibubur.sch.id/"."uploads/galeri_foto/".$value->foto;
+              $value->foto = base_url()."uploads/galeri_foto/".$value->foto;
             }
           }
 

@@ -26,7 +26,7 @@ class Uks extends REST_Controller {
         $data = $this->mymodel->withquery("select * from uks order by id_uks desc","result");
         foreach($data as $key => $item){
           if (!empty($item->foto)) {
-            $item->foto = /* base_url() */"https://admin.labschoolcibubur.sch.id/"."uploads/uks/".$item->foto;
+            $item->foto = base_url()."uploads/uks/".$item->foto;
           }
         }
         if (!empty($data)) {

@@ -30,7 +30,7 @@ class Profile extends REST_Controller {
         //get user
         if ($role == "sd") {
           $user = $this->mymodel->withquery("select id_siswa_sd, nama_lengkap,foto_peserta from siswa_sd where token = '".$token."'","row");
-          $user->foto_peserta=/* base_url(). */"https://admin.labschoolcibubur.sch.id/".'uploads/siswa_sd/'.$user->foto_peserta;
+          $user->foto_peserta=base_url().'uploads/siswa_sd/'.$user->foto_peserta;
         }
 
       }

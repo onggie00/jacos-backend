@@ -26,7 +26,7 @@ class Library extends REST_Controller {
         $data = $this->mymodel->withquery("select * from library order by id desc","result");
         foreach($data as $key => $item){
           if (!empty($item->foto)) {
-            $item->foto = /* base_url() */"https://admin.labschoolcibubur.sch.id/"."uploads/library/".$item->foto;
+            $item->foto = base_url()."uploads/library/".$item->foto;
           }
         }
         if (!empty($data)) {

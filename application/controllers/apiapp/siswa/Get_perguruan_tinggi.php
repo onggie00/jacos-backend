@@ -34,7 +34,7 @@ class Get_perguruan_tinggi extends REST_Controller {
         if (!empty($data)) {
           foreach ($data as $key => $value) {
             if (!empty($value->logo_ptn)) {
-              $base_url = "https://admin.labschoolcibubur.sch.id/";
+              $base_url = base_url();
               $value->logo_ptn = $base_url."uploads/pt_perguruan_tinggi/".$value->logo_ptn;
             }
           }

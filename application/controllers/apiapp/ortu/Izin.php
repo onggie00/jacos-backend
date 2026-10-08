@@ -100,7 +100,7 @@ class Izin extends REST_Controller {
                                 $notelp = $value->no_telp;
                             }
                             $notelp = $this->cek_notelp($notelp);
-                            $this->send_wa($notelp, "Pengajuan izin baru diterima, Siswa ".strtoupper($get_siswa->nama_lengkap)." ".$value->nama_kelas." telah mengajukan izin pada tanggal ".date("d-m-Y", strtotime($this->post('tanggal_mulai'))).". Silahkan melakukan approval di menu Profil > Pengajuan izin di aplikasi atau klik link berikut : https://admin.labschoolcibubur.sch.id/notif_wa_izin_guru?id=".$insert."&jenjang=".$jenjang);
+                            $this->send_wa($notelp, "Pengajuan izin baru diterima, Siswa ".strtoupper($get_siswa->nama_lengkap)." ".$value->nama_kelas." telah mengajukan izin pada tanggal ".date("d-m-Y", strtotime($this->post('tanggal_mulai'))).". Silahkan melakukan approval di menu Profil > Pengajuan izin di aplikasi atau klik link berikut : ".base_url()."notif_wa_izin_guru?id=".$insert."&jenjang=".$jenjang);
                         }
                         //print_r($get_guru);
                         //shuffle($array_guru);

@@ -173,13 +173,13 @@ class Update_data_pegawai extends REST_Controller
 			)
 		);
 		$mail->SMTPAuth = true;
-		$mail->Username = 'noreply@labschoolcibubur.sch.id';
+		$mail->Username = 'noreply@jacos.id';
 		$mail->Password = 'b4EyMREFlFOc';
 		$mail->SMTPSecure = 'tls';
 		$mail->Port = 587;
 
-		$mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-		$mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+		$mail->addReplyTo('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+		$mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
 		// Menambahkan penerima
 		$mail->addAddress($to);
@@ -224,7 +224,7 @@ class Update_data_pegawai extends REST_Controller
 	 */
 	private function _send_change_email($updated_by, $changes, $datetime)
 	{
-		// $to = 'sekretariat2@labschoolcibubur.sch.id';
+		// $to = 'sekretariat2@jacos.id';
     $to = 'onggiedannys@gmail.com';
 		$subject = '[No Reply] Perubahan Profile Data Pegawai';
 
@@ -284,11 +284,11 @@ class Update_data_pegawai extends REST_Controller
 			)
 		);
 		$mail->SMTPAuth = true;
-		$mail->Username = 'noreply@labschoolcibubur.sch.id';
+		$mail->Username = 'noreply@jacos.id';
 		$mail->Password = 'b4EyMREFlFOc';
 		$mail->SMTPSecure = 'tls';
 		$mail->Port = 587;
-		$mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+		$mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 		$mail->addAddress($to);
 		$mail->Subject = $subject;
 		$mail->isHTML(true);

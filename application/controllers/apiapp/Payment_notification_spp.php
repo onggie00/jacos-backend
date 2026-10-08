@@ -315,7 +315,7 @@ class Payment_notification_spp extends MY_Controller
                 "tipe_pendaftaran" => "PSB " . strtoupper($tipe_siswa),
                 "jenjang" => strtoupper($tipe_siswa),
                 "transaksi" => $get_transaksi,
-                "nama_panitia" => "Panitia PSB " . strtoupper($tipe_siswa) . " Labschool Cibubur " . date("Y", strtotime("+1 years")) . "-" . date("Y", strtotime("+2 years")),
+                "nama_panitia" => "Panitia PSB " . strtoupper($tipe_siswa) . " JAKARTA COSMOPOLITE ISLAMIC SCHOOL " . date("Y", strtotime("+1 years")) . "-" . date("Y", strtotime("+2 years")),
                 "kartu_peserta" => $tipe_siswa . '-' . $no_peserta . '-' . $cek_no_peserta->nama_lengkap . '.pdf',
                 "kwitansi" => $data_asli['trx_id'] . '-' . $cek_no_peserta->nama_lengkap . '.pdf',
               );
@@ -346,7 +346,7 @@ class Payment_notification_spp extends MY_Controller
                 "nama_lengkap" => $cek_no_peserta->nama_lengkap,
                 "tipe_pendaftaran" => "PSB " . strtoupper($tipe_siswa),
                 "jenjang" => strtoupper($tipe_siswa),
-                "nama_panitia" => "Panitia PSB " . strtoupper($tipe_siswa) . " Labschool Cibubur " . date("Y", strtotime("+1 years")) . "-" . date("Y", strtotime("+2 years")),
+                "nama_panitia" => "Panitia PSB " . strtoupper($tipe_siswa) . " JAKARTA COSMOPOLITE ISLAMIC SCHOOL " . date("Y", strtotime("+1 years")) . "-" . date("Y", strtotime("+2 years")),
                 "kartu_siswa_sementara" => $tipe_siswa . '-' . $cek_no_peserta->no_peserta . '-' . $cek_no_peserta->nama_lengkap . '.pdf',
                 "kwitansi" => $data_asli['trx_id'] . '-' . $cek_no_peserta->nama_lengkap . '.pdf',
               );
@@ -486,7 +486,7 @@ class Payment_notification_spp extends MY_Controller
               "tipe_pendaftaran" => "PSB " . strtoupper($tipe_siswa),
               "jenjang" => strtoupper($tipe_siswa),
               "transaksi" => $get_transaksi,
-              "nama_panitia" => "Panitia PSB " . strtoupper($tipe_siswa) . " Labschool Cibubur " . date("Y", strtotime("+1 years")) . "-" . date("Y", strtotime("+2 years")),
+              "nama_panitia" => "Panitia PSB " . strtoupper($tipe_siswa) . " JAKARTA COSMOPOLITE ISLAMIC SCHOOL " . date("Y", strtotime("+1 years")) . "-" . date("Y", strtotime("+2 years")),
               "kartu_peserta" => $tipe_siswa . '-' . $no_peserta . '-' . $cek_no_peserta->nama_lengkap . '.pdf',
               //"kwitansi" => $data_asli['trx_id'].'.pdf',
             );
@@ -754,13 +754,13 @@ class Payment_notification_spp extends MY_Controller
       )
     );
     $mail->SMTPAuth = true;
-    $mail->Username = 'noreply@labschoolcibubur.sch.id';
+    $mail->Username = 'noreply@jacos.id';
     $mail->Password = ''; // [JACOS] TODO(manual): password SMTP Jacos — kredensial lama dihapus
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
 
-    $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-    $mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+    $mail->addReplyTo('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+    $mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
     // Menambahkan penerima
     $mail->addAddress($to);
@@ -820,19 +820,19 @@ class Payment_notification_spp extends MY_Controller
       )
     );
     $mail->SMTPAuth = true;
-    $mail->Username = 'noreply@labschoolcibubur.sch.id';
+    $mail->Username = 'noreply@jacos.id';
     $mail->Password = ''; // [JACOS] TODO(manual): password SMTP Jacos — kredensial lama dihapus
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
 
-    $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-    $mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+    $mail->addReplyTo('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+    $mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
     // Menambahkan penerima
     $mail->addAddress($to);
 
     // Subjek email
-    $mail->Subject = '[No Reply] KWITANSI DAN KARTU PESERTA SISWA LABSCHOOL CIBUBUR';
+    $mail->Subject = '[No Reply] KWITANSI DAN KARTU PESERTA SISWA JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
 
     // Mengatur format email ke HTML
     $mail->isHTML(true);
@@ -880,19 +880,19 @@ class Payment_notification_spp extends MY_Controller
       )
     );
     $mail->SMTPAuth = true;
-    $mail->Username = 'noreply@labschoolcibubur.sch.id';
+    $mail->Username = 'noreply@jacos.id';
     $mail->Password = ''; // [JACOS] TODO(manual): password SMTP Jacos — kredensial lama dihapus
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
 
-    $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-    $mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+    $mail->addReplyTo('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+    $mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
     // Menambahkan penerima
     $mail->addAddress($to);
 
     // Subjek email
-    $mail->Subject = '[No Reply] KWITANSI DAN KARTU SISWA SEMENTARA LABSCHOOL CIBUBUR';
+    $mail->Subject = '[No Reply] KWITANSI DAN KARTU SISWA SEMENTARA JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
 
     // Mengatur format email ke HTML
     $mail->isHTML(true);

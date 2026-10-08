@@ -37,7 +37,7 @@ class Informasi_psb extends REST_Controller {
             $value->time = date("H:i",strtotime($value->created_at));
             $value->created_at = formatTanggal($value->created_at);
             if (!empty($value->img_file)) {
-              $value->img_file = /* base_url() */"https://admin.labschoolcibubur.sch.id/"."uploads/web_informasi_psb/".$value->img_file;
+              $value->img_file = base_url()."uploads/web_informasi_psb/".$value->img_file;
             }
           }
           $msg = array('status' => 1, 'message'=>'Berhasil ambil data' ,'data'=>$data);

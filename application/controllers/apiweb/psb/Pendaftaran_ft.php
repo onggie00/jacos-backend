@@ -734,7 +734,7 @@ class Pendaftaran_ft extends REST_Controller {
                   "tipe_pendaftaran" => $tipe_pendaftaran_label,
                   "jenjang" => "FT",
                   "transaksi" => $get_transaksi,
-                  "nama_panitia" => "Panitia ".($ppsbb == "1" ? "PPSBB FT" : "PSB FT")." Labschool Cibubur ".date("Y", strtotime("+1 years"))."-".date("Y", strtotime("+2 years")),
+                  "nama_panitia" => "Panitia ".($ppsbb == "1" ? "PPSBB FT" : "PSB FT")." JAKARTA COSMOPOLITE ISLAMIC SCHOOL ".date("Y", strtotime("+1 years"))."-".date("Y", strtotime("+2 years")),
                   "slip_pembayaran" => $no_transaksi.'-'.$this->post("nama_lengkap").'.pdf',
                 );
                 $this->send_email_file("",$data_email['email'],$data_email);
@@ -942,13 +942,13 @@ class Pendaftaran_ft extends REST_Controller {
           )
       );
       $mail->SMTPAuth = true;
-      $mail->Username = 'noreply@labschoolcibubur.sch.id';
+      $mail->Username = 'noreply@jacos.id';
       $mail->Password = ''; // [JACOS] TODO(manual): password SMTP Jacos — kredensial lama dihapus
       $mail->SMTPSecure = 'tls';
       $mail->Port = 587;
 
-      $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-      $mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+      $mail->addReplyTo('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+      $mail->setFrom('noreply@jacos.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
       // Menambahkan penerima
       $mail->addAddress($to);

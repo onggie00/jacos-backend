@@ -25,7 +25,7 @@ class Foto_pengajar extends REST_Controller {
         $data = $this->mymodel->withquery("select * from foto_pengajar","result");
           foreach($data as $key => $value){
             if (!empty($value->foto)) {
-              $value->foto = /* base_url() */"https://admin.labschoolcibubur.sch.id/"."/uploads/foto_pengajar/".$value->foto;
+              $value->foto = base_url()."uploads/foto_pengajar/".$value->foto;
             }
           }
 

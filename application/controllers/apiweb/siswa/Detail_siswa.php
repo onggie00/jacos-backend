@@ -29,39 +29,39 @@ class Detail_siswa extends REST_Controller {
         if($jenjang=='sd'){
           $data = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,sa.nama_lengkap as nama_lengkap from siswa_sd_aktif sa join siswa_sd s on s.id_siswa_sd = sa.id_siswa_sd join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran join kelas_sd k on k.id_kelas_sd = sa.id_kelas where id_siswa_sd_aktif = ".$id."","row");
           if(!empty($data->foto_profil)){
-            $data->foto_profil=/* base_url(). */"https://admin.labschoolcibubur.sch.id/".'uploads/siswa_sd/'.$data->foto_profil;
+            $data->foto_profil=base_url().'uploads/siswa_sd/'.$data->foto_profil;
           }
           // $data->id_tingkatan = tingkatan_romawi($data->id_tingkatan, $jenjang);
           $data->id_tingkatan =  $this->mymodel->withquery("SELECT label from tingkatan_sd where id_tingkatan_sd = $data->id_tingkatan",'row')->label;
           if($data->file_raport){
-            $data->file_raport=/* base_url(). */"https://admin.labschoolcibubur.sch.id/".'uploads/siswa_sd_aktif/'.$data->file_raport;
+            $data->file_raport=base_url().'uploads/siswa_sd_aktif/'.$data->file_raport;
           }
         }else if($jenjang=='smp'){
           $data = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,sa.nama_lengkap as nama_lengkap from siswa_smp_aktif sa join siswa_smp s on s.id_siswa_smp = sa.id_siswa_smp join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran join kelas_smp k on k.id_kelas_smp = sa.id_kelas where id_siswa_smp_aktif = ".$id."","row");
           if($data->foto_profil){
-            $data->foto_profil=/* base_url(). */"https://admin.labschoolcibubur.sch.id/".'uploads/siswa_smp/'.$data->foto_profil;
+            $data->foto_profil=base_url().'uploads/siswa_smp/'.$data->foto_profil;
           }
           $data->id_tingkatan = $this->mymodel->withquery("SELECT label from tingkatan_smp where id_tingkatan_smp = $data->id_tingkatan",'row')->label;
           if($data->file_raport){
-            $data->file_raport=/* base_url(). */"https://admin.labschoolcibubur.sch.id/".'uploads/siswa_smp_aktif/'.$data->file_raport;
+            $data->file_raport=base_url().'uploads/siswa_smp_aktif/'.$data->file_raport;
           }
         }else if($jenjang=='sma'){
           $data = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,sa.nama_lengkap as nama_lengkap from siswa_sma_aktif sa join siswa_sma s on s.id_siswa_sma = sa.id_siswa_sma join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran join kelas_sma k on k.id_kelas_sma = sa.id_kelas where id_siswa_sma_aktif = ".$id."","row");
           if($data->foto_profil){
-            $data->foto_profil=/* base_url(). */"https://admin.labschoolcibubur.sch.id/".'uploads/siswa_sma/'.$data->foto_profil;
+            $data->foto_profil=base_url().'uploads/siswa_sma/'.$data->foto_profil;
           }
           $data->id_tingkatan = $this->mymodel->withquery("SELECT label from tingkatan_sma where id_tingkatan_sma = $data->id_tingkatan",'row')->label;
           if($data->file_raport){
-            $data->file_raport=/* base_url(). */"https://admin.labschoolcibubur.sch.id/".'uploads/siswa_sma_aktif/'.$data->file_raport;
+            $data->file_raport=base_url().'uploads/siswa_sma_aktif/'.$data->file_raport;
           }
         }else if($jenjang=='ft'){
           $data = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,sa.nama_lengkap as nama_lengkap from siswa_ft_aktif sa join siswa_ft s on s.id_siswa_ft = sa.id_siswa_ft join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran join kelas_ft k on k.id_kelas_ft = sa.id_kelas where id_siswa_ft_aktif = ".$id."","row");
           if($data->foto_profil){
-            $data->foto_profil=/* base_url(). */"https://admin.labschoolcibubur.sch.id/".'uploads/siswa_ft/'.$data->foto_profil;
+            $data->foto_profil=base_url().'uploads/siswa_ft/'.$data->foto_profil;
           }
           $data->id_tingkatan = $this->mymodel->withquery("SELECT label from tingkatan_ft where id_tingkatan_ft = $data->id_tingkatan",'row')->label;
           if($data->file_raport){
-            $data->file_raport=/* base_url(). */"https://admin.labschoolcibubur.sch.id/".'uploads/siswa_ft_aktif/'.$data->file_raport;
+            $data->file_raport=base_url().'uploads/siswa_ft_aktif/'.$data->file_raport;
           }
         }
 

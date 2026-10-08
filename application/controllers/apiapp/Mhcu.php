@@ -777,7 +777,7 @@ class Mhcu extends REST_Controller {
 
         // URL hasil individu PDF (dengan token deterministik agar bisa diakses browser — sama dengan Mhcu_care)
         $pdf_token = md5(intval($id_sesi) . MHCU_CARE_TOKEN_SALT);
-        $hasil_individu_url = "https://admin.labschoolcibubur.sch.id/"."apiapp/mhcu/export_individu_pdf?id_sesi=" . intval($id_sesi) . '&token=' . urlencode($pdf_token);//base_url('apiapp/mhcu/export_individu_pdf?id_sesi=' . intval($id_sesi) . '&token=' . urlencode($pdf_token));
+        $hasil_individu_url = base_url()."apiapp/mhcu/export_individu_pdf?id_sesi=" . intval($id_sesi) . '&token=' . urlencode($pdf_token);//base_url('apiapp/mhcu/export_individu_pdf?id_sesi=' . intval($id_sesi) . '&token=' . urlencode($pdf_token));
         $hasil->hasil_individu = $hasil_individu_url;
         $data = array(
             'sesi' => $sesi,

@@ -75,7 +75,7 @@ class Export_pdf_slip_pembayaran extends MY_Controller {
         $pdf->WriteHTML($html);
         $nama_file = $no_transaksi.'-'.$data->nama_lengkap.'.pdf';
         //var_dump($data);
-        $pdf->Output(/*FCPATH.*/'https://admin.labschoolcibubur.sch.id'.'/uploads/slip_pembayaran/'.$nama_file, 'F');
+        $pdf->Output(FCPATH.'uploads/slip_pembayaran/'.$nama_file, 'F');
         //$pdf->Output(/*FCPATH.*/'https://admin.labschoolcibubur.sch.id'.'/uploads/kartu_peserta/'.$data->no_transaksi.'.pdf', 'F');
 
           $msg = array('status' => 1, 'message'=>'Berhasil ambil data' ,'data'=>$data);

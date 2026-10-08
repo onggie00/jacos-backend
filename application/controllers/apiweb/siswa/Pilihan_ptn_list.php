@@ -38,7 +38,7 @@ class Pilihan_ptn_list extends REST_Controller {
         if (!empty($data)) {
           foreach ($data as $key => $value) {
             if (!empty($value->logo_ptn)) {
-              $base_url = "https://admin.labschoolcibubur.sch.id/";
+              $base_url = base_url();
               $value->logo_ptn = $base_url."uploads/pt_perguruan_tinggi/".$value->logo_ptn;
             }
             $value->persentase_ketercapaian_1 = ($data_siswa->nilai_utbk1*100)/$value->passing_grade;
