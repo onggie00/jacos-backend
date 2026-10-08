@@ -357,7 +357,16 @@ class Payment_notification extends MY_Controller
 
               //CETAK KARTU PESERTA
               $cetak_kartu = $this->cetak_kartu(array("tipe_siswa" => $tipe_siswa, "id_siswa" => $id_siswa));
-              $get_transaksi = $this->mymodel->withquery("select id_transaksi, no_transaksi, va_number, nama_bank, total_biaya, expired_datetime from transaksi where no_transaksi = '" . $data_asli['trx_id'] . "'", "row");
+              $get_transaksi = $this->mymodel->withquery("select id_transaksi, no_transaksi, va_number, nama_bank, total_biaya, expired_datetime, payment_method_id from transaksi where no_transaksi = '" . $data_asli['trx_id'] . "'", "row");
+
+              //isi payment_method_id (VA BNI) sebelum cetak kwitansi, hanya jika masih kosong (push dobel tidak menimpa nilai manual)
+              if (empty($get_transaksi->payment_method_id)) {
+                $pm_row = $this->mymodel->withquery("select id from web_payment_method where nama = 'VA BNI'", "row");
+                if (!empty($pm_row)) {
+                  $this->mymodel->update("transaksi", array("payment_method_id" => $pm_row->id), "no_transaksi", $no_transaksi);
+                  $get_transaksi->payment_method_id = $pm_row->id;
+                }
+              }
 
               $nama_ortu = $cek_no_peserta->nama_ibu;
               if (empty($cek_no_peserta->nama_ibu)) {
@@ -393,7 +402,16 @@ class Payment_notification extends MY_Controller
               $transaksi = $this->mymodel->update("transaksi", $data_transaksi, "no_transaksi", $no_transaksi);
               //CETAK KARTU SEMENTARA
               $cetak_kartu_siswa_sementara = $this->cetak_kartu_siswa_sementara(array("tipe_siswa" => $tipe_siswa, "id_siswa" => $id_siswa));
-              $get_transaksi = $this->mymodel->withquery("select id_transaksi, no_transaksi, va_number, nama_bank, total_biaya, expired_datetime from transaksi where no_transaksi = '" . $data_asli['trx_id'] . "'", "row");
+              $get_transaksi = $this->mymodel->withquery("select id_transaksi, no_transaksi, va_number, nama_bank, total_biaya, expired_datetime, payment_method_id from transaksi where no_transaksi = '" . $data_asli['trx_id'] . "'", "row");
+
+              //isi payment_method_id (VA BNI) sebelum cetak kwitansi, hanya jika masih kosong (push dobel tidak menimpa nilai manual)
+              if (empty($get_transaksi->payment_method_id)) {
+                $pm_row = $this->mymodel->withquery("select id from web_payment_method where nama = 'VA BNI'", "row");
+                if (!empty($pm_row)) {
+                  $this->mymodel->update("transaksi", array("payment_method_id" => $pm_row->id), "no_transaksi", $no_transaksi);
+                  $get_transaksi->payment_method_id = $pm_row->id;
+                }
+              }
               $nama_ortu = $cek_no_peserta->nama_ibu;
               if (empty($cek_no_peserta->nama_ibu)) {
                 $nama_ortu = $cek_no_peserta->nama_ayah;
