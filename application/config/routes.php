@@ -165,3 +165,7 @@ $route['apiweb/psb/pendaftaran_sd'] = 'apiweb/psb/Pendaftaran_sd';
 $route['apiweb/siswa/cek_data'] = 'apiweb/siswa/Cek_data';
 $route['apiweb/psb/export_pdf_kwitansi'] = 'apiweb/psb/Export_pdf_kwitansi';
 $route['apiweb/psb/export_pdf_siswa'] = 'apiweb/psb/Export_pdf_siswa';
+// Alias lowercase ketentuan PSB (server Linux case-sensitive)
+$route['apiweb/ketentuan/ketentuan_pendaftaran_sd'] = 'apiweb/ketentuan/Ketentuan_pendaftaran_sd';
+$route['apiweb/ketentuan/ketentuan_pendaftaran_kb'] = 'apiweb/ketentuan/Ketentuan_pendaftaran_kb';
+$route['apiweb/ketentuan/ketentuan_pendaftaran_tk'] = 'apiweb/ketentuan/Ketentuan_pendaftaran_tk';
