@@ -197,36 +197,22 @@ class Transaksi extends Admin
 								$no_peserta = $tahun_pelajaran . $unit . $no_urut;
 								$cek_duplikat = $this->mymodel->withquery("select no_peserta from siswa_".$tabel_siswa." where no_peserta = '".$no_peserta."'", "row");
 							}
-							$data_siswa = $this->mymodel->update("siswa_".$tabel_siswa, array("no_peserta" => $no_peserta, "password_ujian" => rand(100000, 999999)), $id_field_siswa, $cek_no_peserta->id_siswa);
+							//password_ujian hanya ada di siswa_ft (kolom tidak ada di sd/smp/sma/kb/tk)
+						$update_siswa = array("no_peserta" => $no_peserta);
+						if ($tabel_siswa == 'ft') {
+							$update_siswa['password_ujian'] = rand(100000, 999999);
 						}
-
-					//CETAK KWITANSI (meniru Notification.php)
-					$nama_ortu = $cek_no_peserta->nama_ibu;
-					if (empty($nama_ortu)) {
-						$nama_ortu = $cek_no_peserta->nama_ayah;
-					}
-					$cetak_kwitansi = $this->cetak_kwitansi(array(
-						"id_siswa" => $id_siswa,
-						"tipe_siswa" => $tabel_siswa,
-						"jenjang" => $tabel_siswa,
-						"nama_lengkap" => $cek_no_peserta->nama_lengkap,
-						"nama_ortu" => $nama_ortu,
-						"total_biaya" => $get_transaksi->total_biaya,
-						"total_biaya_terbilang" => terbilang($get_transaksi->total_biaya) . " Rupiah",
-						"va_number" => $get_transaksi->va_number,
-						"no_transaksi" => $get_transaksi->no_transaksi,
-						"jalur" => "PSB",
-						"jenis_kwitansi" => "uang pendaftaran"
-					));
+						$data_siswa = $this->mymodel->update("siswa_".$tabel_siswa, $update_siswa, $id_field_siswa, $cek_no_peserta->id_siswa);
+						}
 
 					//link cetak kwitansi & kartu peserta untuk ditampilkan ke admin
-					$link_kwitansi = base_url('uploads/kwitansi/') . $get_transaksi->no_transaksi . '-' . $cek_no_peserta->nama_lengkap . '.pdf';
-					if ($cetak_kwitansi) {
-						$res_kwitansi = json_decode($cetak_kwitansi);
-						if (!empty($res_kwitansi->data->url_file)) {
-							$link_kwitansi = $res_kwitansi->data->url_file;
-						}
-					}
+					//arahkan langsung ke API export kwitansi (streaming PDF, tanpa file/cache)
+					$link_kwitansi = base_url('apiweb/psb/export_pdf_kwitansi') . '?id_siswa=' . urlencode($id_siswa)
+						. '&tipe_siswa=' . urlencode($tabel_siswa)
+						. '&jenjang=' . urlencode(strtoupper($jenjang))
+						. '&no_transaksi=' . urlencode($get_transaksi->no_transaksi)
+						. '&jalur=PSB'
+						. '&jenis_kwitansi=UANG%20PENDAFTARAN';
 					$link_kartu = site_url('apiapp/siswa/export_pdf_siswa') . '?id_siswa=' . $id_siswa . '&tipe_siswa=' . $tabel_siswa;
 					$pesan_cetak = '<br>Cetak <a href="' . $link_kwitansi . '" target="_blank">Kwitansi (PDF)</a> &nbsp;|&nbsp; <a href="' . $link_kartu . '" target="_blank">Kartu Peserta (PDF)</a>';
 
@@ -324,7 +310,7 @@ class Transaksi extends Admin
 
 		/**
 	* Cetak kwitansi via action list (hanya transaksi lunas)
-	* Reuse cetak_kwitansi() (curl ke apiapp/siswa/export_pdf_kwitansi) seperti di edit_save
+	* Mengarahkan langsung ke API export kwitansi apiweb/psb (streaming PDF)
 	* @var $id String
 	*/
 	public function cetak_kwitansi_action($id = null)
@@ -359,34 +345,16 @@ class Transaksi extends Admin
 			exit;
 		}
 		$tabel_siswa = $peta_jenjang[$jenjang];
-		$id_field_siswa = "id_siswa_" . $tabel_siswa;
-		$get_siswa = $this->mymodel->withquery("select * from siswa_" . $tabel_siswa . " where " . $id_field_siswa . " = '" . $id_siswa . "'", "row");
-		if (empty($get_siswa)) {
-			echo json_encode(array('success' => false, 'message' => 'Data siswa tidak ditemukan'));
-			exit;
-		}
-		$nama_ortu = (!empty($get_siswa->nama_ibu) && $get_siswa->nama_ibu != "-") ? $get_siswa->nama_ibu : $get_siswa->nama_ayah;
+		$id_siswa_int = ctype_digit((string)$id_siswa) ? (int)$id_siswa : 0;
 
-		$rs = $this->cetak_kwitansi(array(
-			"id_siswa" => $id_siswa,
-			"tipe_siswa" => $tabel_siswa,
-			"jenjang" => $tabel_siswa,
-			"nama_lengkap" => $get_siswa->nama_lengkap,
-			"nama_ortu" => $nama_ortu,
-			"total_biaya" => $transaksi->total_biaya,
-			"total_biaya_terbilang" => terbilang($transaksi->total_biaya) . " Rupiah",
-			"va_number" => $transaksi->va_number,
-			"no_transaksi" => $transaksi->no_transaksi,
-			"jalur" => "PSB",
-			"jenis_kwitansi" => "uang pendaftaran"
-		));
-
-		$link_kwitansi = base_url('uploads/kwitansi/') . $transaksi->no_transaksi . '-' . $get_siswa->nama_lengkap . '.pdf';
-		$res_kwitansi = json_decode($rs);
-		if (!empty($res_kwitansi->data->url_file)) {
-			$link_kwitansi = $res_kwitansi->data->url_file;
-		}
-		echo json_encode(array('success' => true, 'url' => $link_kwitansi));
+		//arahkan langsung ke API export kwitansi (streaming PDF, tanpa file/cache)
+		$url = base_url('apiweb/psb/export_pdf_kwitansi') . '?id_siswa=' . urlencode($id_siswa_int)
+			. '&tipe_siswa=' . urlencode($tabel_siswa)
+			. '&jenjang=' . urlencode(strtoupper($jenjang))
+			. '&no_transaksi=' . urlencode($transaksi->no_transaksi)
+			. '&jalur=PSB'
+			. '&jenis_kwitansi=UANG%20PENDAFTARAN';
+		echo json_encode(array('success' => true, 'url' => $url));
 	}
 
 		/**
