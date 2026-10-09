@@ -31,9 +31,16 @@ $cb_p2 = jacos_kwitansi_cb($jenjang_l == 'kb' && $id_ting == '2');
 $cb_k1 = jacos_kwitansi_cb($jenjang_l == 'tk' && $id_ting == '1');
 $cb_k2 = jacos_kwitansi_cb($jenjang_l == 'tk' && $id_ting == '2');
 $cb_primary = jacos_kwitansi_cb($jenjang_l == 'sd');
-// Payment Method: label dari web_payment_method; kosong/tidak dikenal -> default Cash (tampilan saja)
+// Payment Method: label dari web_payment_method (nama: Cash, Bank Transfer, QRIS,
+// Virtual Account) dipetakan ke label checkbox kwitansi; kosong/tidak dikenal -> default Cash
 $pm = isset($payment_method) ? $payment_method : '';
-if ($pm != 'VA BNI' && $pm != 'Transfer BNI/BCA' && $pm != 'QRIS BNI/BCA') {
+if ($pm == 'Virtual Account') {
+	$pm = 'VA BNI';
+} else if ($pm == 'Bank Transfer') {
+	$pm = 'Transfer BNI/BCA';
+} else if ($pm == 'QRIS') {
+	$pm = 'QRIS BNI/BCA';
+} else if ($pm != 'Cash') {
 	$pm = 'Cash';
 }
 $cb_cash = jacos_kwitansi_cb($pm == 'Cash');
