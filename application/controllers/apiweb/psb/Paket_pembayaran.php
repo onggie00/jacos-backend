@@ -33,7 +33,7 @@ class Paket_pembayaran extends REST_Controller {
 		$nama_lengkap = trim((string) $nama_lengkap);
 		$no_transaksi = trim((string) $no_transaksi);
 		if ($email == '' || $nama_lengkap == '' || $no_transaksi == '') {
-			return array("status" => 0, "kode" => "tidak_berhak", "message" => "email, nama_lengkap, dan no_transaksi wajib diisi");
+			return array("status" => 0, "kode" => "parameter_kurang", "message" => "email, nama_lengkap, dan no_transaksi wajib diisi");
 		}
 		// transaksi harus ada, tipe Pendaftaran (prefix JI-)
 		$transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '" . $this->db->escape_str($no_transaksi) . "' and is_show = 1 order by id_transaksi DESC", "row");
@@ -48,12 +48,12 @@ class Paket_pembayaran extends REST_Controller {
 		if (!in_array($jenjang, array("kb", "tk", "sd"))) {
 			return array("status" => 0, "kode" => "bukan_transaksi_pendaftaran", "message" => "Transaksi bukan tagihan pendaftaran KB/TK/SD");
 		}
-		// siswa pemilik (email + nama_lengkap sama dengan data di transaksi)
-		$siswa = $this->mymodel->withquery("select * from siswa_" . $jenjang . " where email = '" . $this->db->escape_str($email) . "' and nama_lengkap = '" . $this->db->escape_str($nama_lengkap) . "' and is_show = 1 order by id_siswa_" . $jenjang . " DESC", "row");
+		// siswa pemilik — pencocokan identitas via helper bersama Psb_paket (trim + case-insensitive)
+		$siswa = $this->psb_paket->cari_siswa($jenjang, $email, $nama_lengkap);
 		if (empty($siswa)) {
 			return array("status" => 0, "kode" => "tidak_berhak", "message" => "Data siswa tidak ditemukan");
 		}
-		if (trim($transaksi->user_email) != $email || trim($transaksi->user_name) != $nama_lengkap) {
+		if (!$this->psb_paket->verifikasi_pemilik($transaksi, $email, $nama_lengkap)) {
 			return array("status" => 0, "kode" => "tidak_berhak", "message" => "Transaksi bukan milik pemanggil");
 		}
 		return array("status" => 1, "siswa" => $siswa, "transaksi" => $transaksi, "jenjang" => $jenjang);

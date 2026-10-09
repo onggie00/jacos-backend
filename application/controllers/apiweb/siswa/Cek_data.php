@@ -13,6 +13,26 @@ class Cek_data extends REST_Controller
   {
     parent::__construct();
   }
+
+  /** petakan row siswa (Psb_paket->cari_siswa) ke bentuk respons lama Cek_data; $is_ppsbb: "" = tanpa, "2" = konstan, "asli" = kolom ppsbb */
+  function _baris_siswa($siswa, $jenjang, $is_ppsbb)
+  {
+    $data = new stdClass();
+    $data->id_siswa = $siswa->{"id_siswa_" . $jenjang};
+    $data->email = $siswa->email;
+    $data->nama_lengkap = $siswa->nama_lengkap;
+    $data->no_peserta = $siswa->no_peserta;
+    $data->no_transaksi = $siswa->no_transaksi;
+    $sl = $this->mymodel->getbywhere("status_lulus", "id_status_lulus", $siswa->status_lulus, "row");
+    $data->status_lulus = !empty($sl) ? $sl->status_lulus : "";
+    $data->foto_peserta = $siswa->foto_peserta;
+    if ($is_ppsbb === "asli") {
+      $data->is_ppsbb = $siswa->ppsbb;
+    } else if ($is_ppsbb != "") {
+      $data->is_ppsbb = $is_ppsbb;
+    }
+    return $data;
+  }
   public function index_post()
   {
     $status = "";
@@ -34,12 +54,11 @@ class Cek_data extends REST_Controller
     $this->load->library('Psb_paket');
 
 
-    //cek data urut ft, sma, smp, sd
-
-    //ft
+      //ft
     if ($jenjang=="ft" && !empty($email) && !empty($nama_lengkap)) {
-      $data = $this->mymodel->withquery("select s.id_siswa_ft as id_siswa, s.email, s.nama_lengkap, s.no_peserta, s.no_transaksi, st.status_lulus, s.no_peserta, s.foto_peserta from siswa_ft s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%" . $email . "%' and nama_lengkap like '%" . $this->db->escape_like_str(str_replace("'", "\'", $nama_lengkap)) . "%' and is_show = 1", "row");
-      if (!empty($data)) {
+      $siswa = $this->psb_paket->cari_siswa("ft", $email, $nama_lengkap);
+      if (!empty($siswa)) {
+        $data = $this->_baris_siswa($siswa, "ft", "");
         $data->tipe_siswa = "ft";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".$data->no_transaksi."' order by id_transaksi DESC", "row");
@@ -80,8 +99,12 @@ class Cek_data extends REST_Controller
 
     //sma
     if ($jenjang=="sma" && !empty($email) && !empty($nama_lengkap) ) {
-      $data = $this->mymodel->withquery("select s.id_siswa_sma as id_siswa, s.email, s.nama_lengkap, s.no_peserta, s.no_transaksi, st.status_lulus, s.no_peserta, s.foto_peserta, s.ppsbb as is_ppsbb from siswa_sma s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%" . $email . "%' and nama_lengkap like '%" . $this->db->escape_like_str(str_replace("'", "\'", $nama_lengkap)) . "%' and is_show = 1 and is_ft = 0", "row");
-      if (!empty($data)) {
+      $siswa = $this->psb_paket->cari_siswa("sma", $email, $nama_lengkap);
+      if (!empty($siswa) && (int) $siswa->is_ft != 0) {
+        $siswa = null; // record duplikat jalur FT bukan peserta SMA reguler
+      }
+      if (!empty($siswa)) {
+        $data = $this->_baris_siswa($siswa, "sma", "asli");
         $data->tipe_siswa = "sma";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".$data->no_transaksi."' order by id_transaksi DESC", "row");
@@ -122,8 +145,9 @@ class Cek_data extends REST_Controller
 
     //smp
     if ($jenjang=="smp" && !empty($email) && !empty($nama_lengkap)) {
-      $data = $this->mymodel->withquery("select s.id_siswa_smp as id_siswa, s.email, s.nama_lengkap, s.no_peserta, s.no_transaksi, st.status_lulus, s.no_peserta, s.foto_peserta, s.ppsbb as is_ppsbb from siswa_smp s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%" . $email . "%' and nama_lengkap like '%" . $this->db->escape_like_str($nama_lengkap) . "%' and is_show = 1", "row");
-      if (!empty($data)) {
+      $siswa = $this->psb_paket->cari_siswa("smp", $email, $nama_lengkap);
+      if (!empty($siswa)) {
+        $data = $this->_baris_siswa($siswa, "smp", "asli");
         $data->tipe_siswa = "smp";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".$data->no_transaksi."' order by id_transaksi DESC", "row");
@@ -164,11 +188,12 @@ class Cek_data extends REST_Controller
 
     //sd
     if ($jenjang=="sd" && !empty($email) && !empty($nama_lengkap)) {
-      $data = $this->mymodel->withquery("select s.id_siswa_sd as id_siswa, s.email, s.nama_lengkap, s.no_peserta, s.no_transaksi, st.status_lulus, s.no_peserta, s.foto_peserta, concat('2') as is_ppsbb from siswa_sd s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%" . $email . "%' and nama_lengkap like '%" . $this->db->escape_like_str(str_replace("'", "\'", $nama_lengkap)) . "%' and is_show = 1", "row");
-      //echo $this->db->last_query();
-      if (!empty($data)) {
+      $siswa = $this->psb_paket->cari_siswa("sd", $email, $nama_lengkap);
+      if (!empty($siswa)) {
+        $data = $this->_baris_siswa($siswa, "sd", "2");
         $data->tipe_siswa = "sd";
       }
+      //echo $this->db->last_query();
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".str_replace("'", "\'", $data->no_transaksi)."' order by id_transaksi DESC", "row");
       $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
@@ -217,10 +242,9 @@ class Cek_data extends REST_Controller
 
     //kb
     if ($jenjang=="kb" && !empty($email) && !empty($nama_lengkap)) {
-      $data = $this->mymodel->withquery("select s.id_siswa_kb as id_siswa, s.email, s.nama_lengkap, s.no_peserta, s.no_transaksi, st.status_lulus, s.no_peserta, s.foto_peserta, concat('2') as is_ppsbb from siswa_kb s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%" . $email . "%'
-       and nama_lengkap like '%" . $this->db->escape_like_str(str_replace("'", "\\'", $nama_lengkap)) . "%'
-       and is_show = 1", "row");
-      if (!empty($data)) {
+      $siswa = $this->psb_paket->cari_siswa("kb", $email, $nama_lengkap);
+      if (!empty($siswa)) {
+        $data = $this->_baris_siswa($siswa, "kb", "2");
         $data->tipe_siswa = "kb";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".str_replace("'", "\\'", $data->no_transaksi)."' order by id_transaksi DESC", "row");
@@ -268,10 +292,9 @@ class Cek_data extends REST_Controller
 
     //tk
     if ($jenjang=="tk" && !empty($email) && !empty($nama_lengkap)) {
-      $data = $this->mymodel->withquery("select s.id_siswa_tk as id_siswa, s.email, s.nama_lengkap, s.no_peserta, s.no_transaksi, st.status_lulus, s.no_peserta, s.foto_peserta, concat('2') as is_ppsbb from siswa_tk s join status_lulus st on s.status_lulus = st.id_status_lulus where email like '%" . $email . "%'
-       and nama_lengkap like '%" . $this->db->escape_like_str(str_replace("'", "\\'", $nama_lengkap)) . "%'
-       and is_show = 1", "row");
-      if (!empty($data)) {
+      $siswa = $this->psb_paket->cari_siswa("tk", $email, $nama_lengkap);
+      if (!empty($siswa)) {
+        $data = $this->_baris_siswa($siswa, "tk", "2");
         $data->tipe_siswa = "tk";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".str_replace("'", "\\'", $data->no_transaksi)."' order by id_transaksi DESC", "row");

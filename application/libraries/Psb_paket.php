@@ -129,4 +129,60 @@ class Psb_paket {
 			"judul_tagihan" => $this->judul_tagihan($pilihan, $jenjang, $transaksi->user_name)
 		);
 	}
+
+	/* ===== Identitas pemanggil (dipakai bersama Cek_data & Paket_pembayaran) =====
+	 * Pencocokan identitas WAJIB lewat fungsi di bawah: trim + case-insensitive
+	 * di kedua sisi. Jangan menyalin kondisi pembanding identitas di tempat lain —
+	 * (bug lama: transaksi.user_name vs siswa.nama_lengkap beda kapital → PHP
+	 * case-sensitive membandingkan dua nilai berbeda → tak ada input yang lolos).
+	 */
+
+	/** normalisasi identitas: trim + lowercase */
+	function norm_identitas($nilai)
+	{
+		return trim(strtolower(trim((string) $nilai)));
+	}
+
+	/** true bila dua nilai identitas sama (trim + case-insensitive) */
+	function identitas_cocok($a, $b)
+	{
+		return $this->norm_identitas($a) === $this->norm_identitas($b);
+	}
+
+	/**
+	 * Cari siswa PSB per jenjang (ft/sma/smp/sd/kb/tk) dengan identitas
+	 * email + nama_lengkap (exact, tapi trim + case-insensitive via verifikasi
+	 * PHP di atas hasil SQL ci-collation). Return row siswa atau null.
+	 */
+	function cari_siswa($jenjang, $email, $nama_lengkap)
+	{
+		$jenjang = strtolower(trim((string) $jenjang));
+		$pk = array(
+			"ft" => "id_siswa_ft", "sma" => "id_siswa_sma", "smp" => "id_siswa_smp",
+			"sd" => "id_siswa_sd", "kb" => "id_siswa_kb", "tk" => "id_siswa_tk"
+		);
+		if (!isset($pk[$jenjang])) {
+			return null;
+		}
+		$email = trim((string) $email);
+		$nama_lengkap = trim((string) $nama_lengkap);
+		if ($email == '' || $nama_lengkap == '') {
+			return null;
+		}
+		$siswa = $this->CI->mymodel->withquery("select * from siswa_" . $jenjang . " where email = '" . $this->CI->db->escape_str($email) . "' and nama_lengkap = '" . $this->CI->db->escape_str($nama_lengkap) . "' and is_show = 1 order by " . $pk[$jenjang] . " DESC", "row");
+		if (empty($siswa)) {
+			return null;
+		}
+		// verifikasi final PHP (menutup celah trailing space/kapital yang lolos SQL ci)
+		if (!$this->identitas_cocok($siswa->email, $email) || !$this->identitas_cocok($siswa->nama_lengkap, $nama_lengkap)) {
+			return null;
+		}
+		return $siswa;
+	}
+
+	/** true bila transaksi (user_email + user_name) milik identitas pemanggil */
+	function verifikasi_pemilik($transaksi, $email, $nama_lengkap)
+	{
+		return $this->identitas_cocok($transaksi->user_email, $email) && $this->identitas_cocok($transaksi->user_name, $nama_lengkap);
+	}
 }
