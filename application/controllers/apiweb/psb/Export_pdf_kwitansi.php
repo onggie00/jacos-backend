@@ -14,6 +14,11 @@ class Export_pdf_kwitansi extends MY_Controller {
     }
     public function index()
     {
+      // jalur output PDF: tcpdf 5.0.002 mengeluarkan E_DEPRECATED (curly brace) dan E_WARNING
+      // (chr/count) di PHP 7.4 saat render via web — byte asing sebelum %PDF merusak file & respons.
+      // Dinonaktifkan HANYA di controller ini (index.php global & tcpdf tidak diubah; jalur CLI template
+      // terbukti bersih, warning terbukti tidak fatal).
+      error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
       $this->load->library('HtmlPdf');
       $status = "";
       $token = "";
@@ -131,6 +136,8 @@ class Export_pdf_kwitansi extends MY_Controller {
         $nama_file = $no_transaksi.'-'.$data->nama_lengkap.'.pdf';
         //var_dump($data);
         //$pdf->Output(/*FCPATH.*/'https://admin.labschoolcibubur.sch.id'.'/uploads/kwitansi/'.$nama_file, 'F');
+        // buang buffer output apa pun (notice/dump yang masuk buffer) sebelum byte PDF dikirim
+        while (ob_get_level() > 0) { ob_end_clean(); }
         $pdf->Output('KWITANSI PENDAFTARAN '.$jenjang.'-'.$nama_lengkap.'.pdf', 'I');
 
           $msg = array('status' => 1, 'message'=>'Berhasil ambil data' ,'data'=>$data);
