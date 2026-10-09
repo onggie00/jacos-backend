@@ -28,7 +28,7 @@ class Periode_pendaftaran extends REST_Controller {
         if (!empty($tipe_daftar)) {
             $where = " where l.tipe_daftar = '".$this->db->escape_str($tipe_daftar)."'";
         }
-        $data = $this->mymodel->withquery("select p.*, l.link_daftar_lain from web_periode_daftar p join web_link_daftar_lain l on p.id_web_periode_daftar = l.id".$where,"result");
+        $data = $this->mymodel->withquery("select p.*, l.link_daftar_lain from web_periode_daftar p join web_link_daftar_lain l on p.kelas = l.tipe_daftar".$where,"result");
 
         if (!empty($data)) {
           foreach ($data as $key => $value) {
