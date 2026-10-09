@@ -91,6 +91,18 @@ class Pendaftaran_tk extends REST_Controller {
           $gelombang = $this->mymodel->withquery("select gelombang from web_periode_daftar where periode_pendaftaran_mulai <= '".date("Y-m-d H:i:s")."' and periode_pendaftaran_selesai >= '".date("Y-m-d H:i:s")."' and kelas = 'TK' ","row")->gelombang;
           $tahun_ajaran_aktif = $this->mymodel->withquery("select * from tahun_ajaran_psb where id = '1'","row")->label;
           $id_tingkatan_post = (int) $this->post("id_tingkatan");
+          if (empty($id_tingkatan_post)) {
+            $id_tingkatan_post = (int) $this->post("tingkatan");
+          }
+          $get_tingkatan_tk = null;
+          if (!empty($id_tingkatan_post)) {
+            $get_tingkatan_tk = $this->mymodel->getbywhere("tingkatan_tk", "id_tingkatan_tk", $id_tingkatan_post, "row");
+            if (empty($get_tingkatan_tk)) {
+              //tingkatan tidak dikenal -> anggap tidak dipilih (tidak blocker)
+              $id_tingkatan_post = 0;
+              $get_tingkatan_tk = null;
+            }
+          }
           $data = array(
             "nama_lengkap" => trim(ucwords(strtolower($this->post("nama_lengkap"))), " "),
             "email" => $this->post("email"),
@@ -203,17 +215,8 @@ class Pendaftaran_tk extends REST_Controller {
             $status="200";
             exit;
           }
-          //validasi tingkatan & usia (KB)
-          if (empty($id_tingkatan_post)) {
-            $msg = array('status' => 0, 'message' => 'Tingkatan wajib dipilih', 'data' => array(), 'transaksi' => array());
-            $this->response($msg, '200');
-          }
-          $get_tingkatan_tk = $this->mymodel->getbywhere("tingkatan_tk", "id_tingkatan_tk", $id_tingkatan_post, "row");
-          if (empty($get_tingkatan_tk)) {
-            $msg = array('status' => 0, 'message' => 'Tingkatan tidak ditemukan', 'data' => array(), 'transaksi' => array());
-            $this->response($msg, '200');
-          }
-          if (!empty($this->post("tgl_lahir")) && !psb_cek_usia($this->post("tgl_lahir"), $get_tingkatan_tk->usia_min, $get_tingkatan_tk->usia_max)) {
+          //usia hanya dicek bila tingkatan valid & tgl_lahir dikirim
+          if (!empty($get_tingkatan_tk) && !empty($this->post("tgl_lahir")) && !psb_cek_usia($this->post("tgl_lahir"), $get_tingkatan_tk->usia_min, $get_tingkatan_tk->usia_max)) {
             $msg = array('status' => 0, 'message' => 'Usia calon siswa tidak sesuai dengan tingkatan ' . $get_tingkatan_tk->label, 'data' => array(), 'transaksi' => array());
             $this->response($msg, '200');
           }
