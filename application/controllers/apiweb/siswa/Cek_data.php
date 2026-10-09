@@ -70,10 +70,10 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url('uploads/kwitansi/') . $daftar_ulang->kwitansi;
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
         } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
@@ -116,10 +116,10 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url('uploads/kwitansi/') . $daftar_ulang->kwitansi;
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
         } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
@@ -159,10 +159,10 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url('uploads/kwitansi/') . $daftar_ulang->kwitansi;
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
         } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
@@ -211,10 +211,10 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url('uploads/kwitansi/') . $daftar_ulang->kwitansi;
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
         } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
@@ -263,10 +263,10 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url('uploads/kwitansi/') . $daftar_ulang->kwitansi;
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
         } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
@@ -313,10 +313,10 @@ class Cek_data extends REST_Controller
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
           $data->tgl_daftar_ulang = '';
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url('uploads/kwitansi/') . $daftar_ulang->kwitansi;
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url('uploads/kartu_siswa_sementara/') . $daftar_ulang->kartu_sementara;
           }
         } else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
@@ -345,7 +345,18 @@ class Cek_data extends REST_Controller
         $data->foto_peserta = base_url("uploads/siswa_".strtolower($jenjang)."/").$data->foto_peserta;
       }
       //$transaksi = $this->mymodel->getbywhere("transaksi", "no_transaksi", $data->no_transaksi, "row");
-      $transaksi = $this->mymodel->withquery("select * from transaksi where user_email = '".$data->email."' and description like '%".$this->db->escape_like_str(str_replace("'", "\'", $data->nama_lengkap))."%' order by id_transaksi ASC","result");
+      // transaksi milik pendaftar dicari lewat identitas (user_email + user_name, trim + case-insensitive
+      // via helper bersama Psb_paket) — BUKAN LIKE description: sejak /pilih paket pembayaran, description
+      // bisa tanpa "a.n NAMA" (mis. "Admission Fee") sehingga pencarian berbasis teks description gagal
+      $semua_transaksi = $this->mymodel->withquery("select * from transaksi where user_email = '" . $this->db->escape_str($data->email) . "' order by id_transaksi ASC", "result");
+      $transaksi = array();
+      if (!empty($semua_transaksi)) {
+        foreach ($semua_transaksi as $row_transaksi) {
+          if ($this->psb_paket->identitas_cocok($row_transaksi->user_name, $data->nama_lengkap)) {
+            $transaksi[] = $row_transaksi;
+          }
+        }
+      }
       $logo_bank = "";
       $no_transaksi = "";
       if (!empty($transaksi)) {
@@ -405,7 +416,7 @@ class Cek_data extends REST_Controller
               $daftar_ulang = $this->mymodel->withquery("select * from status_daftar_ulang_".$data->tipe_siswa." where id_siswa_".$data->tipe_siswa." = '".$data->id_siswa."'","row");
             }
 
-            if ($daftar_ulang->status == "1") {
+            if (!empty($daftar_ulang) && $daftar_ulang->status == "1") {
               $data->status_transaksi = "Menunggu Pembayaran";
               if ($daftar_ulang->slip_pembayaran != '') {
                 //$data->slip_pembayaran_daftar_ulang = base_url('uploads/slip_pembayaran/') . $daftar_ulang->slip_pembayaran;
@@ -424,7 +435,7 @@ class Cek_data extends REST_Controller
                   "riwayat_payment" => $riwayat_payment
                 );
               }
-            } else if ($daftar_ulang->status == "2") {
+            } else if (!empty($daftar_ulang) && $daftar_ulang->status == "2") {
               $data->status_transaksi = "Lunas";
               $data->detail_transaksi[] = array(
                 "no_transaksi" => $value->no_transaksi,
@@ -450,7 +461,7 @@ class Cek_data extends REST_Controller
                 $data->tipe_transaksi = 'daftar_ulang';
                 $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
                 $data->status_transaksi = "Menunggu Aktivasi VA";
-                $data->tgl_daftar_ulang = $daftar_ulang->tgl_daftar_ulang;
+                $data->tgl_daftar_ulang = !empty($daftar_ulang) ? $daftar_ulang->tgl_daftar_ulang : "";
               } else {
                 $data->status_transaksi = "Lunas";
               }
@@ -490,10 +501,10 @@ class Cek_data extends REST_Controller
           //$data->slip_pembayaran = base_url('uploads/slip_pembayaran/') . $data->no_transaksi . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           //$data->kwitansi = base_url('uploads/kwitansi/') . $data->no_transaksi . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           $data->kwitansi = base_url()."apiweb/psb/export_pdf_kwitansi?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang)."&jenjang=".strtoupper($jenjang)."&no_transaksi=".$no_transaksi."&jalur=PSB&jenis_kwitansi=".$data->jenis_kwitansi;
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url()."apiweb/psb/export_pdf_kwitansi?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang)."&jenjang=".strtoupper($jenjang)."&no_transaksi=".$no_transaksi."&jalur=PSB&jenis_kwitansi=UANG DAFTAR ULANG";
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url()."apiweb/psb/export_kartu_siswa_sementara?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang);
           }
           else{
@@ -505,10 +516,10 @@ class Cek_data extends REST_Controller
           //$data->slip_pembayaran = base_url('uploads/slip_pembayaran/') . $data->no_transaksi . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           //$data->kwitansi = base_url('uploads/kwitansi/') . $data->no_transaksi . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           $data->kwitansi = base_url()."apiweb/psb/export_pdf_kwitansi?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang)."&jenjang=".strtoupper($jenjang)."&no_transaksi=".$no_transaksi."&jalur=PSB&jenis_kwitansi=".$data->jenis_kwitansi;
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url()."apiweb/psb/export_pdf_kwitansi?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang)."&jenjang=".strtoupper($jenjang)."&no_transaksi=".$no_transaksi."&jalur=PSB&jenis_kwitansi=UANG DAFTAR ULANG";
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url()."apiweb/psb/export_kartu_siswa_sementara?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang);
           }
           else{
@@ -520,10 +531,10 @@ class Cek_data extends REST_Controller
           //$data->slip_pembayaran = base_url('uploads/slip_pembayaran/') . $data->no_transaksi . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           //$data->kwitansi = base_url('uploads/kwitansi/') . $data->no_transaksi . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           $data->kwitansi = base_url()."apiweb/psb/export_pdf_kwitansi?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang)."&jenjang=".strtoupper($jenjang)."&no_transaksi=".$no_transaksi."&jalur=PSB&jenis_kwitansi=".$data->jenis_kwitansi;
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url()."apiweb/psb/export_pdf_kwitansi?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang)."&jenjang=".strtoupper($jenjang)."&no_transaksi=".$no_transaksi."&jalur=PSB&jenis_kwitansi=UANG DAFTAR ULANG";
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url()."apiweb/psb/export_kartu_siswa_sementara?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang);
           }
           else{
@@ -535,10 +546,10 @@ class Cek_data extends REST_Controller
           //$data->slip_pembayaran = base_url('uploads/slip_pembayaran/') . $data->no_transaksi . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           //$data->kwitansi = base_url('uploads/kwitansi/') . $data->no_transaksi . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           $data->kwitansi = base_url()."apiweb/psb/export_pdf_kwitansi?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang)."&jenjang=".strtoupper($jenjang)."&no_transaksi=".$no_transaksi."&jalur=PSB&jenis_kwitansi=".$data->jenis_kwitansi;
-          if ($daftar_ulang->kwitansi != '') {
+          if (!empty($daftar_ulang) && $daftar_ulang->kwitansi != '') {
             $data->kwitansi_daftar_ulang = base_url()."apiweb/psb/export_pdf_kwitansi?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang)."&jenjang=".strtoupper($jenjang)."&no_transaksi=".$no_transaksi."&jalur=PSB&jenis_kwitansi=UANG DAFTAR ULANG";
           }
-          if ($daftar_ulang->status == 2) {
+          if (!empty($daftar_ulang) && $daftar_ulang->status == 2) {
             $data->kartu_siswa_sementara = base_url()."apiweb/psb/export_kartu_siswa_sementara?id_siswa=".$data->id_siswa."&tipe_siswa=".strtolower($jenjang);
           }
           else{
