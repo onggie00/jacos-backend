@@ -30,6 +30,7 @@ class Cek_data extends REST_Controller
     $email = $this->post('email');
     $jenjang = $this->post('jenjang');
     $data = null;
+    $this->load->library('Psb_paket');
 
 
     //cek data urut ft, sma, smp, sd
@@ -155,6 +156,13 @@ class Cek_data extends REST_Controller
       $trx_type = explode("-", $transaksi->no_transaksi);
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_sd", "id_siswa_sd", $data->id_siswa, "row");
+      //paket pembayaran PSB (opsi NULL = data lama = opsi 1)
+      if (!empty($transaksi) && isset($transaksi->no_transaksi) && ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI')) {
+        $paket_trx = $this->psb_paket->dari_transaksi($transaksi);
+        $data->pilihan_pembayaran = $paket_trx['pilihan_pembayaran'];
+        $data->description = $transaksi->description;
+        $data->judul_tagihan = $paket_trx['judul_tagihan'];
+      }
       if (!empty($data) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           // $daftar_ulang=$this->mymodel->getbywhere("status_daftar_ulang_sd","id_siswa_sd",$data->id_siswa,"row");

@@ -31,6 +31,7 @@ class Cek_data extends REST_Controller
     $nama_lengkap = (!empty($this->post('nama_lengkap'))) ? $this->post('nama_lengkap') : null;
     $jenjang = $this->post('jenjang');
     $data = null;
+    $this->load->library('Psb_paket');
 
 
     //cek data urut ft, sma, smp, sd
@@ -172,6 +173,13 @@ class Cek_data extends REST_Controller
       $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_sd", "id_siswa_sd", $data->id_siswa, "row");
+      //paket pembayaran PSB (opsi NULL = data lama = opsi 1)
+      if (!empty($transaksi) && isset($transaksi->no_transaksi) && ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI')) {
+        $paket_trx = $this->psb_paket->dari_transaksi($transaksi);
+        $data->pilihan_pembayaran = $paket_trx['pilihan_pembayaran'];
+        $data->description = $transaksi->description;
+        $data->judul_tagihan = $paket_trx['judul_tagihan'];
+      }
       if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           // $daftar_ulang=$this->mymodel->getbywhere("status_daftar_ulang_sd","id_siswa_sd",$data->id_siswa,"row");
@@ -219,6 +227,13 @@ class Cek_data extends REST_Controller
       $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_kb", "id_siswa_kb", $data->id_siswa, "row");
+      //paket pembayaran PSB (opsi NULL = data lama = opsi 1)
+      if (!empty($transaksi) && isset($transaksi->no_transaksi) && ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI')) {
+        $paket_trx = $this->psb_paket->dari_transaksi($transaksi);
+        $data->pilihan_pembayaran = $paket_trx['pilihan_pembayaran'];
+        $data->description = $transaksi->description;
+        $data->judul_tagihan = $paket_trx['judul_tagihan'];
+      }
       if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
@@ -263,6 +278,13 @@ class Cek_data extends REST_Controller
       $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_tk", "id_siswa_tk", $data->id_siswa, "row");
+      //paket pembayaran PSB (opsi NULL = data lama = opsi 1)
+      if (!empty($transaksi) && isset($transaksi->no_transaksi) && ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI')) {
+        $paket_trx = $this->psb_paket->dari_transaksi($transaksi);
+        $data->pilihan_pembayaran = $paket_trx['pilihan_pembayaran'];
+        $data->description = $transaksi->description;
+        $data->judul_tagihan = $paket_trx['judul_tagihan'];
+      }
       if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
@@ -349,7 +371,14 @@ class Cek_data extends REST_Controller
               $daftar_ulang = $this->mymodel->withquery("select * from status_daftar_ulang_sd where id_siswa_sd = '".$data->id_siswa."'","row");
             }
             else if($value->nama_bank == "BNI"){
-              $riwayat_payment = array();//$this->mymodel->withquery("select trx_id, payment_ntb from payment_response_bni where va_number = '".$value->va_number."'","result");
+              //riwayat pembayaran VA BNI (kolom rincian diisi Payment_notification sejak 2026-10-10)
+              $riwayat_payment = $this->mymodel->withquery("select va_number as briva_no, bill_amount, transaction_date from payment_response_bni where va_number = '".$value->va_number."' and bill_amount is not null","result");
+              if (!empty($riwayat_payment)) {
+                foreach ($riwayat_payment as $key_payment => $value_payment) {
+                  $value_payment->transaction_date = date("d-m-Y H:i", strtotime($value_payment->transaction_date))." WIB";
+                  $value_payment->bill_amount = formatIDR($value_payment->bill_amount);
+                }
+              }
               $daftar_ulang = $this->mymodel->withquery("select * from status_daftar_ulang_".$data->tipe_siswa." where id_siswa_".$data->tipe_siswa." = '".$data->id_siswa."'","row");
             }
 
@@ -404,10 +433,13 @@ class Cek_data extends REST_Controller
               }
             }
             $data->virtual_account = $value->va_number;
+            $paket_trx = $this->psb_paket->dari_transaksi($value);
             $data->detail_transaksi[] = array(
               "no_transaksi" => $value->no_transaksi,
               "nama_bank" => $value->nama_bank,
               "description" => $value->description,
+              "pilihan_pembayaran" => $paket_trx['pilihan_pembayaran'],
+              "judul_tagihan" => $paket_trx['judul_tagihan'],
               "total_biaya" => $value->total_biaya,
               "expired_datetime" => $value->expired_datetime,
               "va_logo_bank" => $logo_bank,

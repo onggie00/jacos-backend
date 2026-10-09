@@ -73,11 +73,27 @@ class Payment_notification extends MY_Controller
           $msg = array('status' => 0, 'message' => 'waktu server tidak sesuai NTP atau secret key salah.', 'data' => array());
           $status = "200";
         } else {
-          $data_response = array(
-            "payment_ntb" => $data_asli['payment_ntb'],
-            "trx_id" => $data_asli['trx_id']
-          );
-          $this->mymodel->insertid("payment_response_bni", $data_response);
+          //push dobel (payment_ntb sama) jangan dicatat dua kali
+          $cek_ntb = $this->mymodel->withquery("select id from payment_response_bni where payment_ntb = '" . $this->db->escape_str($data_asli['payment_ntb']) . "'", "row");
+          if (empty($cek_ntb)) {
+            //rincian pembayaran (sejak 2026-10-10): dipakai kwitansi open, sisa tagihan, dan akumulasi payment_amount
+            $data_response = array(
+              "payment_ntb" => $data_asli['payment_ntb'],
+              "trx_id" => $data_asli['trx_id'],
+              "bill_amount" => isset($data_asli['payment_amount']) ? (int) $data_asli['payment_amount'] : null,
+              "va_number" => isset($data_asli['virtual_account']) ? $data_asli['virtual_account'] : null,
+              "transaction_date" => isset($data_asli['transaction_datetime']) ? date("Y-m-d H:i:s", strtotime($data_asli['transaction_datetime'])) : date("Y-m-d H:i:s"),
+              "nama_bank" => 'BNI'
+            );
+            $this->mymodel->insertid("payment_response_bni", $data_response);
+            //akumulasi payment_amount di transaksi (ala Bri_snap_notification)
+            if (isset($data_asli['payment_amount'])) {
+              $trx_bayar = $this->mymodel->withquery("select id_transaksi, payment_amount from transaksi where no_transaksi = '" . $this->db->escape_str($data_asli['trx_id']) . "'", "row");
+              if (!empty($trx_bayar)) {
+                $this->mymodel->update("transaksi", array("payment_amount" => (int) $trx_bayar->payment_amount + (int) $data_asli['payment_amount']), "id_transaksi", $trx_bayar->id_transaksi);
+              }
+            }
+          }
 
           //bila dibayar maka akan generate payment_ntb
           $no_peserta = "";
@@ -91,7 +107,7 @@ class Payment_notification extends MY_Controller
           $no_urut = "";
           $tipe_siswa = "";
           $id_siswa = "";
-          if ($jenis_pembayaran == "LI" || $jenis_pembayaran == "JI" || $jenis_pembayaran == "LDUI") {
+          if ($jenis_pembayaran == "LI" || $jenis_pembayaran == "JI" || $jenis_pembayaran == "LDUI" || $jenis_pembayaran == "JDUI") {
             if ($jenjang == "SD") {
               $unit = "12";
               //get no_peserta terakhir di tahun ajaran tsb
@@ -392,7 +408,7 @@ class Payment_notification extends MY_Controller
               }
               $msg = array('status' => 1, 'message' => 'Berhasil menerima data push notification', 'data' => $data_transaksi);
               $status = "200";
-            } else if ($jenis_pembayaran == "LDUI") {
+            } else if ($jenis_pembayaran == "LDUI" || $jenis_pembayaran == "JDUI") {
               //UNTUK DAFTAR ULANG
               $get_transaksi_status = $this->mymodel->withquery("select status_transaksi from transaksi where no_transaksi = '" . $data_asli['trx_id'] . "'", "row");
               $data_transaksi = array(
