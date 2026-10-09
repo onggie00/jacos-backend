@@ -390,7 +390,7 @@ class Cek_data extends REST_Controller
               );
             }
           }
-          else if ($jenis_pembayaran == 'LI') {
+          else if ($jenis_pembayaran == 'LI' || $jenis_pembayaran == 'JI') {
             if ($value->status_transaksi == "0") {
               $data->status_transaksi = "Menunggu Pembayaran";
             } else if ($value->status_transaksi == "1") {
