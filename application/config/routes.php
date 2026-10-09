@@ -158,3 +158,10 @@ $route['snap/v1.0/transfer-va/notify-payment-intrabank'] = 'apiapp/Bri_snap_noti
 $route['v2/exclusive/bri_va'] = 'apiapp/Bri_snap_notify_payment_intrabank';
 $route['email_confirmation'] = 'email_confirmation/Program_anggaran_konfirmasi/index';
 $route['email_confirmation/(:any)'] = 'email_confirmation/Program_anggaran_konfirmasi/$1';
+
+// Alias lowercase endpoint web PSB — server Linux case-sensitive,
+// URL yang dikirim web harus tetap resolve meski kapitalisasi beda
+$route['apiweb/psb/pendaftaran_sd'] = 'apiweb/psb/Pendaftaran_sd';
+$route['apiweb/siswa/cek_data'] = 'apiweb/siswa/Cek_data';
+$route['apiweb/psb/export_pdf_kwitansi'] = 'apiweb/psb/Export_pdf_kwitansi';
+$route['apiweb/psb/export_pdf_siswa'] = 'apiweb/psb/Export_pdf_siswa';

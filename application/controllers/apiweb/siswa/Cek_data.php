@@ -42,10 +42,10 @@ class Cek_data extends REST_Controller
         $data->tipe_siswa = "ft";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".$data->no_transaksi."' order by id_transaksi DESC", "row");
-      $trx_type = explode("-", $transaksi->no_transaksi);
+      $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_ft", "id_siswa_ft", $data->id_siswa, "row");
-      if (!empty($data) && $transaksi->status_transaksi == "1") {
+      if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -65,7 +65,7 @@ class Cek_data extends REST_Controller
             $data->kartu_peserta = base_url('uploads/kartu_peserta/') . 'ft' . '-' . $data->no_peserta . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           }
         }
-      } else if (!empty($data) && $transaksi->status_transaksi == "0") {
+      } else if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "0") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -84,10 +84,10 @@ class Cek_data extends REST_Controller
         $data->tipe_siswa = "sma";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".$data->no_transaksi."' order by id_transaksi DESC", "row");
-      $trx_type = explode("-", $transaksi->no_transaksi);
+      $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_sma", "id_siswa_sma", $data->id_siswa, "row");
-      if (!empty($data) && $transaksi->status_transaksi == "1") {
+      if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -107,7 +107,7 @@ class Cek_data extends REST_Controller
             $data->kartu_peserta = base_url('uploads/kartu_peserta/') . 'sma' . '-' . $data->no_peserta . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           }
         }
-      } else if (!empty($data) && $transaksi->status_transaksi == "0") {
+      } else if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "0") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -126,10 +126,10 @@ class Cek_data extends REST_Controller
         $data->tipe_siswa = "smp";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".$data->no_transaksi."' order by id_transaksi DESC", "row");
-      $trx_type = explode("-", $transaksi->no_transaksi);
+      $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_smp", "id_siswa_smp", $data->id_siswa, "row");
-      if (!empty($data) && $transaksi->status_transaksi == "1") {
+      if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -149,7 +149,7 @@ class Cek_data extends REST_Controller
             $data->kartu_peserta = base_url('uploads/kartu_peserta/') . 'smp' . '-' . $data->no_peserta . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           }
         }
-      } else if (!empty($data) && $transaksi->status_transaksi == "0") {
+      } else if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "0") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -169,10 +169,10 @@ class Cek_data extends REST_Controller
         $data->tipe_siswa = "sd";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".str_replace("'", "\'", $data->no_transaksi)."' order by id_transaksi DESC", "row");
-      $trx_type = explode("-", $transaksi->no_transaksi);
+      $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_sd", "id_siswa_sd", $data->id_siswa, "row");
-      if (!empty($data) && $transaksi->status_transaksi == "1") {
+      if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           // $daftar_ulang=$this->mymodel->getbywhere("status_daftar_ulang_sd","id_siswa_sd",$data->id_siswa,"row");
           $data->tipe_transaksi = 'daftar_ulang';
@@ -193,7 +193,7 @@ class Cek_data extends REST_Controller
             $data->kartu_peserta = base_url('uploads/kartu_peserta/') . 'sd' . '-' . $data->no_peserta . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           }
         }
-      } else if (!empty($data) && $transaksi->status_transaksi == "0") {
+      } else if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "0") {
         if ($jenis_pembayaran == 'LDUI') {
           // $daftar_ulang=$this->mymodel->getbywhere("status_daftar_ulang_sd","id_siswa_sd",$data->id_siswa,"row");
           $data->tipe_transaksi = 'daftar_ulang';
@@ -216,10 +216,10 @@ class Cek_data extends REST_Controller
         $data->tipe_siswa = "kb";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".str_replace("'", "\\'", $data->no_transaksi)."' order by id_transaksi DESC", "row");
-      $trx_type = explode("-", $transaksi->no_transaksi);
+      $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_kb", "id_siswa_kb", $data->id_siswa, "row");
-      if (!empty($data) && $transaksi->status_transaksi == "1") {
+      if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -239,7 +239,7 @@ class Cek_data extends REST_Controller
             $data->kartu_peserta = base_url('uploads/kartu_peserta/') . 'kb' . '-' . $data->no_peserta . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           }
         }
-      } else if (!empty($data) && $transaksi->status_transaksi == "0") {
+      } else if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "0") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -260,10 +260,10 @@ class Cek_data extends REST_Controller
         $data->tipe_siswa = "tk";
       }
       $transaksi = $this->mymodel->withquery("select * from transaksi where no_transaksi = '".str_replace("'", "\\'", $data->no_transaksi)."' order by id_transaksi DESC", "row");
-      $trx_type = explode("-", $transaksi->no_transaksi);
+      $trx_type = explode("-", (!empty($transaksi) && isset($transaksi->no_transaksi)) ? $transaksi->no_transaksi : '');
       $jenis_pembayaran = $trx_type[0];
       $daftar_ulang = $this->mymodel->getbywhere("status_daftar_ulang_tk", "id_siswa_tk", $data->id_siswa, "row");
-      if (!empty($data) && $transaksi->status_transaksi == "1") {
+      if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "1") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -283,7 +283,7 @@ class Cek_data extends REST_Controller
             $data->kartu_peserta = base_url('uploads/kartu_peserta/') . 'tk' . '-' . $data->no_peserta . '-' . str_replace(" ", "%20", $data->nama_lengkap) . ".pdf";
           }
         }
-      } else if (!empty($data) && $transaksi->status_transaksi == "0") {
+      } else if (!empty($data) && !empty($transaksi) && $transaksi->status_transaksi == "0") {
         if ($jenis_pembayaran == 'LDUI') {
           $data->tipe_transaksi = 'daftar_ulang';
           $data->jenis_kwitansi = 'UANG DAFTAR ULANG';
@@ -493,15 +493,15 @@ class Cek_data extends REST_Controller
       
       }
       else{
-        $data->detail_transaksi[] = array(
-          "no_transaksi" => null,
-          "nama_bank" => null,
-          "description" => null,
-          "total_biaya" => null,
-          "expired_datetime" => null,
-          "va_logo_bank" => null,
-          "status_tagihan" => null
-        );
+        //transaksi belum lengkap/tidak ditemukan -> tetap array kosong (kontrak web PSB)
+        $data->detail_transaksi = array();
+      }
+      // jaminan kontrak respons web PSB: key selalu ada dengan tipe yang benar
+      if (!isset($data->detail_transaksi) || !is_array($data->detail_transaksi)) {
+        $data->detail_transaksi = array();
+      }
+      if (!isset($data->virtual_account)) {
+        $data->virtual_account = null;
       }
       $msg = array('status' => 1, 'message' => 'Berhasil ambil data', 'data' => $data);
       $status = "200";
