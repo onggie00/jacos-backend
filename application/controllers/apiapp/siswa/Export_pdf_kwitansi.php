@@ -108,26 +108,20 @@ class Export_pdf_kwitansi extends MY_Controller {
           $termin = 0;
           //get riwayat
           $total_pay = 0;
-          $arrBri = [];
 
           $va = $get_transaksi->va_number;
-          // $va='2147483647';  
-          $riwayat = $this->mymodel->getbywhere("payment_response_bri", "briva_no", $va, "result");
-          $table_riwayat = "<table border='1' cellspacing='0'><tr><th style='width: 100px;padding: 5px 10px;text-align: center;'>Virtual Account</th><th style='width: 100px;padding: 5px 10px;text-align: center;'>Tanggal</th><th style='width: 150px;padding: 5px 10px;text-align: center;'>Nominal</th></tr>";
+          // $va='2147483647';
+          // riwayat per bank: BNI dari payment_response_bni (rincian sejak 2026-10-10), lainnya BRI
+          if ($get_transaksi->nama_bank == "BNI") {
+            $riwayat = $this->mymodel->withquery("select va_number as briva_no, bill_amount, transaction_date from payment_response_bni where va_number = '" . $va . "' and bill_amount is not null order by id ASC", "result");
+          } else {
+            $riwayat = $this->mymodel->getbywhere("payment_response_bri", "briva_no", $va, "result");
+          }
+          // tabel riwayat kompak agar muat 1 halaman A5 (uji 1/3/6+ baris)
+          $table_riwayat = "<table border='1' cellspacing='0' style='font-size: 7pt;'><tr><th style='width: 90px;padding: 2px 4px;text-align: center;'>Virtual Account</th><th style='width: 75px;padding: 2px 4px;text-align: center;'>Tanggal</th><th style='width: 90px;padding: 2px 4px;text-align: center;'>Nominal</th></tr>";
           foreach ($riwayat as $key => $i) {
             $total_pay += $i->bill_amount;
-            $arrBri[] = $i;
-            $table_riwayat .= "<tr>";
-            $table_riwayat .= "<td style='text-align: center;padding: 10px;'>";
-            $table_riwayat .= $i->briva_no;
-            $table_riwayat .= "</td>";
-            $table_riwayat .= "<td style='text-align: center;padding: 10px;'>";
-            $table_riwayat .= date("d-m-Y H:i", strtotime($i->transaction_date))." WIB";
-            $table_riwayat .= "</td>";
-            $table_riwayat .= "<td style='text-align: right;padding: 10px 5px;'>";
-            $table_riwayat .= formatIDR($i->bill_amount);
-            $table_riwayat .= "</td>";
-            $table_riwayat .= "</tr>";
+            $table_riwayat .= "<tr><td style='text-align: center;padding: 2px 4px;'>" . $i->briva_no . "</td><td style='text-align: center;padding: 2px 4px;'>" . date("d-m-Y H:i", strtotime($i->transaction_date)) . " WIB</td><td style='text-align: right;padding: 2px 4px;'>" . formatIDR($i->bill_amount) . "</td></tr>";
             $termin++;
           }
           $table_riwayat .= "</table>";
