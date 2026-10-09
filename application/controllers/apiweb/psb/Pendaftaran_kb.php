@@ -99,7 +99,7 @@ class Pendaftaran_kb extends REST_Controller {
             "tahun_ajaran" => $tahun_ajaran_aktif,
             "gelombang" => $gelombang,
             "tempat_lahir" => $this->post("tempat_lahir"),
-            "tgl_lahir" => date("Y-m-d",strtotime($this->post("tgl_lahir"))),
+            "tgl_lahir" => (!empty($this->post("tgl_lahir"))) ? date("Y-m-d",strtotime($this->post("tgl_lahir"))) : null,
             "jenis_kelamin" => $this->post("jenis_kelamin"),
             "agama" => $this->post("agama"),
             "nama_ibu" => $this->post("nama_ibu"),
@@ -134,13 +134,6 @@ class Pendaftaran_kb extends REST_Controller {
             $data['npsn'] = $this->post("npsn");
           }
           
-          $cek_tgl_lahir = $this->mymodel->getbywhere("pengaturan_tanggal_lahir","jenjang","kb","row");
-
-          if($cek_tgl_lahir->date<date("Y-m-d",strtotime($this->post("tgl_lahir")))){
-            $msg = array('success'=>0,'message'=>'Umur belum memenuhi syarat minimal pendaftaran','data'=>[]);
-                $this->response($msg,'200');
-          }
-
           //foto peserta
           if (!empty($_FILES['foto_peserta']['name'])) {
             $uploaddir = './uploads/siswa_kb/'; if(!is_dir($uploaddir)){ mkdir($uploaddir, 0777); }
@@ -220,7 +213,7 @@ class Pendaftaran_kb extends REST_Controller {
             $msg = array('status' => 0, 'message' => 'Tingkatan tidak ditemukan', 'data' => array(), 'transaksi' => array());
             $this->response($msg, '200');
           }
-          if (!psb_cek_usia($this->post("tgl_lahir"), $get_tingkatan_kb->usia_min, $get_tingkatan_kb->usia_max)) {
+          if (!empty($this->post("tgl_lahir")) && !psb_cek_usia($this->post("tgl_lahir"), $get_tingkatan_kb->usia_min, $get_tingkatan_kb->usia_max)) {
             $msg = array('status' => 0, 'message' => 'Usia calon siswa tidak sesuai dengan tingkatan ' . $get_tingkatan_kb->label, 'data' => array(), 'transaksi' => array());
             $this->response($msg, '200');
           }
