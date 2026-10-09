@@ -57,7 +57,8 @@ class Pendaftaran_tk extends REST_Controller {
             $sekolah_asal = $this->post("sekolah_asal_lainnya");
           }
           else{
-            $sekolah_asal = $this->post("sekolah_asal");
+            //sekolah_asal opsional untuk KB/TK -> string kosong (kolom text NOT NULL)
+            $sekolah_asal = "";
           }
           $pekerjaan_ibu = "";
           $pekerjaan_ayah = "";
@@ -89,6 +90,7 @@ class Pendaftaran_tk extends REST_Controller {
           $notelp_ayah = $this->cek_notelp($this->post("notelp_ayah"));
           $gelombang = $this->mymodel->withquery("select gelombang from web_periode_daftar where periode_pendaftaran_mulai <= '".date("Y-m-d H:i:s")."' and periode_pendaftaran_selesai >= '".date("Y-m-d H:i:s")."' and kelas = 'TK' ","row")->gelombang;
           $tahun_ajaran_aktif = $this->mymodel->withquery("select * from tahun_ajaran_psb where id = '1'","row")->label;
+          $id_tingkatan_post = (int) $this->post("id_tingkatan");
           $data = array(
             "nama_lengkap" => trim(ucwords(strtolower($this->post("nama_lengkap"))), " "),
             "email" => $this->post("email"),
@@ -132,7 +134,7 @@ class Pendaftaran_tk extends REST_Controller {
             $data['npsn'] = $this->post("npsn");
           }
           
-          $cek_tgl_lahir = $this->mymodel->getbywhere("pengaturan_tanggal_lahir","jenjang","sd","row");
+          $cek_tgl_lahir = $this->mymodel->getbywhere("pengaturan_tanggal_lahir","jenjang","tk","row");
 
           if($cek_tgl_lahir->date<date("Y-m-d",strtotime($this->post("tgl_lahir")))){
             $msg = array('success'=>0,'message'=>'Umur belum memenuhi syarat minimal pendaftaran','data'=>[]);
@@ -209,7 +211,6 @@ class Pendaftaran_tk extends REST_Controller {
             exit;
           }
           //validasi tingkatan & usia (KB)
-          $id_tingkatan_post = (int) $this->post("id_tingkatan");
           if (empty($id_tingkatan_post)) {
             $msg = array('status' => 0, 'message' => 'Tingkatan wajib dipilih', 'data' => array(), 'transaksi' => array());
             $this->response($msg, '200');
