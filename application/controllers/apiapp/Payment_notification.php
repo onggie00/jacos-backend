@@ -373,7 +373,14 @@ class Payment_notification extends MY_Controller
 
               //CETAK KARTU PESERTA
               $cetak_kartu = $this->cetak_kartu(array("tipe_siswa" => $tipe_siswa, "id_siswa" => $id_siswa));
-              $get_transaksi = $this->mymodel->withquery("select id_transaksi, no_transaksi, va_number, nama_bank, total_biaya, expired_datetime, payment_method_id from transaksi where no_transaksi = '" . $data_asli['trx_id'] . "'", "row");
+              $get_transaksi = $this->mymodel->withquery("select id_transaksi, no_transaksi, va_number, nama_bank, total_biaya, expired_datetime, payment_method_id, pilihan_pembayaran, status_transaksi, user_email, user_name from transaksi where no_transaksi = '" . $data_asli['trx_id'] . "'", "row");
+
+              //paket pendaftaran (pilihan 2/3) lunas via VA → upsert status_daftar_ulang (Tahap B v2; idempotent, gagal tak ganggu pembayaran)
+              $this->load->library('psb_paket');
+              $upsert_du = $this->psb_paket->upsert_daftar_ulang_paket($get_transaksi);
+              if ($upsert_du["status"] != 1) {
+                log_message("error", "Payment_notification JI " . $no_transaksi . ": upsert daftar ulang gagal - " . $upsert_du["message"]);
+              }
 
               //isi payment_method_id (VA BNI) sebelum cetak kwitansi, hanya jika masih kosong (push dobel tidak menimpa nilai manual)
               if (empty($get_transaksi->payment_method_id)) {

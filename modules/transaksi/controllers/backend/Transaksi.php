@@ -78,7 +78,7 @@ class Transaksi extends Admin
 	*/
 	public function edit_save($id)
 	{
-		if (!$this->is_allowed('transaksi_update', false)) {
+		if (!$this->is_allowed("transaksi_update", false)) { log_message("error", "EDITSAVE deny check: loggedin=" . var_export($this->aauth->is_loggedin(), true) . " sessionid=" . var_export($this->session->userdata("id"), true) . " is_admin=" . var_export($this->aauth->is_admin(), true));
 			echo json_encode([
 				'success' => false,
 				'message' => cclang('sorry_you_do_not_have_permission_to_access')
@@ -114,6 +114,14 @@ class Transaksi extends Admin
 
 			if ($save_transaksi) {
 				if ($save_data['status_transaksi'] == "1") {
+					//paket pendaftaran (JI, pilihan 2/3) lunas via admin → upsert status_daftar_ulang
+					//(Tahap B v2; fungsi bersama dengan callback BNI; idempotent, gagal tak ganggu simpan transaksi)
+					$get_trx_lunas = $this->mymodel->withquery("select * from transaksi where id_transaksi = '" . $id . "'", "row");
+					$this->load->library('psb_paket');
+					$upsert_du = $this->psb_paket->upsert_daftar_ulang_paket($get_trx_lunas);
+					if ($upsert_du["status"] != 1) {
+						log_message("error", "Transaksi admin " . $get_trx_lunas->no_transaksi . ": upsert daftar ulang gagal - " . $upsert_du["message"]);
+					}
 					$get_transaksi = $this->mymodel->withquery("select va_number, nama_bank, no_transaksi, total_biaya from transaksi where id_transaksi = '".$id."'","row");
 					//get data siswa
 					$trx = explode("-", $get_transaksi->no_transaksi);
@@ -243,6 +251,13 @@ class Transaksi extends Admin
 							break;
 						}
 					}
+				}
+				//pembalikan lunas → belum pada transaksi paket pendaftaran: TIDAK ada rollback otomatis
+				//status_daftar_ulang (keputusan v2 §3) — log + peringatan ke admin utk cek manual
+				if ((int) $old_data->status_transaksi == 1 && (int) $this->input->post('status_transaksi') == 0
+					&& isset($old_data->pilihan_pembayaran) && in_array((int) $old_data->pilihan_pembayaran, array(2, 3))) {
+					log_message("error", "Transaksi admin " . $old_data->no_transaksi . " dikembalikan dari lunas ke belum — status_daftar_ulang tidak diubah otomatis, perlu dicek manual");
+					$pesan_cetak .= '<br><span style="color:#c0392b"><b>Perhatian:</b> transaksi paket dikembalikan ke belum lunas — data daftar ulang tidak diubah otomatis, mohon dicek manual.</span>';
 				}
 				if ($this->input->post('save_type') == 'stay') {
 					$this->data['success'] = true;

@@ -185,4 +185,78 @@ class Psb_paket {
 	{
 		return $this->identitas_cocok($transaksi->user_email, $email) && $this->identitas_cocok($transaksi->user_name, $nama_lengkap);
 	}
+
+	/**
+	 * Tahap B (v2): upsert status_daftar_ulang_<jenjang> karena transaksi paket
+	 * pendaftaran (JI, pilihan_pembayaran 2/3) LUNAS. Dipakai bersama dua jalur:
+	 * (a) callback VA BNI (Payment_notification, cabang JI), (b) admin mengubah
+	 * status_transaksi jadi lunas di modul Transaksi. Jangan membuat salinan logika
+	 * ini di tempat lain.
+	 *
+	 * Aturan:
+	 * - bukan JI / jenjang bukan KB-TK-SD / pilihan bukan 2-3 / belum lunas → tidak melakukan apa pun
+	 * - baris daftar ulang belum ada → insert (status 2 = lunas, tgl_bayar, kwitansi, kartu_sementara);
+	 *   tanggal_lulus/tgl_daftar_ulang/tgl_aktivasi TIDAK di-set (urusan kelulusan observasi admin)
+	 * - baris sudah ada → update hanya kolom yang masih kosong (idempotent: tgl_bayar/kwitansi/
+	 *   kartu yang sudah terisi tidak ditimpa; data admin tidak disentuh)
+	 * - tanpa rollback otomatis: pembalikan lunas→belum dibiarkan ke admin (log saja)
+	 * - kegagalan TIDAK menggagalkan pemanggil: return array(status,message), error di log
+	 */
+	function upsert_daftar_ulang_paket($transaksi)
+	{
+		$ci =& $this->CI;
+		$trx = explode("-", (string) $transaksi->no_transaksi);
+		if (!isset($trx[0]) || $trx[0] != 'JI' || !isset($trx[1])) {
+			return array("status" => 0, "message" => "bukan tagihan pendaftaran JI");
+		}
+		$jenjang = strtolower($trx[1]);
+		if (!in_array($jenjang, array("kb", "tk", "sd"))) {
+			return array("status" => 0, "message" => "jenjang bukan KB/TK/SD");
+		}
+		$pilihan = ($transaksi->pilihan_pembayaran === null || $transaksi->pilihan_pembayaran == '') ? 1 : (int) $transaksi->pilihan_pembayaran;
+		if (!in_array($pilihan, array(2, 3))) {
+			return array("status" => 0, "message" => "pilihan_pembayaran bukan paket (" . $pilihan . ")");
+		}
+		if ((int) $transaksi->status_transaksi != 1) {
+			return array("status" => 0, "message" => "transaksi belum lunas");
+		}
+		$id_field = "id_siswa_" . $jenjang;
+		$tabel_du = "status_daftar_ulang_" . $jenjang;
+		$siswa = $ci->mymodel->withquery("select * from siswa_" . $jenjang . " where no_transaksi = '" . $ci->db->escape_str($transaksi->no_transaksi) . "' and is_show = 1 order by " . $id_field . " DESC", "row");
+		if (empty($siswa)) {
+			return array("status" => 0, "message" => "siswa tidak ditemukan untuk " . $transaksi->no_transaksi);
+		}
+		// nama file sama dengan pola cabang LDUI/JDUI Payment_notification (string saja, PDF di-stream endpoint export)
+		$kwitansi = $transaksi->no_transaksi . '-' . $siswa->nama_lengkap . '.pdf';
+		$kartu = $jenjang . '-' . $siswa->no_peserta . '-' . $siswa->nama_lengkap . '.pdf';
+		$du = $ci->mymodel->getbywhere($tabel_du, $id_field, $siswa->$id_field, "row");
+		if (empty($du)) {
+			$data = array(
+				$id_field => $siswa->$id_field,
+				"status" => 2,
+				"tgl_bayar" => date("Y-m-d H:i:s"),
+				"kwitansi" => $kwitansi,
+				"kartu_sementara" => $kartu
+			);
+			$ok = $ci->mymodel->insertid($tabel_du, $data);
+			if (!$ok) {
+				log_message("error", "upsert_daftar_ulang_paket insert gagal " . $transaksi->no_transaksi . ": " . json_encode($data));
+				return array("status" => 0, "message" => "insert " . $tabel_du . " gagal");
+			}
+			return array("status" => 1, "aksi" => "insert", "message" => "baris " . $tabel_du . " dibuat");
+		}
+		$data = array("status" => 2);
+		if ($du->tgl_bayar == '' || $du->tgl_bayar === null) { $data["tgl_bayar"] = date("Y-m-d H:i:s"); }
+		if ($du->kwitansi == '' || $du->kwitansi === null) { $data["kwitansi"] = $kwitansi; }
+		if ($du->kartu_sementara == '' || $du->kartu_sementara === null) { $data["kartu_sementara"] = $kartu; }
+		if (count($data) > 1) {
+			$ok = $ci->mymodel->update($tabel_du, $data, "id_daftar_ulang", $du->id_daftar_ulang);
+			if (!$ok) {
+				log_message("error", "upsert_daftar_ulang_paket update gagal " . $transaksi->no_transaksi . ": " . json_encode($data));
+				return array("status" => 0, "message" => "update " . $tabel_du . " gagal");
+			}
+			return array("status" => 1, "aksi" => "update", "message" => "baris " . $tabel_du . " diperbarui (kolom kosong saja)");
+		}
+		return array("status" => 1, "aksi" => "skip", "message" => "baris sudah lengkap, tidak ada yang diubah (idempotent)");
+	}
 }
