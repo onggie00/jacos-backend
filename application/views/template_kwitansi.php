@@ -31,22 +31,16 @@ $cb_p2 = jacos_kwitansi_cb($jenjang_l == 'kb' && $id_ting == '2');
 $cb_k1 = jacos_kwitansi_cb($jenjang_l == 'tk' && $id_ting == '1');
 $cb_k2 = jacos_kwitansi_cb($jenjang_l == 'tk' && $id_ting == '2');
 $cb_primary = jacos_kwitansi_cb($jenjang_l == 'sd');
-// Payment Method: label dari web_payment_method (nama: Cash, Bank Transfer, QRIS,
-// Virtual Account) dipetakan ke label checkbox kwitansi; kosong/tidak dikenal -> default Cash
+// Payment Method: label checkbox = nama di web_payment_method (Cash, Bank Transfer,
+// QRIS, Virtual Account); kosong/tidak dikenal -> default Cash
 $pm = isset($payment_method) ? $payment_method : '';
-if ($pm == 'Virtual Account') {
-	$pm = 'VA BNI';
-} else if ($pm == 'Bank Transfer') {
-	$pm = 'Transfer BNI/BCA';
-} else if ($pm == 'QRIS') {
-	$pm = 'QRIS BNI/BCA';
-} else if ($pm != 'Cash') {
+if ($pm != 'Cash' && $pm != 'Bank Transfer' && $pm != 'QRIS' && $pm != 'Virtual Account') {
 	$pm = 'Cash';
 }
 $cb_cash = jacos_kwitansi_cb($pm == 'Cash');
-$cb_va = jacos_kwitansi_cb($pm == 'VA BNI');
-$cb_transfer = jacos_kwitansi_cb($pm == 'Transfer BNI/BCA');
-$cb_qris = jacos_kwitansi_cb($pm == 'QRIS BNI/BCA');
+$cb_va = jacos_kwitansi_cb($pm == 'Virtual Account');
+$cb_transfer = jacos_kwitansi_cb($pm == 'Bank Transfer');
+$cb_qris = jacos_kwitansi_cb($pm == 'QRIS');
 $amount = number_format(isset($total_biaya) ? (float)$total_biaya : 0, 0, "", ".");
 $amount_words = isset($total_biaya_terbilang) ? ucfirst(strtolower(trim($total_biaya_terbilang))) : '';
 $keterangan_txt = '';
@@ -125,7 +119,7 @@ $keterangan_txt = nl2br(html_escape($keterangan_txt));
 		<tr>
 			<td style="font-size: 10pt; font-weight: bold; padding: 2px 0;">Payment Method</td>
 			<td style="font-size: 10pt; font-weight: bold; padding: 2px 0;">:</td>
-			<td style="width: 69%; font-size: 11pt; color: #595959; padding: 2px 2px;"><?php echo $cb_cash; ?> Cash - <?php echo $cb_va; ?> VA BNI - <?php echo $cb_transfer; ?> Transfer BNI/BCA - <?php echo $cb_qris; ?> QRIS BNI/BCA</td>
+			<td style="width: 69%; font-size: 11pt; color: #595959; padding: 2px 2px;"><?php echo $cb_cash; ?> Cash - <?php echo $cb_va; ?> Virtual Account - <?php echo $cb_transfer; ?> Bank Transfer - <?php echo $cb_qris; ?> QRIS</td>
 		</tr>
 	</table>
 
