@@ -87,6 +87,8 @@ class Transaksi extends Admin
 		}
 		
 		$this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[255]');
+		$this->form_validation->set_rules('total_biaya', 'Total Tagihan', 'trim|required|max_length[20]');
+		$this->form_validation->set_rules('payment_amount', 'Total Dibayar', 'trim|numeric|max_length[15]');
 		$this->form_validation->set_rules('status_transaksi', 'Status Transaksi', 'trim|required|max_length[1]');
 		
 		if ($this->form_validation->run()) {
@@ -97,6 +99,10 @@ class Transaksi extends Admin
 				'status_transaksi' => $this->input->post('status_transaksi'),
 				'is_show' => $this->input->post('is_show'),
 			];
+
+			//total yang sudah dibayar (kosong -> 0; kolom NOT NULL DEFAULT 0)
+			$payment_amount = $this->input->post('payment_amount');
+			$save_data['payment_amount'] = ($payment_amount !== '' && $payment_amount !== null) ? (int) str_replace(array('.', ','), '', $payment_amount) : 0;
 
 			//metode pembayaran (kosong -> null)
 			$payment_method_id = $this->input->post('payment_method_id');

@@ -59,6 +59,16 @@
                                 <b> (Pastikan input nominal sudah tepat, jika 2x pembayaran pastikan sudah melunasi tagihan pertama kemudian silahkan ubah nominal lalu reactivate virtual number tagihan ini agar mendapatkan kode tagihan yg baru.)</b></small>
                             </div>
                         </div>
+
+                        <div class="form-group ">
+                            <label for="payment_amount" class="col-sm-2 control-label">Total Dibayar
+                            </label>
+                            <div class="col-sm-8">
+                                <input type="number" class="form-control" name="payment_amount" id="payment_amount" placeholder="Total Dibayar" value="<?= set_value('payment_amount', $transaksi->payment_amount); ?>">
+                                <small class="info help-block">
+                                <b>Total yang sudah dibayar (tanpa titik/koma). Untuk tagihan open (paket 2) terisi bertahap dari pembayaran VA; sisa tagihan = Total Tagihan − Total Dibayar.</b></small>
+                            </div>
+                        </div>
                                                  
                         <div class="form-group  wrapper-options-crud">
                             <label for="status_transaksi" class="col-sm-2 control-label">Status Transaksi 
