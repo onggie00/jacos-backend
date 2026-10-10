@@ -81,12 +81,21 @@ class Biaya_pendaftaran extends Admin
 		
 		$this->form_validation->set_rules('nominal_pendaftaran', 'Nominal Pendaftaran', 'trim|required|max_length[20]');
 		$this->form_validation->set_rules('nominal_daftar_ulang', 'Nominal Daftar Ulang', 'trim|required|max_length[20]');
+		$this->form_validation->set_rules('nominal_pendaftaran_internal', 'Nominal Pendaftaran Internal', 'trim|max_length[20]');
+		$this->form_validation->set_rules('nominal_daftar_ulang_internal', 'Nominal Daftar Ulang Internal', 'trim|max_length[20]');
+		$this->form_validation->set_rules('nominal_cicilan_pertama', 'Nominal Cicilan Pertama', 'trim|max_length[20]');
+		$this->form_validation->set_rules('diskon_pelunasan_persen', 'Diskon Pelunasan (%)', 'trim|numeric|max_length[6]');
 		
 		if ($this->form_validation->run()) {
 		
 			$save_data = [
 				'nominal_pendaftaran' => $this->input->post('nominal_pendaftaran'),
 				'nominal_daftar_ulang' => $this->input->post('nominal_daftar_ulang'),
+				// kolom paket (NOT NULL DEFAULT 0 di DB; kosong → 0)
+				'nominal_pendaftaran_internal' => ($this->input->post('nominal_pendaftaran_internal') !== '' && $this->input->post('nominal_pendaftaran_internal') !== null) ? (int) $this->input->post('nominal_pendaftaran_internal') : 0,
+				'nominal_daftar_ulang_internal' => ($this->input->post('nominal_daftar_ulang_internal') !== '' && $this->input->post('nominal_daftar_ulang_internal') !== null) ? (int) $this->input->post('nominal_daftar_ulang_internal') : 0,
+				'nominal_cicilan_pertama' => ($this->input->post('nominal_cicilan_pertama') !== '' && $this->input->post('nominal_cicilan_pertama') !== null) ? (int) $this->input->post('nominal_cicilan_pertama') : 0,
+				'diskon_pelunasan_persen' => ($this->input->post('diskon_pelunasan_persen') !== '' && $this->input->post('diskon_pelunasan_persen') !== null) ? (float) str_replace(',', '.', $this->input->post('diskon_pelunasan_persen')) : 0,
 			];
 
 			

@@ -59,7 +59,47 @@
                                 <b>Input Nominal Daftar Ulang</b> Max Length : 20.</small>
                             </div>
                         </div>
-                                                
+                                                 
+                                                <div class="form-group ">
+                            <label for="nominal_pendaftaran_internal" class="col-sm-2 control-label">Nominal Pendaftaran Internal
+                            </label>
+                            <div class="col-sm-8">
+                                <input type="number" class="form-control" name="nominal_pendaftaran_internal" id="nominal_pendaftaran_internal" placeholder="Nominal Pendaftaran Internal" value="<?= set_value('nominal_pendaftaran_internal', $biaya_pendaftaran->nominal_pendaftaran_internal); ?>">
+                                <small class="info help-block">
+                                <b>Uang pendaftaran untuk siswa internal (0 = pakai nominal reguler)</b></small>
+                            </div>
+                        </div>
+                                                 
+                                                <div class="form-group ">
+                            <label for="nominal_daftar_ulang_internal" class="col-sm-2 control-label">Nominal Daftar Ulang Internal
+                            </label>
+                            <div class="col-sm-8">
+                                <input type="number" class="form-control" name="nominal_daftar_ulang_internal" id="nominal_daftar_ulang_internal" placeholder="Nominal Daftar Ulang Internal" value="<?= set_value('nominal_daftar_ulang_internal', $biaya_pendaftaran->nominal_daftar_ulang_internal); ?>">
+                                <small class="info help-block">
+                                <b>Uang pangkal untuk siswa internal (0 = pakai nominal reguler)</b></small>
+                            </div>
+                        </div>
+                                                 
+                                                <div class="form-group ">
+                            <label for="nominal_cicilan_pertama" class="col-sm-2 control-label">Nominal Cicilan Pertama
+                            </label>
+                            <div class="col-sm-8">
+                                <input type="number" class="form-control" name="nominal_cicilan_pertama" id="nominal_cicilan_pertama" placeholder="Nominal Cicilan Pertama" value="<?= set_value('nominal_cicilan_pertama', $biaya_pendaftaran->nominal_cicilan_pertama); ?>">
+                                <small class="info help-block">
+                                <b>Cicilan pertama uang pangkal utk paket pendaftaran + cicilan (opsi 2)</b></small>
+                            </div>
+                        </div>
+                                                 
+                                                <div class="form-group ">
+                            <label for="diskon_pelunasan_persen" class="col-sm-2 control-label">Diskon Pelunasan (%)
+                            </label>
+                            <div class="col-sm-8">
+                                <input type="number" step="0.01" class="form-control" name="diskon_pelunasan_persen" id="diskon_pelunasan_persen" placeholder="Diskon Pelunasan Persen" value="<?= set_value('diskon_pelunasan_persen', $biaya_pendaftaran->diskon_pelunasan_persen); ?>">
+                                <small class="info help-block">
+                                <b>Diskon pelunasan uang pangkal utk paket pelunasan (opsi 3), dalam persen</b></small>
+                            </div>
+                        </div>
+                                                                                                 
                                                  <div class="message"></div>
                                                 <div class="row-fluid col-md-7 container-button-bottom">
                             <button class="btn btn-flat btn-primary btn_save btn_action" id="btn_save" data-stype='stay' title="<?= cclang('save_button'); ?> (Ctrl+s)">

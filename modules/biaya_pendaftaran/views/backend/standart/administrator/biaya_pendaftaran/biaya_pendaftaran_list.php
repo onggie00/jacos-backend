@@ -51,6 +51,10 @@
                                                     <th> <?= cclang('jenjang') ?></th>
                            <th> <?= cclang('nominal_pendaftaran') ?></th>
                            <th> <?= cclang('nominal_daftar_ulang') ?></th>
+                           <th> Nominal Pendaftaran Internal</th>
+                           <th> Nominal Daftar Ulang Internal</th>
+                           <th> Nominal Cicilan Pertama</th>
+                           <th> Diskon Pelunasan (%)</th>
                            <th>Action</th>                        </tr>
                      </thead>
                      <tbody id="tbody_biaya_pendaftaran">
@@ -63,6 +67,10 @@
                            <td><?= _ent($biaya_pendaftaran->jenjang); ?></td> 
                            <td><?= _ent($biaya_pendaftaran->nominal_pendaftaran); ?></td> 
                            <td><?= _ent($biaya_pendaftaran->nominal_daftar_ulang); ?></td> 
+                           <td><?= _ent($biaya_pendaftaran->nominal_pendaftaran_internal); ?></td> 
+                           <td><?= _ent($biaya_pendaftaran->nominal_daftar_ulang_internal); ?></td> 
+                           <td><?= _ent($biaya_pendaftaran->nominal_cicilan_pertama); ?></td> 
+                           <td><?= _ent($biaya_pendaftaran->diskon_pelunasan_persen); ?></td> 
                            <td width="200">
                             
                                                               <?php is_allowed('biaya_pendaftaran_view', function() use ($biaya_pendaftaran){?>

@@ -68,7 +68,39 @@
                            <?= _ent($biaya_pendaftaran->nominal_daftar_ulang); ?>
                         </div>
                     </div>
-                                        
+                                         
+                    <div class="form-group ">
+                        <label for="content" class="col-sm-2 control-label">Nominal Pendaftaran Internal </label>
+
+                        <div class="col-sm-8">
+                           <?= _ent($biaya_pendaftaran->nominal_pendaftaran_internal); ?>
+                        </div>
+                    </div>
+                                         
+                    <div class="form-group ">
+                        <label for="content" class="col-sm-2 control-label">Nominal Daftar Ulang Internal </label>
+
+                        <div class="col-sm-8">
+                           <?= _ent($biaya_pendaftaran->nominal_daftar_ulang_internal); ?>
+                        </div>
+                    </div>
+                                         
+                    <div class="form-group ">
+                        <label for="content" class="col-sm-2 control-label">Nominal Cicilan Pertama </label>
+
+                        <div class="col-sm-8">
+                           <?= _ent($biaya_pendaftaran->nominal_cicilan_pertama); ?>
+                        </div>
+                    </div>
+                                         
+                    <div class="form-group ">
+                        <label for="content" class="col-sm-2 control-label">Diskon Pelunasan (%) </label>
+
+                        <div class="col-sm-8">
+                           <?= _ent($biaya_pendaftaran->diskon_pelunasan_persen); ?>
+                        </div>
+                    </div>
+                    
                     <br>
                     <br>
 
