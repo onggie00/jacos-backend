@@ -300,13 +300,8 @@ $config['translate_whitelist'] = array(
     'root/keterangan_prestasi/GET' => array(
         'data.*.keterangan_prestasi' => array('tipe' => 'teks', 'bersama' => true),
     ),
-    'root/list_notifikasi/POST' => array(
-        'data.*.title'   => array('tipe' => 'teks', 'bersama' => false), // ups per-user; bisa menyisip nama individu
-        'data.*.content' => array('tipe' => 'teks', 'bersama' => false),
-    ),
-    'root/home_notification_detail/GET' => array(
-        'data.*.title' => array('tipe' => 'teks', 'bersama' => false), // mailbox per recipient
-    ),
+    // list_notifikasi & home_notification_detail (judul mailbox/notifikasi)
+    // -> EXCLUDED (NAMA_ORANG): judul diketik admin bebas, bisa memuat nama/nominal.
     'root/alasan_tertarik/GET' => array(
         'data.*.alasan' => array('tipe' => 'teks', 'bersama' => true),
     ),
@@ -418,6 +413,13 @@ $config['translate_whitelist_excluded'] = array(
     // ===== NAMA_ORANG =====
     'guru/get_jadwal_pelatih/POST' => array(
         array('path' => 'data.*.nama_pelatih', 'alasan' => 'NAMA_ORANG'), // ekskul_manajemen.nama = nama pelatih/pembina
+    ),
+    'root/home_notification_detail/GET' => array(
+        array('path' => 'data.*.title', 'alasan' => 'NAMA_ORANG'), // mailbox_title diketik admin bebas; bisa memuat nama/nominal
+    ),
+    'root/list_notifikasi/POST' => array(
+        array('path' => 'data.*.title',   'alasan' => 'NAMA_ORANG'), // risiko sama dgn judul mailbox
+        array('path' => 'data.*.content', 'alasan' => 'NAMA_ORANG'),
     ),
 
     // ===== UGC_PRIBADI (teks bebas ditulis user tentang individu) =====

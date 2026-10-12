@@ -41,6 +41,10 @@ $config['translator_enabled_endpoints'] = array();
 
 // --- GEL 3 (sisanya non-push): get_anggaran, list_notifikasi, home_notification_detail
 
-// --- Bahasa cadangan via header X-Lang (endpoint root/publik, path bersama=TRUE):
-// WAJIB FALSE jika tidak ingin endpoint publik ikut bahasa header.
-// $config['translator_allow_lang_header'] = TRUE;  // aktifkan bersama gel 1a
+// --- GEL 1a juga mengaktifkan (keputusan fase 7c):
+// $config['translator_allow_lang_header'] = TRUE;   // X-Lang utk endpoint publik
+
+// --- defer (keputusan fase 7c): TRUE di minggu-minggu awal go-live.
+// Konten html/baru admin tampil Indonesia sampai warm-up berikutnya dijalankan.
+// Evaluasi setelah 2-3 minggu; otomatisasi (cron) = Fase 9.
+// $config['translator_defer_long_to_warmup'] = TRUE;
