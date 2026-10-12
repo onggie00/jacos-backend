@@ -162,8 +162,8 @@ $config['translate_whitelist'] = array(
     ),
     'guru/get_jadwal_pelatih/POST' => array(
         'data.*.nama_ekskul'  => array('tipe' => 'teks', 'bersama' => true),
-        'data.*.nama_pelatih' => array('tipe' => 'teks', 'bersama' => true), // nama pelatih/pembina dari ekskul_manajemen (admin); hati-hati bila berisi nama person
-        'data.*.keterangan'   => array('tipe' => 'teks', 'bersama' => true),
+        // nama_pelatih = nama orang (ekskul_manajemen.nama) -> EXCLUDED (NAMA_ORANG)
+        'data.*.keterangan'   => array('tipe' => 'teks', 'bersama' => true), // "Pembina" — preset admin
     ),
     'guru/get_riwayat_ekskul_siswa/POST' => array(
         'data.*.nama_ekskul' => array('tipe' => 'teks',  'bersama' => true),
@@ -413,6 +413,11 @@ $config['translate_whitelist_excluded'] = array(
     'siswa/pilihan_ptn_list/POST' => array(
         array('path' => 'data.*.nama_pt',    'alasan' => 'NAMA_LEMBAGA'),
         array('path' => 'data.*.jurusan',    'alasan' => 'NAMA_LEMBAGA'),
+    ),
+
+    // ===== NAMA_ORANG =====
+    'guru/get_jadwal_pelatih/POST' => array(
+        array('path' => 'data.*.nama_pelatih', 'alasan' => 'NAMA_ORANG'), // ekskul_manajemen.nama = nama pelatih/pembina
     ),
 
     // ===== UGC_PRIBADI (teks bebas ditulis user tentang individu) =====

@@ -54,7 +54,7 @@ class Translator_whitelist {
      * @param string $endpoint_key
      * @return array list item: array('path' => array(segmen), 'text' =>, 'tipe' =>, 'bersama' =>)
      */
-    public function kumpulkan(&$data, $endpoint_key)
+    public function kumpulkan(&$data, $endpoint_key, $only_bersama = false)
     {
         $spec = $this->endpoint_aktif($endpoint_key);
         $items = array();
@@ -63,6 +63,10 @@ class Translator_whitelist {
         }
         foreach ($spec as $path => $meta) {
             if (!is_array($meta) || !isset($meta['tipe'])) {
+                continue;
+            }
+            // bahasa cadangan via header X-Lang hanya boleh menyentuh path bersama=TRUE
+            if ($only_bersama && empty($meta['bersama'])) {
                 continue;
             }
             $this->jalan_path($data, explode('.', $path), $meta, $items, array());

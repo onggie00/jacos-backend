@@ -105,7 +105,40 @@ if (!function_exists('translator_apply_to_response')) {
             }
         }
         if (!$valid || $email === '') {
-            return $data; // token tidak ada / tidak valid -> response asli
+            // token tidak ada / tidak valid -> bahasa cadangan via header X-Lang
+            // HANYA utk path bersama=TRUE, bila translator_allow_lang_header aktif.
+            $kode_hdr = '';
+            $CI->load->config('bahasa'); // diperlukan utk validasi kode X-Lang
+            if (translator_cfg('translator_allow_lang_header', false)) {
+                $hdr = '';
+                if (!empty($_SERVER['HTTP_X_LANG'])) $hdr = trim($_SERVER['HTTP_X_LANG']);
+                if ($hdr === '' && function_exists('getallheaders')) {
+                    foreach (getallheaders() as $hk => $hv) {
+                        if (strtolower($hk) === 'x-lang') { $hdr = trim($hv); break; }
+                    }
+                }
+                $bahasa_cfg = $CI->config->item('bahasa');
+                if ($hdr !== '' && $hdr !== 'id' && is_array($bahasa_cfg) && isset($bahasa_cfg[$hdr])) {
+                    $kode_hdr = $hdr;
+                }
+            }
+            // spesifikasi endpoint harus punya path bersama=true; kalau tidak, asli
+            $spec = $CI->translator->whitelist->endpoint_aktif($endpoint_key);
+            $ada_bersama = false;
+            if (is_array($spec)) {
+                foreach ($spec as $meta) {
+                    if (!empty($meta['bersama'])) { $ada_bersama = true; break; }
+                }
+            }
+            @file_put_contents('D:/myprojects/jacos/Berkas_sample/file_test_tmp/hook_trace.txt', date('H:i:s') . " xlang marker kode=$kode_hdr bersama=" . var_export($ada_bersama, true) . "
+", FILE_APPEND); // xlang marker
+            if ($kode_hdr === '' || !$ada_bersama) {
+                return $data; // response asli (Indonesia)
+            }
+            $data = $CI->translator->translate_response($data, $endpoint_key, $kode_hdr, true);
+            @file_put_contents('D:/myprojects/jacos/Berkas_sample/file_test_tmp/hook_trace.txt', date('H:i:s') . " xlang done
+", FILE_APPEND); // xlang marker
+            return $data;
         }
         // 5) kode bahasa (memo per request di model)
         $CI->load->model('Setting_bahasa_model');

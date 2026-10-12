@@ -18,19 +18,29 @@ $config['translator_enabled'] = FALSE;
 
 $config['translator_enabled_endpoints'] = array();
 
-// --- contoh GEL 1 (konten bersama) — tempel saat tiba waktunya: ---
+// --- GEL 1a (konten bersama TEKS) — tempel saat tiba waktunya: ---
+// $config['translator_enabled'] = TRUE;
 // $config['translator_enabled_endpoints'] = array(
-//     'siswa/fasilitas/POST',
-//     'siswa/agenda/POST',
-//     'root/visi_misi/GET',
-//     'root/sejarah_sekolah/GET',
-//     'root/informasi_psb/GET',
-//     'root/ekstrakurikuler/POST',
-//     'root/kalender_akademik/POST',
+//     'siswa/fasilitas/POST','siswa/agenda/POST','root/sejarah_sekolah/GET',
+//     'root/informasi_psb/GET','root/ekstrakurikuler/POST','root/kalender_akademik/POST',
 // );
 
-// --- contoh GEL 2 (label & master) — tambahkan setelah gel 1 stabil: ---
-// 'siswa/get_presensi/POST', 'siswa/kategori_agenda/GET', 'root/jenis_prestasi/GET',
-// 'root/jenis_lomba/GET', 'root/keterangan_prestasi/GET', 'root/pekerjaan_ortu/GET',
-// 'root/mata_pelajaran/GET', 'root/alasan_tertarik/GET', 'guru/get_jenis_kpi/GET',
-// 'guru/get_kategori_catatan/GET'
+// --- GEL 1b (konten bersama HTML) — setelah 1a stabil: ---
+// 'root/visi_misi/GET' + (endpoint gel 1a tetap)
+
+// --- GEL 2 (label & master) — setelah 1b: ---
+// 'siswa/get_presensi/POST','siswa/list_ibadah_tipe/GET','siswa/kategori_agenda/GET',
+// 'root/jenis_prestasi/GET','root/jenis_lomba/GET','root/keterangan_prestasi/GET',
+// 'root/pekerjaan_ortu/GET','root/mata_pelajaran/GET','root/alasan_tertarik/GET',
+// 'guru/get_jenis_kpi/GET','guru/get_kategori_catatan/GET',
+// 'siswa/get_presensi_ekskul/POST','guru/get_ekskul_guru/POST','guru/get_jadwal_ekskul_guru/POST',
+// 'guru/get_riwayat_ekskul_siswa/POST','guru/get_riwayat_ekskul_pelatih/POST',
+// 'guru/get_presensi_siswa/POST','guru/get_presensi_ekskul_siswa/POST',
+// 'pimpinan/get_jenis_kpi/GET','pimpinan/get_all_kpi_guru/GET','pimpinan/get_presensi_siswa/POST',
+// 'guru|pimpinan/presensi_{pjok,pramuka,tadarus}_{detail,riwayat}/GET'
+
+// --- GEL 3 (sisanya non-push): get_anggaran, list_notifikasi, home_notification_detail
+
+// --- Bahasa cadangan via header X-Lang (endpoint root/publik, path bersama=TRUE):
+// WAJIB FALSE jika tidak ingin endpoint publik ikut bahasa header.
+// $config['translator_allow_lang_header'] = TRUE;  // aktifkan bersama gel 1a

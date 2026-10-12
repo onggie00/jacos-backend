@@ -35,6 +35,23 @@ $config['translator_batch_max_body_bytes'] = 28000; // batas kasar ukuran body p
 $config['translator_retry_on'] = array(429, 500, 502, 503, 504); // status yg boleh retry 1x
 $config['translator_max_retries'] = 1;
 
+// ---- Bahasa cadangan via header (endpoint tanpa identitas, path bersama=TRUE saja) ----
+// TRUE + header X-Lang (kode valid di config/bahasa.php, bukan "id") ->
+// path bersama=true diterjemahkan sesuai header. Token valid SELALU prioritas.
+$config['translator_allow_lang_header'] = FALSE;
+
+// ---- Warm-up (fase 7b) ----
+$config['translator_warmup_timeout'] = 30; // detik per request DeepL saat warm-up
+
+// ---- Perlindungan timeout & tagihan ganda ----
+// DeepL gagal/timeout utk sebuah string -> hash-nya di CI cache selama N menit;
+// selama itu string dikembalikan asli (tidak langsung diulang).
+$config['translator_negative_cache_minutes'] = 10;
+// TRUE: string html / >= defer_min_chars & belum di-cache TIDAK dikirim ke DeepL
+// pada request HTTP (asli; dihangatkan lewat tools/Translator_warmup).
+$config['translator_defer_long_to_warmup'] = FALSE;
+$config['translator_defer_min_chars'] = 1500;
+
 // ---- kuota ----
 // Batas karakter DeepL per bulan (informasi & peringatan di modul admin fase 6).
 $config['translator_monthly_char_limit'] = 500000;

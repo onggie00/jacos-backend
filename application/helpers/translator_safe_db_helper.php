@@ -226,3 +226,23 @@ if (!function_exists('translator_cache_down')) {
         return $down;
     }
 }
+
+if (!function_exists('translator_neg_cache_has')) {
+    /** TRUE bila hash string sedang di negative cache (DeepL baru saja gagal utk teks ini). */
+    function translator_neg_cache_has($hash)
+    {
+        $CI =& get_instance();
+        $CI->load->driver('cache', array('adapter' => 'file', 'backup' => 'dummy'));
+        return (bool) $CI->cache->get('translator_neg_' . $hash);
+    }
+}
+
+if (!function_exists('translator_neg_cache_set')) {
+    /** Tandai hash gagal DeepL selama N menit (tanpa menyimpan teks). */
+    function translator_neg_cache_set($hash, $minutes)
+    {
+        $CI =& get_instance();
+        $CI->load->driver('cache', array('adapter' => 'file', 'backup' => 'dummy'));
+        $CI->cache->save('translator_neg_' . $hash, 1, max(1, (int) $minutes) * 60);
+    }
+}

@@ -47,6 +47,9 @@ class Translator {
         'asli_gagal'      => 0,
         'deepl_requests'  => 0,
         'deepl_chars'     => 0,
+        'deepl_billed'    => 0,   // billed_characters dari DeepL (bila tersedia)
+        'neg_cache'       => 0,   // string yang dikembalikan asli krn negative cache
+        'deferred'        => 0,   // string yang dikembalikan asli krn defer long
         'waktu_ms'        => 0,
     );
 
@@ -106,7 +109,7 @@ class Translator {
      *  translate_response — endpoint JSON dengan whitelist
      * ===================================================== */
 
-    public function translate_response(&$data, $endpoint_key, $kode_bahasa)
+    public function translate_response(&$data, $endpoint_key, $kode_bahasa, $only_bersama = false)
     {
         $this->reset_stats();
         $t0 = microtime(true);
@@ -118,7 +121,7 @@ class Translator {
             return $data; // tanpa query, tanpa jaringan
         }
 
-        $items = $this->whitelist->kumpulkan($data, $endpoint_key);
+        $items = $this->whitelist->kumpulkan($data, $endpoint_key, $only_bersama);
         if (empty($items)) {
             $this->stats['waktu_ms'] = (int) ((microtime(true) - $t0) * 1000);
             return $data; // endpoint tidak di whitelist / kosong — as-is persis
@@ -188,12 +191,14 @@ class Translator {
         if ($this->stats['deepl_chars'] <= 0 || $this->stats['deepl_requests'] <= 0) {
             return;
         }
+        // billed_characters dari DeepL bila tersedia; fallback = hitungan lokal
+        $billed = $this->stats['deepl_billed'] > 0 ? $this->stats['deepl_billed'] : $this->stats['deepl_chars'];
         try {
             $bulan = date('Y-m');
             translator_safe_query(
                 "INSERT INTO translation_usage_bulanan (bulan, penyedia, jumlah_request, jumlah_karakter, jumlah_string, updated_at) VALUES (?, 'deepl', ?, ?, ?, NOW()) " .
                 "ON DUPLICATE KEY UPDATE jumlah_request = jumlah_request + VALUES(jumlah_request), jumlah_karakter = jumlah_karakter + VALUES(jumlah_karakter), jumlah_string = jumlah_string + VALUES(jumlah_string)",
-                array($bulan, $this->stats['deepl_requests'], $this->stats['deepl_chars'], $this->stats['total_string']),
+                array($bulan, $this->stats['deepl_requests'], $billed, $this->stats['total_string']),
                 'write',
                 false
             );
@@ -389,6 +394,29 @@ class Translator {
             return; // cache tidak tersedia: tanpa DeepL/Google
         }
 
+        // C.2 defer: string html/panjang & belum di-cache -> kembali asli,
+        // dihangatkan lewat tool warm-up (konfig translator_defer_long_to_warmup).
+        if (translator_cfg('translator_defer_long_to_warmup', false)) {
+            $min = (int) translator_cfg('translator_defer_min_chars', 1500);
+            foreach ($belum as $h => $idxs) {
+                $i0 = $idxs[0];
+                if ($payload[$i0]['tipe'] === 'html' || strlen($norms[$i0]) >= $min) {
+                    $this->add('deferred', count($idxs));
+                    unset($belum[$h]);
+                }
+            }
+            if (empty($belum)) return;
+        }
+
+        // C.1 negative cache: hash yang baru gagal DeepL -> asli, jangan diulang
+        foreach ($belum as $h => $idxs) {
+            if (translator_neg_cache_has($h)) {
+                $this->add('neg_cache', count($idxs));
+                unset($belum[$h]);
+            }
+        }
+        if (empty($belum)) return;
+
         // perlindungan kuota: string BARU melebihi batas -> kembalikan asli
         $max_uncached = (int) translator_cfg('translator_max_uncached_per_request', 150);
         $total_baru = 0;
@@ -438,12 +466,17 @@ class Translator {
             $budget = (float) translator_cfg('translator_time_budget', 3.0);
             $res = $this->deepl->translate_batch($texts, $target, ($tipe === 'html'), $budget);
 
-            if (!is_array($res) || count($res) !== count($texts)) {
+            if (!is_array($res) || !isset($res['texts']) || count($res['texts']) !== count($texts)) {
                 $this->add('asli_gagal', count($texts));
+                $menit = (int) translator_cfg('translator_negative_cache_minutes', 10);
+                if ($menit > 0) foreach (array_keys($hash_map) as $h) translator_neg_cache_set($h, $menit);
                 $this->google_fallback($hash_map, $norms, $hasil, $payload, $kode_bahasa);
                 continue;
             }
             $this->add('deepl_requests');
+            if (!empty($res['billed_tersedia'])) {
+                $this->add('deepl_billed', (int) $res['billed']);
+            }
 
             $simpan = array();
             $hash_by_text = array();
@@ -452,9 +485,11 @@ class Translator {
             }
             foreach ($texts as $idx => $txt) {
                 $h = $hash_by_text[$txt];
-                $teks_hasil = isset($res[$idx]) ? $res[$idx] : '';
+                $teks_hasil = isset($res['texts'][$idx]) ? $res['texts'][$idx] : '';
                 if ($teks_hasil === '') {
                     $this->add('asli_gagal', count($idxs_of_text[$txt]));
+                    $menit = (int) translator_cfg('translator_negative_cache_minutes', 10);
+                    if ($menit > 0) translator_neg_cache_set($h, $menit);
                     continue;
                 }
                 $this->add('dari_deepl', count($idxs_of_text[$txt]));

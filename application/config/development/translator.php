@@ -14,3 +14,6 @@ $config['translator_enabled_endpoints'] = array(
     'siswa/get_presensi/POST',
     'guru/get_jadwal_ekskul_guru/POST',
 );
+
+// Fase 7b: bahasa cadangan via header X-Lang utk endpoint root/publik (path bersama=TRUE)
+$config['translator_allow_lang_header'] = TRUE;
