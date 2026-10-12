@@ -103,3 +103,9 @@ $config['translator_google_target'] = array(
 
 // ---- HTML tag_handling untuk tipe html ----
 $config['translator_deepl_tag_handling_html'] = 'html';
+
+// ---- telemetri cakupan (opsional) ----
+// TRUE: satu baris per request ke endpoint diaktifkan ->
+// application/logs/translator-coverage-YYYY-MM-DD.log (tanpa token/email/IP).
+// Laporan: php tool/run_cli.php tools/translator_coverage_report/index/days/7
+$config['translator_coverage_log'] = FALSE;

@@ -73,6 +73,26 @@ class Setting_bahasa extends Admin {
             . ' aksi=' . $aksi . ' id=' . (int) $id);
     }
 
+    /**
+     * Guard izin eksplisit utk aksi pengubah data: hasil is_allowed BENAR-BENAR
+     * dievaluasi; tanpa izin = HTTP 403 JSON, tanpa perubahan data. (is_allowed
+     * dgn redirect=false hanya MENGEMBALIKAN false — pemanggil wajib cek.)
+     */
+    private function wajib_perm_json($perm)
+    {
+        if (!$this->is_allowed($perm, false)) {
+            $this->output->enable_profiler(FALSE);
+            $this->output->set_status_header(403);
+            $this->output->set_content_type('application/json');
+            $this->output->set_output(json_encode(array(
+                'ok' => false,
+                'err' => 'Akses ditolak: izin ' . $perm . ' diperlukan.',
+            )));
+            return false;
+        }
+        return true;
+    }
+
     /* ===================== B1: konfigurasi bahasa user ===================== */
 
     public function index($offset = 0)
@@ -174,7 +194,7 @@ class Setting_bahasa extends Admin {
 
     public function override_save()
     {
-        $this->is_allowed('setting_bahasa_admin_add', false);
+        if (!$this->wajib_perm_json('setting_bahasa_admin_add')) return;
         if (!$this->cek_csrf()) return;
 
         $v = $this->validasi_override_input();
@@ -231,7 +251,7 @@ class Setting_bahasa extends Admin {
 
     public function override_update($id)
     {
-        $this->is_allowed('setting_bahasa_admin_update', false);
+        if (!$this->wajib_perm_json('setting_bahasa_admin_update')) return;
         if (!$this->cek_csrf()) return;
 
         $lama = $this->model_setting_bahasa_admin->ambil_override($id);
@@ -275,7 +295,7 @@ class Setting_bahasa extends Admin {
 
     public function override_toggle($id)
     {
-        $this->is_allowed('setting_bahasa_admin_update', false);
+        if (!$this->wajib_perm_json('setting_bahasa_admin_update')) return;
         if (!$this->cek_csrf()) return;
 
         $row = $this->model_setting_bahasa_admin->ambil_override($id);
@@ -297,7 +317,7 @@ class Setting_bahasa extends Admin {
 
     public function override_delete($id)
     {
-        $this->is_allowed('setting_bahasa_admin_delete', false);
+        if (!$this->wajib_perm_json('setting_bahasa_admin_delete')) return;
         if (!$this->cek_csrf()) return;
 
         $row = $this->model_setting_bahasa_admin->ambil_override($id);
@@ -426,38 +446,22 @@ class Setting_bahasa extends Admin {
         $this->is_allowed('setting_bahasa_admin_view', false);
         if (!$this->cek_csrf()) return;
 
-        $key = translator_env('DEEPL_API_KEY');
-        if ($key === '') {
+        $riil = $this->_deepl_usage_riil();
+        if ($riil === false) {
             $this->session->set_userdata('translator_deepl_usage_err', 'DEEPL_API_KEY tidak terisi di .env.');
             redirect('administrator/setting_bahasa/statistik');
             return;
         }
-        $url = (substr($key, -3) === ':fx')
-            ? 'https://api-free.deepl.com/v2/usage'
-            : 'https://api.deepl.com/v2/usage';
-
-        $ch = curl_init($url);
-        curl_setopt_array($ch, array(
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 2,
-            CURLOPT_TIMEOUT => 3,
-            CURLOPT_HTTPHEADER => array('Authorization: DeepL-Auth-Key ' . $key),
-        ));
-        $body = curl_exec($ch);
-        $errno = curl_errno($ch);
-        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($errno !== 0 || $code !== 200 || $body === false) {
-            $this->session->set_userdata('translator_deepl_usage_err', 'Gagal mengambil usage dari DeepL (HTTP ' . $code . ').');
-        } else {
-            $json = json_decode($body, true);
-            $this->session->set_userdata('translator_deepl_usage', array(
-                'character_count' => isset($json['character_count']) ? (int) $json['character_count'] : 0,
-                'character_limit' => isset($json['character_limit']) ? (int) $json['character_limit'] : 0,
-            ));
-            $this->session->set_userdata('translator_deepl_usage_err', false);
+        if (!is_array($riil)) {
+            $this->session->set_userdata('translator_deepl_usage_err', 'Gagal mengambil usage dari DeepL.');
+            redirect('administrator/setting_bahasa/statistik');
+            return;
         }
+        $this->session->set_userdata('translator_deepl_usage', array(
+            'character_count' => $riil['count'],
+            'character_limit' => $riil['limit'],
+        ));
+        $this->session->set_userdata('translator_deepl_usage_err', false);
         redirect('administrator/setting_bahasa/statistik');
     }
 
@@ -687,6 +691,64 @@ class Setting_bahasa extends Admin {
         log_message('error', 'AUDIT warmup_bahasa: user_id=' . $this->aauth->get_user_id() . ' ' . $msg);
     }
 
+    /**
+     * Pemakaian DeepL RIIL via GET /v2/usage (tidak memakai kuota).
+     * return array('count'=>,'limit'=>) | false bila key kosong | null bila gagal.
+     * Key TIDAK dicatat di mana pun.
+     */
+    private function _deepl_usage_riil()
+    {
+        $key = translator_env('DEEPL_API_KEY');
+        if ($key === '') return false;
+        $url = (substr($key, -3) === ':fx')
+            ? 'https://api-free.deepl.com/v2/usage'
+            : 'https://api.deepl.com/v2/usage';
+        $ch = curl_init($url);
+        curl_setopt_array($ch, array(
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 2,
+            CURLOPT_TIMEOUT => 3,
+            CURLOPT_HTTPHEADER => array('Authorization: DeepL-Auth-Key ' . $key),
+        ));
+        $body = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($errno !== 0 || $code !== 200 || $body === false) return null;
+        $json = json_decode($body, true);
+        if (!is_array($json) || !isset($json['character_count'], $json['character_limit'])) return null;
+        return array('count' => (int) $json['character_count'], 'limit' => (int) $json['character_limit']);
+    }
+
+    /**
+     * Cek kuota 90% memakai angka RIIL DeepL; bila panggilan gagal, fallback ke
+     * translation_usage_bulanan (alasan dicatat). return array(oleh_90=>, info=>array).
+     */
+    private function _warmup_cek_kuota_riil($rencana_chars)
+    {
+        $riil = $this->_deepl_usage_riil();
+        if (is_array($riil)) {
+            $batas = (int) floor($riil['limit'] * 0.9);
+            return array(
+                'lewat' => ($riil['count'] + $rencana_chars) >= $batas,
+                'info' => array('sumber' => 'deepl', 'count' => $riil['count'], 'limit' => $riil['limit'], 'batas_90' => $batas),
+            );
+        }
+        // fallback: tabel lokal (riil null = gagal panggil; false = key kosong)
+        $alasan = ($riil === null) ? 'panggilan /v2/usage gagal' : 'DEEPL_API_KEY kosong';
+        log_message('error', 'AUDIT warmup_bahasa: kuota fallback ke DB lokal (' . $alasan . ')');
+        $u = translator_safe_query(
+            "SELECT jumlah_karakter FROM translation_usage_bulanan WHERE bulan = DATE_FORMAT(NOW(), '%Y-%m') AND penyedia = 'deepl' LIMIT 1",
+            array(), 'row', null);
+        $pakai = ($u && isset($u->jumlah_karakter)) ? (int) $u->jumlah_karakter : 0;
+        $limit = (int) translator_cfg('translator_monthly_char_limit', 500000);
+        $batas = (int) floor($limit * 0.9);
+        return array(
+            'lewat' => ($pakai + $rencana_chars) >= $batas,
+            'info' => array('sumber' => 'lokal', 'count' => $pakai, 'limit' => $limit, 'batas_90' => $batas, 'fallback' => $alasan),
+        );
+    }
+
     private function _warmup_cek_csrf()
     {
         $token = (string) $this->input->post('translator_csrf');
@@ -712,10 +774,7 @@ class Setting_bahasa extends Admin {
     /** Tombol "Hitung" (dry-run, TANPA DeepL). POST: endpoint|wave, lang. */
     public function warmup_hitung()
     {
-        if (!$this->is_allowed('setting_bahasa_admin_warmup', false)) {
-            $this->_warmup_json(array('ok' => false, 'err' => 'Akses ditolak: izin setting_bahasa_admin_warmup diperlukan.'));
-            return;
-        }
+        if (!$this->wajib_perm_json('setting_bahasa_admin_warmup')) return;
         if (!$this->_warmup_cek_csrf()) return;
         $lang = $this->_warmup_bahasa_valid();
         if ($lang === null) return;
@@ -735,6 +794,10 @@ class Setting_bahasa extends Admin {
         $sisa_c = 0;
         foreach ($sisa as $it) $sisa_c += strlen($it['text']);
 
+        // angka kuota riil (GET /v2/usage — tidak memakai kuota); null = gagal panggil
+        $riil = $this->_deepl_usage_riil();
+        $usage = is_array($riil) ? array('sumber' => 'deepl', 'count' => $riil['count'], 'limit' => $riil['limit']) : null;
+
         $this->_warmup_json(array(
             'ok' => true,
             'scope' => $scope,
@@ -746,6 +809,7 @@ class Setting_bahasa extends Admin {
             'belum_c' => $sisa_c,
             'sumber_err' => $k['err'],
             'kosong' => empty($k['semua']),
+            'usage' => $usage,
         ));
     }
 
@@ -758,10 +822,7 @@ class Setting_bahasa extends Admin {
      */
     public function warmup_jalankan()
     {
-        if (!$this->is_allowed('setting_bahasa_admin_warmup', false)) {
-            $this->_warmup_json(array('ok' => false, 'err' => 'Akses ditolak: izin setting_bahasa_admin_warmup diperlukan.'));
-            return;
-        }
+        if (!$this->wajib_perm_json('setting_bahasa_admin_warmup')) return;
         if (!$this->_warmup_cek_csrf()) return;
         $lang = $this->_warmup_bahasa_valid();
         if ($lang === null) return;
@@ -805,6 +866,16 @@ class Setting_bahasa extends Admin {
                 return;
             }
 
+            // kuota memakai angka riil DeepL (/v2/usage); fallback DB lokal dgn catatan
+            $kuota = $this->_warmup_cek_kuota_riil($pot['chars']);
+            if ($kuota['lewat']) {
+                $i = $kuota['info'];
+                $this->_warmup_json(array('ok' => true, 'status' => 'berhenti', 'done' => false,
+                    'alasan' => 'Kuota DeepL: terpakai ' . $i['count'] . ' dari ' . $i['limit'] . ' (sumber ' . $i['sumber'] . '); rencana ' . $pot['chars'] . ' char akan melewati batas 90% (' . $i['batas_90'] . ').'));
+                return;
+            }
+            $usage_info = $kuota['info'];
+
             $token = bin2hex(random_bytes(8));
             $state = array(
                 'token' => $token,
@@ -830,6 +901,7 @@ class Setting_bahasa extends Admin {
                 'ok' => true, 'status' => 'jalan', 'token' => $token, 'done' => false,
                 'sisa_n' => count($pot['items']), 'total_n' => count($pot['items']),
                 'processed_n' => 0, 'total_c' => $pot['chars'], 'processed_c' => 0, 'deepl_chars' => 0,
+                'usage' => $usage_info,
             ));
             return;
         }

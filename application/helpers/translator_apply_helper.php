@@ -21,12 +21,33 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 require_once APPPATH . 'helpers/translator_safe_db_helper.php';
 
+if (!function_exists('translator_coverage_log')) {
+
+    /**
+     * Telemetri cakupan (opsional; config translator_coverage_log, default FALSE).
+     * Satu baris per request ke endpoint yang DIAKTIFKAN, ke file
+     * application/logs/translator-coverage-YYYY-MM-DD.log:
+     *   endpoint_key|token_ada(0/1)|token_dikenal(0/1)|x_lang_ada(0/1)|bahasa|diterjemahkan(0/1)|sumber(token/x-lang/none)
+     * TIDAK memuat token, email, IP, atau isi apa pun. Gagal menulis = diam
+     * (tidak memengaruhi response). Sengaja TIDAK memakai log_message karena
+     * log_threshold=1 membuang level info.
+     */
+    function translator_coverage_log($endpoint_key, $token_ada, $token_kenal, $x_lang_ada, $bahasa, $diterjemahkan, $sumber)
+    {
+        if (!translator_cfg('translator_coverage_log', false)) {
+            return;
+        }
+        $line = $endpoint_key . '|' . (int) (bool) $token_ada . '|' . (int) (bool) $token_kenal . '|'
+            . (int) (bool) $x_lang_ada . '|' . ($bahasa !== '' ? $bahasa : '-') . '|'
+            . (int) (bool) $diterjemahkan . '|' . $sumber . "\n";
+        @file_put_contents(APPPATH . 'logs/translator-coverage-' . date('Y-m-d') . '.log', $line, FILE_APPEND | LOCK_EX);
+    }
+}
+
 if (!function_exists('translator_apply_to_response')) {
 
     function translator_apply_to_response($data, $http_code)
     {
-        $CI =& get_instance();
-        $CI->load->config('translator'); // pastikan item translator_* termuat
         $CI =& get_instance();
         $CI->load->config('translator'); // pastikan item translator_* termuat
 
@@ -108,11 +129,17 @@ if (!function_exists('translator_apply_to_response')) {
             // token tidak ada / tidak valid -> bahasa cadangan via header X-Lang
             // HANYA utk path bersama=TRUE, bila translator_allow_lang_header aktif.
             $kode_hdr = '';
+            $x_lang_ada = !empty($_SERVER['HTTP_X_LANG']);
+            if (!$x_lang_ada && function_exists('getallheaders')) {
+                foreach (getallheaders() as $hk => $hv) {
+                    if (strtolower($hk) === 'x-lang') { $x_lang_ada = true; break; }
+                }
+            }
             $CI->load->config('bahasa'); // diperlukan utk validasi kode X-Lang
             if (translator_cfg('translator_allow_lang_header', false)) {
                 $hdr = '';
                 if (!empty($_SERVER['HTTP_X_LANG'])) $hdr = trim($_SERVER['HTTP_X_LANG']);
-                if ($hdr === '' && function_exists('getallheaders')) {
+                if ($hdr === '' && $x_lang_ada && function_exists('getallheaders')) {
                     foreach (getallheaders() as $hk => $hv) {
                         if (strtolower($hk) === 'x-lang') { $hdr = trim($hv); break; }
                     }
@@ -130,20 +157,19 @@ if (!function_exists('translator_apply_to_response')) {
                     if (!empty($meta['bersama'])) { $ada_bersama = true; break; }
                 }
             }
-            @file_put_contents('D:/myprojects/jacos/Berkas_sample/file_test_tmp/hook_trace.txt', date('H:i:s') . " xlang marker kode=$kode_hdr bersama=" . var_export($ada_bersama, true) . "
-", FILE_APPEND); // xlang marker
             if ($kode_hdr === '' || !$ada_bersama) {
+                translator_coverage_log($endpoint_key, $token !== '', $valid, $x_lang_ada, '', false, 'none');
                 return $data; // response asli (Indonesia)
             }
             $data = $CI->translator->translate_response($data, $endpoint_key, $kode_hdr, true);
-            @file_put_contents('D:/myprojects/jacos/Berkas_sample/file_test_tmp/hook_trace.txt', date('H:i:s') . " xlang done
-", FILE_APPEND); // xlang marker
+            translator_coverage_log($endpoint_key, $token !== '', $valid, $x_lang_ada, $kode_hdr, true, 'x-lang');
             return $data;
         }
         // 5) kode bahasa (memo per request di model)
         $CI->load->model('Setting_bahasa_model');
         $kode = $CI->Setting_bahasa_model->get_kode_bahasa($email, $role);
         if ($kode === 'id' || $kode === '' || $kode === null) {
+            translator_coverage_log($endpoint_key, $token !== '', $valid, false, 'id', false, 'token');
             return $data;
         }
 
@@ -152,6 +178,7 @@ if (!function_exists('translator_apply_to_response')) {
         if (isset($data['message']) && is_string($data['message'])) {
             $data['message'] = $CI->translator->translate_message($data['message'], $kode);
         }
+        translator_coverage_log($endpoint_key, $token !== '', $valid, false, $kode, true, 'token');
 
         // F) debug headers (angka saja)
         if (translator_cfg('translator_debug_headers', false)) {

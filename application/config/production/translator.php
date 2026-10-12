@@ -48,3 +48,12 @@ $config['translator_enabled_endpoints'] = array();
 // Konten html/baru admin tampil Indonesia sampai warm-up berikutnya dijalankan.
 // Evaluasi setelah 2-3 minggu; otomatisasi (cron) = Fase 9.
 // $config['translator_defer_long_to_warmup'] = TRUE;
+
+// --- telemetri cakupan (default FALSE — hanya diaktifkan jika diperlukan):
+// TRUE = tiap request ke endpoint yang diaktifkan menulis SATU baris ke
+// application/logs/translator-coverage-YYYY-MM-DD.log (format:
+// endpoint_key|token_ada|token_dikenal|x_lang_ada|bahasa|diterjemahkan|sumber;
+// tanpa token/email/IP). Ringkas per endpoint:
+//   php tool/run_cli.php tools/translator_coverage_report/index/days/7
+// File log tumbuh seiring trafik — matikan lagi setelah data cukup.
+$config['translator_coverage_log'] = FALSE;
