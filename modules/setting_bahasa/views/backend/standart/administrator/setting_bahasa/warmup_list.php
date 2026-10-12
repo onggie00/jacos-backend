@@ -111,11 +111,12 @@
          var t = j.per_tipe;
          var baris = [];
          for (var tp in t) { if (t[tp].n > 0) baris.push('tipe ' + tp + ': ' + t[tp].n + ' string / ' + t[tp].c + ' char'); }
+         var kuota = (j.usage ? '<br>Kuota DeepL riil: ' + j.usage.count + ' / ' + j.usage.limit + ' (sumber ' + j.usage.sumber + ')' : '');
          pesan('success',
             '<strong>' + (j.scope.mode === 'endpoint' ? 'Endpoint' : 'Gelombang') + ' ' + j.scope.kunci + '</strong> — bahasa ' + j.lang +
             '<br>' + baris.join(' &middot; ') +
             '<br><strong>Total ' + j.total_n + ' string / ' + j.total_c + ' char</strong>' +
-            '<br>Belum tercover (kamus/override/cache): ' + j.belum_n + ' string / ' + j.belum_c + ' char' +
+            '<br>Belum tercover (kamus/override/cache): ' + j.belum_n + ' string / ' + j.belum_c + ' char' + kuota +
             (j.sumber_err ? '<br><span class="text-danger">Perhatian: sebagian tabel sumber tidak terbaca.</span>' : ''));
       });
    });
@@ -131,6 +132,7 @@
       post({ aksi: 'mulai', aksi_url: 'jalankan', endpoint: s.endpoint, wave: s.wave, lang: s.lang, max_chars: document.getElementById('w-max').value }, function (j) {
          if (!j.ok) { jalan = false; tombol(); pesan('danger', j.err); return; }
          if (j.done) { jalan = false; tombol(); pesan('success', j.msg + (j.url_cache ? ' <a href="' + j.url_cache + '">Lihat halaman Cache</a>' : '')); return; }
+         if (j.usage) { pesan('info', 'Kuota DeepL riil: ' + j.usage.count + ' / ' + j.usage.limit + ' (sumber ' + j.usage.sumber + (j.usage.fallback ? '; fallback: ' + j.usage.fallback : '') + ')'); }
          token = j.token;
          pesan('success', 'Sesi dimulai.');
          langkah();

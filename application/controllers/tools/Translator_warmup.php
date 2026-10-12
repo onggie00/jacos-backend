@@ -171,6 +171,51 @@ class Translator_warmup extends MX_Controller {
             return;
         }
 
+        // 3b) cek kuota memakai angka RIIL DeepL (GET /v2/usage — tidak memakai kuota)
+        $pakai_kuota = 0; $limit_kuota = (int) translator_cfg('translator_monthly_char_limit', 500000);
+        $sumber_kuota = 'lokal (fallback)';
+        $key = translator_env('DEEPL_API_KEY');
+        if ($key !== '') {
+            $url_usage = (substr($key, -3) === ':fx')
+                ? 'https://api-free.deepl.com/v2/usage'
+                : 'https://api.deepl.com/v2/usage';
+            $ch = curl_init($url_usage);
+            curl_setopt_array($ch, array(
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 2,
+                CURLOPT_TIMEOUT => 3,
+                CURLOPT_HTTPHEADER => array('Authorization: DeepL-Auth-Key ' . $key),
+            ));
+            $body = curl_exec($ch);
+            $errno = curl_errno($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            $json = ($errno === 0 && $code === 200 && $body !== false) ? json_decode($body, true) : null;
+            if (is_array($json) && isset($json['character_count'], $json['character_limit'])) {
+                $pakai_kuota = (int) $json['character_count'];
+                $limit_kuota = (int) $json['character_limit'];
+                $sumber_kuota = 'deepl (riil)';
+            } else {
+                $u = translator_safe_query(
+                    "SELECT jumlah_karakter FROM translation_usage_bulanan WHERE bulan = DATE_FORMAT(NOW(), '%Y-%m') AND penyedia = 'deepl' LIMIT 1",
+                    array(), 'row', null);
+                $pakai_kuota = ($u && isset($u->jumlah_karakter)) ? (int) $u->jumlah_karakter : 0;
+                log_message('error', 'AUDIT warmup: kuota fallback ke DB lokal (panggilan /v2/usage gagal, HTTP ' . $code . ')');
+            }
+        } else {
+            $u = translator_safe_query(
+                "SELECT jumlah_karakter FROM translation_usage_bulanan WHERE bulan = DATE_FORMAT(NOW(), '%Y-%m') AND penyedia = 'deepl' LIMIT 1",
+                array(), 'row', null);
+            $pakai_kuota = ($u && isset($u->jumlah_karakter)) ? (int) $u->jumlah_karakter : 0;
+            log_message('error', 'AUDIT warmup: kuota fallback ke DB lokal (DEEPL_API_KEY kosong)');
+        }
+        $batas_90 = (int) floor($limit_kuota * 0.9);
+        echo "kuota [{$sumber_kuota}]: terpakai {$pakai_kuota} / {$limit_kuota} | batas 90% = {$batas_90} | rencana {$chars_baru} char\n";
+        if (($pakai_kuota + $chars_baru) >= $batas_90) {
+            echo "STOP: rencana akan melewati 90% limit riil DeepL. Tidak ada eksekusi.\n";
+            return;
+        }
+
         // 4) jalankan lewat pipeline Translator yang SAMA (timeout warm-up)
         $this->config->set_item('translator_deepl_total_timeout',
             (int) translator_cfg('translator_warmup_timeout', 30));
