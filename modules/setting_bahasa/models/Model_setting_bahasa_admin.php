@@ -11,11 +11,38 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  */
 class Model_setting_bahasa_admin extends CI_Model {
 
+    /** hasil deteksi kolom audit (sekali per request) */
+    protected $audit_cols;
+
     public function __construct()
     {
         parent::__construct();
         $CI =& get_instance();
         $CI->load->helper('translator_safe_db');
+    }
+
+    /**
+     * Deteksi kolom created_by/updated_by (sekali per request). return array
+     * kolom yang ADA (bisa kosong — modul tetap jalan normal). $force utk
+     * pengujian (null = deteksi otomatis, array() = paksa tanpa kolom).
+     */
+    public function audit_cols($force = null)
+    {
+        if ($force !== null) {
+            $this->audit_cols = $force;
+        } elseif ($this->audit_cols === null) {
+            $r = translator_safe_query(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'translation_override'
+                   AND COLUMN_NAME IN ('created_by','updated_by')",
+                array(), 'result', false);
+            $cols = array();
+            if (is_array($r)) {
+                foreach ($r as $row) $cols[] = $row->COLUMN_NAME;
+            }
+            $this->audit_cols = $cols;
+        }
+        return $this->audit_cols;
     }
 
     /* ===================== B1: setting_bahasa ===================== */
@@ -114,7 +141,7 @@ class Model_setting_bahasa_admin extends CI_Model {
         }
         $binds[] = (int) $limit; $binds[] = (int) $offset;
         return translator_safe_query(
-            "SELECT id, hash_sumber, kode_bahasa, teks_asal, teks_hasil, aktif, catatan, created_at, updated_at
+            "SELECT id, hash_sumber, kode_bahasa, teks_asal, teks_hasil, aktif, catatan, created_at, updated_at" . $this->select_audit() . "
              FROM translation_override WHERE " . implode(' AND ', $where) . "
              ORDER BY id DESC LIMIT ? OFFSET ?",
             $binds, 'result', false);
@@ -149,20 +176,39 @@ class Model_setting_bahasa_admin extends CI_Model {
         return !empty($r) ? (int) $r->id : null;
     }
 
-    public function simpan_override($data)
+    /** kolom SELECT tambahan utk audit (dipakai daftar_override) */
+    public function select_audit()
     {
-        return translator_safe_query(
-            "INSERT INTO translation_override (hash_sumber, kode_bahasa, teks_asal, teks_hasil, aktif, catatan, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
-            array($data['hash_sumber'], $data['kode_bahasa'], $data['teks_asal'], $data['teks_hasil'], (int) $data['aktif'], $data['catatan']),
-            'write', false);
+        $kolom = $this->audit_cols();
+        $out = '';
+        if (in_array('created_by', $kolom, true)) $out .= ', created_by';
+        if (in_array('updated_by', $kolom, true)) $out .= ', updated_by';
+        return $out;
     }
 
-    public function ubah_override($id, $data)
+    public function simpan_override($data, $user_id = null)
     {
-        return translator_safe_query(
-            "UPDATE translation_override SET kode_bahasa = ?, teks_asal = ?, teks_hasil = ?, aktif = ?, catatan = ?, updated_at = NOW() WHERE id = ?",
-            array($data['kode_bahasa'], $data['teks_asal'], $data['teks_hasil'], (int) $data['aktif'], $data['catatan'], (int) $id),
-            'write', false);
+        $kolom_audit = $this->audit_cols();
+        $sql = "INSERT INTO translation_override (hash_sumber, kode_bahasa, teks_asal, teks_hasil, aktif, catatan, created_at";
+        $val = "(?, ?, ?, ?, ?, ?, NOW()";
+        $binds = array($data['hash_sumber'], $data['kode_bahasa'], $data['teks_asal'], $data['teks_hasil'], (int) $data['aktif'], $data['catatan']);
+        if (in_array('created_by', $kolom_audit, true) && $user_id !== null) {
+            $sql .= ', created_by'; $val .= ', ?'; $binds[] = (int) $user_id;
+        }
+        $sql .= ') VALUES ' . $val . ')';
+        return translator_safe_query($sql, $binds, 'write', false);
+    }
+
+    public function ubah_override($id, $data, $user_id = null)
+    {
+        $kolom_audit = $this->audit_cols();
+        $sql = "UPDATE translation_override SET kode_bahasa = ?, teks_asal = ?, teks_hasil = ?, aktif = ?, catatan = ?, updated_at = NOW()";
+        $binds = array($data['kode_bahasa'], $data['teks_asal'], $data['teks_hasil'], (int) $data['aktif'], $data['catatan']);
+        if (in_array('updated_by', $kolom_audit, true) && $user_id !== null) {
+            $sql .= ', updated_by = ?'; $binds[] = (int) $user_id;
+        }
+        $sql .= ' WHERE id = ?'; $binds[] = (int) $id;
+        return translator_safe_query($sql, $binds, 'write', false);
     }
 
     public function toggle_override($id, $aktif)

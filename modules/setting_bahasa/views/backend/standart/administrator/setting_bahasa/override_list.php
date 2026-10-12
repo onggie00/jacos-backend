@@ -39,7 +39,7 @@
                </form>
                <div class="table-responsive">
                <table class="table table-bordered table-striped">
-                  <thead><tr><th>Bahasa</th><th>Teks asal</th><th>Teks hasil</th><th>Status</th><th>Diubah</th><th style="width:220px;">Aksi</th></tr></thead>
+                  <thead><tr><th>Bahasa</th><th>Teks asal</th><th>Teks hasil</th><th>Status</th><th>Diubah</th><?= isset($rows[0]->created_by) ? '<th>Oleh</th>' : ''; ?><th style="width:220px;">Aksi</th></tr></thead>
                   <tbody>
                   <?php if (empty($rows)): ?>
                      <tr><td colspan="6" class="text-muted">Tidak ada data.</td></tr>
@@ -51,6 +51,7 @@
                         <td style="max-width:260px; word-break:break-word;"><?= html_escape($row->teks_hasil); ?></td>
                         <td><span class="label <?= $row->aktif ? 'bg-green' : 'bg-red'; ?>"><?= $row->aktif ? 'aktif' : 'nonaktif'; ?></span></td>
                         <td><?= html_escape($row->updated_at); ?></td>
+                        <?php if (isset($rows[0]->created_by)): ?><td><?= html_escape($row->created_by . ($row->updated_by ? ' / ' . $row->updated_by : '')); ?></td><?php endif; ?>
                         <td>
                            <a class="btn btn-xs btn-default" href="<?= site_url('administrator/setting_bahasa/override_edit/' . (int) $row->id); ?>" title="Ubah">Ubah</a>
                            <form method="post" action="<?= site_url('administrator/setting_bahasa/override_toggle/' . (int) $row->id); ?>" style="display:inline;" onsubmit="return confirm('Ubah status override ini?');">

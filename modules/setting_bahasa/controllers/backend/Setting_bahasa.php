@@ -200,7 +200,7 @@ class Setting_bahasa extends Admin {
             'teks_hasil'  => $in['teks_hasil'],
             'aktif'       => $in['aktif'],
             'catatan'     => $in['catatan'],
-        ));
+        ), $this->aauth->get_user_id());
         if ($ok) {
             $this->log_aksi('override_add', $this->db->insert_id());
             set_message('Override tersimpan dan berlaku pada request berikutnya.', 'success');
@@ -262,7 +262,7 @@ class Setting_bahasa extends Admin {
             'teks_hasil'  => $in['teks_hasil'],
             'aktif'       => $in['aktif'],
             'catatan'     => $in['catatan'],
-        ));
+        ), $this->aauth->get_user_id());
         if ($ok) {
             $this->log_aksi('override_update', $id);
             set_message('Override diperbarui. Berlaku pada request berikutnya.', 'success');
