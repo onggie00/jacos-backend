@@ -122,7 +122,7 @@ class Model_siswa_tk extends MY_Model
         $this->db->where('transaksi.nama_bank', 'BNI');
         $this->db->or_where('transaksi.nama_bank', 'BRI');
         $this->db->group_end();
-        $this->db->like(array('transaksi.no_transaksi'=>'LI-TK'));
+        $this->db->like(array('transaksi.no_transaksi'=>'JI-TK'));
         $this->db->select('siswa_tk.*,
                            provinces.name as provinces_name,
                            areas.name as areas_name,
@@ -164,7 +164,7 @@ class Model_siswa_tk extends MY_Model
         $this->db->join('transaksi', 'transaksi.user_email = siswa_tk.email', 'LEFT');
         $this->db->where('transaksi.nama_bank', 'BNI');
         $this->db->or_where('transaksi.nama_bank', 'BRI');
-        $this->db->like(array('transaksi.no_transaksi'=>'LI-TK'));
+        $this->db->like(array('transaksi.no_transaksi'=>'JI-TK'));
         $this->db->select('siswa_tk.*,
                             areas.name as kelurahan,
                             districts.name as kecamatan,
