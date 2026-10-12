@@ -105,6 +105,67 @@ if (!function_exists('translator_wave_sources')) {
     }
 }
 
+if (!function_exists('translator_endpoint_sources')) {
+
+    /**
+     * Query sumber utk SATU endpoint (dicari di semua gelombang, hasil digabung).
+     * return array(array('sql'=>, 'tipe'=>)) — kosong bila endpoint tidak dipetakan.
+     */
+    function translator_endpoint_sources($endpoint_key)
+    {
+        $out = array();
+        foreach (array('1a', '1b', '2', '3') as $wave) {
+            $w = translator_wave_sources($wave);
+            if (isset($w[$endpoint_key]) && is_array($w[$endpoint_key])) {
+                foreach ($w[$endpoint_key] as $q) $out[] = $q;
+            }
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('translator_cli_args')) {
+
+    /**
+     * Parser argumen CLI gaya segmen URI (pasangan kunci/nilai). Flag nilai
+     * greedy (mis. 'endpoint', 'out-dir' — nilainya mengandung '/') menyerap
+     * semua segmen berikutnya sampai flag yang dikenal lagi. Flag boolean
+     * ('execute', dst.) bernilai true tanpa nilai.
+     *
+     * Contoh: tools/translator_warmup/index/endpoint/root/visi_misi/GET/lang/en-GB/execute
+     *   -> array('endpoint' => 'root/visi_misi/GET', 'lang' => 'en-GB', 'execute' => true)
+     */
+    function translator_cli_args(array $segs, array $value_flags, array $greedy = array(), array $bool_flags = array('execute'))
+    {
+        $args = array();
+        $n = count($segs);
+        for ($i = 0; $i < $n; $i++) {
+            $k = $segs[$i];
+            if (in_array($k, $bool_flags, true)) {
+                $args[$k] = true;
+                continue;
+            }
+            if (!in_array($k, $value_flags, true)) {
+                continue; // segmen liar (sisa endpoint sebelumnya dsb.) diabaikan
+            }
+            $val = array();
+            $j = $i + 1;
+            if (in_array($k, $greedy, true)) {
+                for (; $j < $n; $j++) {
+                    if (in_array($segs[$j], $value_flags, true) || in_array($segs[$j], $bool_flags, true)) break;
+                    $val[] = $segs[$j];
+                }
+            } elseif ($j < $n) {
+                $val[] = $segs[$j];
+                $j++;
+            }
+            $args[$k] = implode('/', $val);
+            $i = $j - 1;
+        }
+        return $args;
+    }
+}
+
 if (!function_exists('translator_fetch_strings')) {
 
     /**

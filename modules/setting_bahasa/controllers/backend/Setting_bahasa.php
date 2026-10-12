@@ -25,6 +25,7 @@ class Setting_bahasa extends Admin {
         parent::__construct();
         $this->load->model('model_setting_bahasa_admin');
         $this->load->helper('translator_safe_db');
+        $this->load->helper('translator_sources');
         $this->load->config('translator');
         $this->load->config('bahasa');
         $this->load->library('Translator');
@@ -523,5 +524,420 @@ class Setting_bahasa extends Admin {
         }
         $this->session->set_userdata('translator_uji_lookup', $hasil);
         redirect('administrator/setting_bahasa/status');
+    }
+
+    /* ===================== Warm-up (isi cache dari modul admin) ===================== */
+
+    // batas potongan (chunk) per request AJAX
+    private $warmup_chunk_strings = 20;
+    private $warmup_chunk_chars = 4000;
+    private $warmup_chunk_seconds = 20;
+
+    private function _cache_driver()
+    {
+        static $drv = null;
+        if ($drv === null) {
+            get_instance()->load->driver('cache', array('adapter' => 'file', 'backup' => 'dummy'));
+            $drv = get_instance()->cache;
+        }
+        return $drv;
+    }
+
+    /** Endpoint utk dropdown: whitelist aktif + ada path bersama=true + dipetakan di helper sumber. */
+    private function _warmup_endpoints()
+    {
+        $out = array();
+        foreach ((array) $this->config->item('translate_whitelist') as $ep => $spec) {
+            $ada = false;
+            foreach ((array) $spec as $meta) {
+                if (is_array($meta) && !empty($meta['bersama'])) { $ada = true; break; }
+            }
+            if ($ada && !empty(translator_endpoint_sources($ep))) $out[$ep] = $ep;
+        }
+        ksort($out);
+        return $out;
+    }
+
+    /** Validasi scope POST (endpoint ATAU gelombang). return array('err'=>..) atau array('mode'=>,'kunci'=>) */
+    private function _warmup_scope()
+    {
+        $ep = trim((string) $this->input->post('endpoint'));
+        $wave = trim((string) $this->input->post('wave'));
+        if ($ep !== '') {
+            $spec = $this->translator->whitelist->endpoint_aktif($ep);
+            if ($spec === null) return array('err' => 'Endpoint tidak ada di whitelist aktif (atau seluruhnya excluded): ' . $ep);
+            $ada = false;
+            foreach ((array) $spec as $meta) {
+                if (is_array($meta) && !empty($meta['bersama'])) { $ada = true; break; }
+            }
+            if (!$ada) return array('err' => 'Endpoint tidak punya path whitelist bersama=true: ' . $ep);
+            if (empty(translator_endpoint_sources($ep))) return array('err' => 'Endpoint belum dipetakan di sumber data warm-up: ' . $ep);
+            return array('mode' => 'endpoint', 'kunci' => $ep);
+        }
+        if ($wave !== '') {
+            if (!in_array($wave, array('1a', '1b', '2', '3'), true)) {
+                return array('err' => 'Gelombang tidak valid (pilih 1a/1b/2/3).');
+            }
+            return array('mode' => 'wave', 'kunci' => $wave);
+        }
+        return array('err' => 'Pilih endpoint atau gelombang dulu.');
+    }
+
+    /** Query sumber: endpoint tunggal atau gelombang (endpoint excluded / tanpa bersama=true DITOLAK). */
+    private function _warmup_sources($mode, $kunci)
+    {
+        if ($mode === 'endpoint') return array($kunci => translator_endpoint_sources($kunci));
+        $out = array();
+        foreach (translator_wave_sources($kunci) as $ep => $q) {
+            $spec = $this->translator->whitelist->endpoint_aktif($ep);
+            if ($spec === null) continue; // excluded / tidak aktif -> lewati
+            $ada = false;
+            foreach ((array) $spec as $meta) {
+                if (is_array($meta) && !empty($meta['bersama'])) { $ada = true; break; }
+            }
+            if (!$ada) continue;
+            $out[$ep] = $q;
+        }
+        return $out;
+    }
+
+    private function _warmup_kumpulkan($mode, $kunci)
+    {
+        $semua = array();
+        $err = false;
+        foreach ($this->_warmup_sources($mode, $kunci) as $ep => $queries) {
+            $f = translator_fetch_strings($queries);
+            if ($f['err']) $err = true;
+            foreach ($f['strings'] as $txt => $tipe) {
+                if (!isset($semua[$txt])) $semua[$txt] = $tipe;
+            }
+        }
+        return array('semua' => $semua, 'err' => $err);
+    }
+
+    /** String yang BELUM tercover kamus/override/cache (urut teks) — deterministik & resumable. */
+    private function _warmup_sisa($semua, $lang)
+    {
+        $kamus = $this->translator->kamus->load($lang);
+        $kamus_keys = is_array($kamus) ? array_keys($kamus) : array();
+        $hashes = array();
+        foreach ($semua as $txt => $tipe) $hashes[] = translator_hash($txt, $tipe);
+        $ov = $this->translator->cache->ambil_override_banyak($lang, $hashes);
+        $ov = is_array($ov) ? $ov : array();
+        $ca = $this->translator->cache->ambil_banyak($lang, $hashes);
+        $ca = is_array($ca) ? $ca : array();
+        $sisa = array();
+        foreach ($semua as $txt => $tipe) {
+            $kena = ($tipe !== 'html' && in_array(mb_strtolower($txt, 'UTF-8'), $kamus_keys, true));
+            $h = translator_hash($txt, $tipe);
+            if ($kena || isset($ov[$h]) || isset($ca[$h])) continue;
+            $sisa[] = array('text' => $txt, 'tipe' => $tipe, 'bersama' => true);
+        }
+        usort($sisa, array($this, '_warmup_urut'));
+        return $sisa;
+    }
+
+    private function _warmup_urut($a, $b)
+    {
+        return strcmp($a['text'], $b['text']);
+    }
+
+    /** Kurangi daftar string sampai anggaran karakter (urut teks, ambil yang muat). */
+    private function _warmup_potong_anggaran(array $sisa, $max_chars)
+    {
+        $out = array(); $c = 0;
+        foreach ($sisa as $it) {
+            $len = strlen($it['text']);
+            if ($c + $len > $max_chars) continue;
+            $out[] = $it; $c += $len;
+        }
+        return array('items' => $out, 'chars' => $c);
+    }
+
+    public function warmup()
+    {
+        $this->is_allowed('setting_bahasa_admin_warmup');
+
+        $lock = $this->_cache_driver()->get('setting_bahasa_warmup_lock');
+        $this->data['lock_ada'] = !empty($lock);
+        $this->data['endpoint_opt'] = $this->_warmup_endpoints();
+        $this->data['wave_opt'] = array('1a' => 'Gelombang 1a (teks)', '1b' => 'Gelombang 1b (HTML)', '2' => 'Gelombang 2 (label & master)');
+        $this->data['bahasa_opt'] = $this->daftar_bahasa();
+        $this->data['max_chars_default'] = 5000;
+        $this->data['max_chars_cap'] = (int) translator_cfg('translator_warmup_web_max_chars', 20000);
+        $this->data['limit'] = (int) translator_cfg('translator_monthly_char_limit', 500000);
+
+        $this->template->title('Warm-up Cache Terjemahan');
+        $this->render('backend/standart/administrator/setting_bahasa/warmup_list', $this->data);
+    }
+
+    private function _warmup_json($arr)
+    {
+        $this->output->enable_profiler(FALSE); // output JSON murni (bukan HTML)
+        $this->output->set_content_type('application/json')->set_output(json_encode($arr));
+    }
+
+    /**
+     * Audit warm-up: log_message('info') TIDAK terekam karena log_threshold=1
+     * (hanya ERROR) — di lokal maupun produksi. Pakai level error dgn prefix
+     * 'AUDIT' agar benar-benar terekam & gampang difilter. Tanpa isi teks.
+     */
+    private function _log_warmup($msg)
+    {
+        log_message('error', 'AUDIT warmup_bahasa: user_id=' . $this->aauth->get_user_id() . ' ' . $msg);
+    }
+
+    private function _warmup_cek_csrf()
+    {
+        $token = (string) $this->input->post('translator_csrf');
+        $sess = $this->session->userdata('translator_csrf');
+        if (!$token || !$sess || !hash_equals($sess, $token)) {
+            $this->_warmup_json(array('ok' => false, 'err' => 'Token keamanan tidak valid. Muat ulang halaman.'));
+            return false;
+        }
+        return true;
+    }
+
+    private function _warmup_bahasa_valid()
+    {
+        $lang = trim((string) $this->input->post('lang'));
+        $bahasa = $this->config->item('bahasa');
+        if ($lang === '' || $lang === 'id' || !isset($bahasa[$lang])) {
+            $this->_warmup_json(array('ok' => false, 'err' => 'Bahasa tidak valid (pilih bahasa target, bukan "id").'));
+            return null;
+        }
+        return $lang;
+    }
+
+    /** Tombol "Hitung" (dry-run, TANPA DeepL). POST: endpoint|wave, lang. */
+    public function warmup_hitung()
+    {
+        if (!$this->is_allowed('setting_bahasa_admin_warmup', false)) {
+            $this->_warmup_json(array('ok' => false, 'err' => 'Akses ditolak: izin setting_bahasa_admin_warmup diperlukan.'));
+            return;
+        }
+        if (!$this->_warmup_cek_csrf()) return;
+        $lang = $this->_warmup_bahasa_valid();
+        if ($lang === null) return;
+        $scope = $this->_warmup_scope();
+        if (isset($scope['err'])) { $this->_warmup_json(array('ok' => false, 'err' => $scope['err'])); return; }
+
+        $k = $this->_warmup_kumpulkan($scope['mode'], $scope['kunci']);
+        $stat = array('teks' => array('n' => 0, 'c' => 0), 'html' => array('n' => 0, 'c' => 0));
+        $total_c = 0;
+        foreach ($k['semua'] as $txt => $tipe) {
+            if (!isset($stat[$tipe])) $stat[$tipe] = array('n' => 0, 'c' => 0);
+            $stat[$tipe]['n']++;
+            $stat[$tipe]['c'] += strlen($txt);
+            $total_c += strlen($txt);
+        }
+        $sisa = $this->_warmup_sisa($k['semua'], $lang);
+        $sisa_c = 0;
+        foreach ($sisa as $it) $sisa_c += strlen($it['text']);
+
+        $this->_warmup_json(array(
+            'ok' => true,
+            'scope' => $scope,
+            'lang' => $lang,
+            'per_tipe' => $stat,
+            'total_n' => count($k['semua']),
+            'total_c' => $total_c,
+            'belum_n' => count($sisa),
+            'belum_c' => $sisa_c,
+            'sumber_err' => $k['err'],
+            'kosong' => empty($k['semua']),
+        ));
+    }
+
+    /**
+     * Eksekusi bertahap. POST: aksi=mulai|langkah|henti, endpoint|wave, lang, max_chars, token.
+     * Tiap request memproses SATU potongan (maks 20 string / 4.000 char / 20 detik,
+     * mana yang lebih dulu) lewat pipeline Translator yang sama (normalisasi, hash,
+     * tipe, tag_handling), lalu mengembalikan progres; frontend mengulang sampai
+     * selesai atau Berhenti ditekan. String yang sudah di cache dilewati (resumable).
+     */
+    public function warmup_jalankan()
+    {
+        if (!$this->is_allowed('setting_bahasa_admin_warmup', false)) {
+            $this->_warmup_json(array('ok' => false, 'err' => 'Akses ditolak: izin setting_bahasa_admin_warmup diperlukan.'));
+            return;
+        }
+        if (!$this->_warmup_cek_csrf()) return;
+        $lang = $this->_warmup_bahasa_valid();
+        if ($lang === null) return;
+        $aksi = (string) $this->input->post('aksi');
+        $drv = $this->_cache_driver();
+
+        if ($aksi === 'henti') {
+            $drv->delete('setting_bahasa_warmup_state');
+            $drv->delete('setting_bahasa_warmup_lock');
+            $this->_log_warmup('henti');
+            $this->_warmup_json(array('ok' => true, 'status' => 'dihentikan'));
+            return;
+        }
+
+        if ($aksi === 'mulai') {
+            $scope = $this->_warmup_scope();
+            if (isset($scope['err'])) { $this->_warmup_json(array('ok' => false, 'err' => $scope['err'])); return; }
+
+            if (!empty($drv->get('setting_bahasa_warmup_lock'))) {
+                $this->_warmup_json(array('ok' => false, 'err' => 'Masih ada sesi warm-up berjalan (lock aktif). Tunggu selesai atau tekan Berhenti.'));
+                return;
+            }
+            if (translator_env('DEEPL_API_KEY') === '') {
+                $this->_warmup_json(array('ok' => false, 'err' => 'DEEPL_API_KEY kosong di .env — warm-up tidak bisa dijalankan.'));
+                return;
+            }
+            $cap = (int) translator_cfg('translator_warmup_web_max_chars', 20000);
+            $max_chars = (int) $this->input->post('max_chars');
+            if ($max_chars <= 0) $max_chars = 5000;
+            if ($max_chars > $cap) $max_chars = $cap;
+
+            $k = $this->_warmup_kumpulkan($scope['mode'], $scope['kunci']);
+            if (empty($k['semua'])) {
+                $this->_warmup_json(array('ok' => false, 'err' => 'Tidak ada string ditemukan utk scope ini (tabel sumber kosong / tidak terbaca).'));
+                return;
+            }
+            $sisa = $this->_warmup_sisa($k['semua'], $lang);
+            $pot = $this->_warmup_potong_anggaran($sisa, $max_chars);
+            if (empty($pot['items'])) {
+                $this->_warmup_json(array('ok' => true, 'status' => 'selesai', 'done' => true, 'msg' => 'Semua string sudah tercover kamus/override/cache atau melebihi anggaran. Tidak ada yang diterjemahkan.', 'url_cache' => site_url('administrator/setting_bahasa/cache')));
+                return;
+            }
+
+            $token = bin2hex(random_bytes(8));
+            $state = array(
+                'token' => $token,
+                'mode' => $scope['mode'],
+                'kunci' => $scope['kunci'],
+                'lang' => $lang,
+                'max_chars' => $max_chars,
+                'sisa' => $pot['items'],
+                'total_n' => count($pot['items']),
+                'total_c' => $pot['chars'],
+                'processed_n' => 0,
+                'processed_c' => 0,
+                'deepl_chars' => 0,
+                'deepl_billed' => 0,
+                'gagal' => 0,
+                'mulai' => date('Y-m-d H:i:s'),
+            );
+            $drv->save('setting_bahasa_warmup_state', $state, 600);
+            $drv->save('setting_bahasa_warmup_lock', array('token' => $token, 'user' => $this->aauth->get_user_id(), 'mulai' => time()), 120);
+            $this->_log_warmup('mulai ' . $scope['mode'] . '=' . $scope['kunci'] . ' lang=' . $lang . ' strings=' . count($pot['items']) . ' chars=' . $pot['chars']);
+
+            $this->_warmup_json(array(
+                'ok' => true, 'status' => 'jalan', 'token' => $token, 'done' => false,
+                'sisa_n' => count($pot['items']), 'total_n' => count($pot['items']),
+                'processed_n' => 0, 'total_c' => $pot['chars'], 'processed_c' => 0, 'deepl_chars' => 0,
+            ));
+            return;
+        }
+
+        // ---- aksi = langkah (satu potongan) ----
+        $state = $drv->get('setting_bahasa_warmup_state');
+        if (!is_array($state) || (empty($state['sisa']) && empty($state['total_n']))) {
+            $this->_warmup_json(array('ok' => false, 'err' => 'Tidak ada sesi warm-up aktif (kedaluwarsa). Klik Jalankan lagi — aman karena yang sudah di cache dilewati.'));
+            return;
+        }
+        $token = (string) $this->input->post('token');
+        if ($token === '' || !hash_equals((string) $state['token'], $token)) {
+            $this->_warmup_json(array('ok' => false, 'err' => 'Sesi warm-up dipegang proses lain. Muat ulang halaman.'));
+            return;
+        }
+        if (empty($state['sisa'])) {
+            $drv->delete('setting_bahasa_warmup_lock');
+            $this->_warmup_json($this->_warmup_ringkasan($state, true));
+            return;
+        }
+
+        // hormati circuit breaker
+        if (translator_breaker_is_open()) {
+            $drv->delete('setting_bahasa_warmup_lock');
+            $this->_warmup_json(array('ok' => true, 'status' => 'jeda', 'alasan' => 'Circuit breaker terbuka (DeepL gagal berulang). Tunggu sebentar lalu klik Jalankan lagi.', 'done' => false));
+            return;
+        }
+        // DeepL key
+        if (translator_env('DEEPL_API_KEY') === '') {
+            $drv->delete('setting_bahasa_warmup_lock');
+            $this->_warmup_json(array('ok' => true, 'status' => 'berhenti', 'alasan' => 'DEEPL_API_KEY kosong.', 'done' => false));
+            return;
+        }
+        // kuota: berhenti bila billed bulan berjalan akan melewati 90% limit
+        $limit = (int) translator_cfg('translator_monthly_char_limit', 500000);
+        $u = translator_safe_query(
+            "SELECT jumlah_karakter FROM translation_usage_bulanan WHERE bulan = DATE_FORMAT(NOW(), '%Y-%m') AND penyedia = 'deepl' LIMIT 1",
+            array(), 'row', null);
+        $pakai = ($u && isset($u->jumlah_karakter)) ? (int) $u->jumlah_karakter : 0;
+        $est_chunk = 0; $n_chunk = 0;
+        foreach ($state['sisa'] as $it) {
+            if ($n_chunk >= $this->warmup_chunk_strings || $est_chunk + strlen($it['text']) > $this->warmup_chunk_chars) break;
+            $est_chunk += strlen($it['text']); $n_chunk++;
+        }
+        if ($limit > 0 && ($pakai + $est_chunk) > floor($limit * 0.9)) {
+            $drv->delete('setting_bahasa_warmup_lock');
+            $this->_warmup_json(array('ok' => true, 'status' => 'berhenti', 'alasan' => 'Kuota DeepL bulan ini akan melewati 90% limit (terpakai ' . $pakai . '/' . $limit . '). Sisa string bisa dilanjutkan nanti.', 'done' => false));
+            return;
+        }
+
+        // ambil satu potongan
+        $chunk = array(); $c_chunk = 0;
+        $t0 = microtime(true);
+        while (!empty($state['sisa'])) {
+            if (count($chunk) >= $this->warmup_chunk_strings) break;
+            $it = $state['sisa'][0];
+            if ($c_chunk + strlen($it['text']) > $this->warmup_chunk_chars) break;
+            if ((microtime(true) - $t0) > $this->warmup_chunk_seconds) break;
+            $chunk[] = $it;
+            array_shift($state['sisa']);
+            $c_chunk += strlen($it['text']);
+        }
+
+        // pipeline Translator yang SAMA (timeout = anggaran potongan);
+        // warm-up independen kill-switch translator_enabled
+        $this->config->set_item('translator_enabled', TRUE);
+        $this->config->set_item('translator_deepl_total_timeout', $this->warmup_chunk_seconds);
+        $this->config->set_item('translator_time_budget', (float) $this->warmup_chunk_seconds);
+        $this->translator->translate_strings($chunk, $state['lang']);
+        $st = $this->translator->get_last_stats();
+
+        $state['processed_n'] += count($chunk);
+        $state['processed_c'] += $c_chunk;
+        $state['deepl_chars'] += (int) $st['deepl_chars'];
+        $state['deepl_billed'] += (int) $st['deepl_billed'];
+        $state['gagal'] += (int) $st['asli_gagal'];
+
+        $done = empty($state['sisa']);
+        if ($done) {
+            $drv->save('setting_bahasa_warmup_state', $state, 600);
+            $drv->delete('setting_bahasa_warmup_lock');
+            $this->_log_warmup('selesai ' . $state['mode'] . '=' . $state['kunci'] . ' lang=' . $state['lang'] . ' strings=' . $state['processed_n'] . ' chars=' . $state['processed_c'] . ' deepl_billed=' . $state['deepl_billed']);
+        } else {
+            $drv->save('setting_bahasa_warmup_state', $state, 600);
+            $drv->save('setting_bahasa_warmup_lock', array('token' => $state['token'], 'user' => $this->aauth->get_user_id(), 'mulai' => time()), 120);
+        }
+        $this->_warmup_json($this->_warmup_ringkasan($state, $done));
+    }
+
+    private function _warmup_ringkasan($state, $done)
+    {
+        $out = array(
+            'ok' => true,
+            'status' => $done ? 'selesai' : 'jalan',
+            'done' => $done,
+            'sisa_n' => count($state['sisa']),
+            'total_n' => (int) $state['total_n'],
+            'processed_n' => (int) $state['processed_n'],
+            'total_c' => (int) $state['total_c'],
+            'processed_c' => (int) $state['processed_c'],
+            'deepl_chars' => (int) $state['deepl_chars'],
+            'deepl_billed' => (int) $state['deepl_billed'],
+            'gagal' => (int) $state['gagal'],
+        );
+        if ($done) {
+            $out['msg'] = 'Warm-up selesai: ' . (int) $state['processed_n'] . ' string / ' . (int) $state['processed_c'] . ' karakter diproses; DeepL billed ' . (int) $state['deepl_billed'] . ' karakter; gagal ' . (int) $state['gagal'] . '.';
+            $out['url_cache'] = site_url('administrator/setting_bahasa/cache');
+        }
+        return $out;
     }
 }

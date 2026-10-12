@@ -6,14 +6,16 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * CLI ONLY (HTTP 404).
  *
  * Pemakaian:
- *   php tool/run_cli.php tools/translator_warmup --wave=1a --lang=en-GB            (DRY-RUN)
- *   php tool/run_cli.php tools/translator_warmup --wave=2 --lang=en-GB --execute --max-chars=1500
+ *   php tool/run_cli.php tools/translator_warmup wave/1a lang/en-GB            (DRY-RUN)
+ *   php tool/run_cli.php tools/translator_warmup wave/2 lang/en-GB execute max-chars/1500
+ *   php tool/run_cli.php tools/translator_warmup endpoint/root/visi_misi/GET lang/en-GB execute max-chars/8000
  *
- * --execute menerjemahkan string bersama=true gelombang itu lewat pipeline
- * Translator yang SAMA (normalisasi, hash prefix tipe, batch DeepL, INSERT
- * IGNORE cache) dgn timeout lebih panjang (translator_warmup_timeout).
- * Dry-run default: hanya menghitung string & karakter yang BELUM ada di
- * kamus/override/cache.
+ * --endpoint (segmen: endpoint/<kunci whitelist>) hanya memproses string
+ * path whitelist aktif bersama=TRUE milik endpoint itu; kombinasi dgn
+ * lang & max-chars tetap berlaku. Kunci tidak ada di whitelist aktif atau
+ * tanpa path bersama=true -> ditolak. Execute eksplisit; default DRY-RUN.
+ * Dry-run menampilkan jumlah string, panjang karakter, tipe & total — tanpa
+ * isi teks.
  */
 class Translator_warmup extends MX_Controller {
 
@@ -31,20 +33,19 @@ class Translator_warmup extends MX_Controller {
     public function index()
     {
         // argumen via segmen URI key/value: tools/translator_warmup/wave/2/lang/en-GB/execute/max-chars/1500
-        // (CI URI filter menolak '=' dan '--')
-        $args = array();
-        $segs = $this->uri->segment_array();
-        // buang segmen awal (tools, translator_warmup, index)
-        $segs = array_slice($segs, 3);
-        for ($i = 0; $i < count($segs); $i += 2) {
-            $args[$segs[$i]] = isset($segs[$i + 1]) ? $segs[$i + 1] : true;
-        }
+        // nilai greedy 'endpoint' menyerap segmen berikutnya (kunci mengandung '/')
+        $args = translator_cli_args(
+            array_slice($this->uri->segment_array(), 3),
+            array('wave', 'lang', 'endpoint', 'max-chars'),
+            array('endpoint')
+        );
         $wave = isset($args['wave']) ? $args['wave'] : '1a';
         $lang = isset($args['lang']) ? $args['lang'] : 'en-GB';
         $execute = !empty($args['execute']);
         $maxChars = isset($args['max-chars']) ? (int) $args['max-chars'] : 0;
+        $endpoint = (isset($args['endpoint']) && $args['endpoint'] !== '') ? $args['endpoint'] : null;
 
-        if (!in_array($wave, array('1a', '1b', '2', '3'), true)) {
+        if ($endpoint === null && !in_array($wave, array('1a', '1b', '2', '3'), true)) {
             exit("wave tidak valid: {$wave} (1a|1b|2|3)\n");
         }
         $bahasa = $this->config->item('bahasa');
@@ -52,10 +53,34 @@ class Translator_warmup extends MX_Controller {
             exit("lang tidak valid: {$lang}\n");
         }
 
-        echo "warm-up wave={$wave} lang={$lang} mode=" . ($execute ? 'EXECUTE' : 'DRY-RUN') . "\n";
+        // 0) validasi endpoint (hanya bila dipakai)
+        if ($endpoint !== null) {
+            $spec = $this->translator->whitelist->endpoint_aktif($endpoint);
+            if ($spec === null) {
+                exit("endpoint tidak ada di whitelist aktif (atau seluruhnya excluded): {$endpoint}\n");
+            }
+            $ada_bersama = false;
+            foreach ($spec as $meta) {
+                if (is_array($meta) && !empty($meta['bersama'])) { $ada_bersama = true; break; }
+            }
+            if (!$ada_bersama) {
+                exit("endpoint tidak punya path whitelist bersama=true: {$endpoint}\n");
+            }
+        }
+
+        echo "warm-up " . ($endpoint !== null ? "endpoint={$endpoint}" : "wave={$wave}") . " lang={$lang} mode=" . ($execute ? 'EXECUTE' : 'DRY-RUN') . "\n";
 
         // 1) kumpulkan string sumber (tipe dipertahankan)
-        $sources = translator_wave_sources($wave);
+        if ($endpoint !== null) {
+            $queries = translator_endpoint_sources($endpoint);
+            if (empty($queries)) {
+                echo "endpoint ini tidak dipetakan di helper sumber (translator_sources_helper) — tidak ada string.\n";
+                return;
+            }
+            $sources = array($endpoint => $queries);
+        } else {
+            $sources = translator_wave_sources($wave);
+        }
         $semua = array(); // teks => tipe
         $per_endpoint = array();
         foreach ($sources as $endpoint => $queries) {
@@ -68,6 +93,20 @@ class Translator_warmup extends MX_Controller {
             $per_endpoint[$endpoint] = array('unik' => $n, 'chars' => $c, 'err' => $f['err']);
         }
         echo "sumber: " . count($semua) . " string unik\n";
+
+        // 1b) rincian per tipe (teks/html) utk dry-run endpoint
+        if ($endpoint !== null) {
+            $tipe_stat = array();
+            foreach ($semua as $txt => $tipe) {
+                if (!isset($tipe_stat[$tipe])) $tipe_stat[$tipe] = array('n' => 0, 'c' => 0);
+                $tipe_stat[$tipe]['n']++;
+                $tipe_stat[$tipe]['c'] += strlen($txt);
+            }
+            ksort($tipe_stat);
+            foreach ($tipe_stat as $t => $s) {
+                echo sprintf("   tipe %-5s unik=%-5d chars=%d\n", $t, $s['n'], $s['c']);
+            }
+        }
 
         // 2) kurangi yang sudah tercover kamus/override/cache
         $kamus = $this->translator->kamus->load($lang);
@@ -98,7 +137,14 @@ class Translator_warmup extends MX_Controller {
         echo "sudah tercover (kamus/override/cache): {$covered} string / {$covered_chars} char\n";
         echo "BELUM tercover: " . count($baru) . " string / {$chars_baru} char\n";
         foreach ($per_endpoint as $ep => $info) {
-            echo sprintf("   %-34s unik=%-5d chars=%-7d %s\n", $ep, $info['unik'], $info['chars'], $info['err'] ? '[tabel tidak terbaca]' : '');
+            if ($info['unik'] === 0 && $info['err']) {
+                echo "   {$ep}: tabel sumber TIDAK TERBACA / kosong di database ini\n";
+                continue;
+            }
+            echo sprintf("   %-34s unik=%-5d chars=%-7d %s\n", $ep, $info['unik'], $info['chars'], $info['err'] ? '[sebagian tabel tidak terbaca]' : '');
+        }
+        if (empty($semua)) {
+            echo "TIDAK ADA string ditemukan (tabel sumber kosong di database lokal / semua tak terbaca). Tidak ada yang diproses.\n";
         }
 
         if (!$execute) {

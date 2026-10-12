@@ -25,6 +25,10 @@ SELECT 'setting_bahasa_admin_delete', 'Switch bahasa: hapus override'
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM aauth_perms WHERE name = 'setting_bahasa_admin_delete');
 
 INSERT INTO aauth_perms (name, definition)
+SELECT 'setting_bahasa_admin_warmup', 'Switch bahasa: halaman Warm-up (isi cache admin)'
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM aauth_perms WHERE name = 'setting_bahasa_admin_warmup');
+
+INSERT INTO aauth_perms (name, definition)
 SELECT 'menu_pengaturan_bahasa', 'Menu Pengaturan Bahasa'
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM aauth_perms WHERE name = 'menu_pengaturan_bahasa');
 
@@ -36,7 +40,7 @@ JOIN aauth_groups g ON g.name = 'Admin' AND g.definition = 'Superadmin Group'
 WHERE p.name IN (
   'setting_bahasa_admin_view','setting_bahasa_admin_add',
   'setting_bahasa_admin_update','setting_bahasa_admin_delete',
-  'menu_pengaturan_bahasa')
+  'setting_bahasa_admin_warmup','menu_pengaturan_bahasa')
 AND NOT EXISTS (
   SELECT 1 FROM aauth_perm_to_group x
   WHERE x.perm_id = p.id AND x.group_id = g.id);
@@ -56,10 +60,11 @@ JOIN aauth_groups g ON g.name = 'Admin' AND g.definition = 'Superadmin Group'
 WHERE p.name = 'menu_pengaturan_bahasa'
 AND NOT EXISTS (SELECT 1 FROM aauth_perm_to_group x WHERE x.perm_id = p.id AND x.group_id = g.id);
 
--- ---- verifikasi (hasil diharapkan: 5 perm, 6 assignment group Admin, 1 menu)
+-- ---- verifikasi (hasil diharapkan: 6 perm, 7 assignment group Admin, 1 menu)
 SELECT name FROM aauth_perms WHERE name IN (
   'setting_bahasa_admin_view','setting_bahasa_admin_add',
-  'setting_bahasa_admin_update','setting_bahasa_admin_delete','menu_pengaturan_bahasa');
+  'setting_bahasa_admin_update','setting_bahasa_admin_delete',
+  'setting_bahasa_admin_warmup','menu_pengaturan_bahasa');
 
 SELECT p.name AS perm, gp.group_id
 FROM aauth_perms p

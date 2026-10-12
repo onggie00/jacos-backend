@@ -42,6 +42,8 @@ $config['translator_allow_lang_header'] = FALSE;
 
 // ---- Warm-up (fase 7b) ----
 $config['translator_warmup_timeout'] = 30; // detik per request DeepL saat warm-up
+// Halaman Warm-up (modul admin): batas keras karakter per sesi eksekusi web.
+$config['translator_warmup_web_max_chars'] = 20000;
 
 // ---- Perlindungan timeout & tagihan ganda ----
 // DeepL gagal/timeout utk sebuah string -> hash-nya di CI cache selama N menit;

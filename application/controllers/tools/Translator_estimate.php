@@ -5,12 +5,11 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * tools/Translator_estimate — estimasi karakter DeepL per gelombang rollout.
  * CLI ONLY. HANYA membaca data lokal (tanpa DeepL, tanpa menulis).
  *
- * Gelombang (definisi di helpers/translator_sources_helper.php):
- *   1a = konten admin bersama tipe TEKS
- *   1b = konten admin bersama tipe HTML
- *   2  = label & master data
- *   3  = sisanya non-push (dinamis; estimasi kasar)
- *
+ * Pemakaian:
+ *   php tool/run_cli.php tools/translator_estimate
+ *   php tool/run_cli.php tools/translator_estimate endpoint/root/visi_misi/GET
+ *     -> hanya endpoint itu (string path whitelist aktif bersama=true).
+ * HANYA membaca data lokal (tanpa DeepL, tanpa menulis).
  * CATATAN: angka dari data LOKAL — bisa berbeda dari produksi; metode
  * konservatif (belum dikurangi overlap kamus/override/cache per string).
  */
@@ -28,6 +27,13 @@ class Translator_estimate extends MX_Controller {
 
     public function index()
     {
+        $args = translator_cli_args(
+            array_slice($this->uri->segment_array(), 3),
+            array('wave', 'lang', 'endpoint'),
+            array('endpoint')
+        );
+        $endpoint = (isset($args['endpoint']) && $args['endpoint'] !== '') ? $args['endpoint'] : null;
+
         $limit = (int) translator_cfg('translator_monthly_char_limit', 500000);
         $usage = translator_safe_query(
             "SELECT jumlah_karakter FROM translation_usage_bulanan WHERE bulan = DATE_FORMAT(NOW(), '%Y-%m') AND penyedia = 'deepl' LIMIT 1",
@@ -36,6 +42,45 @@ class Translator_estimate extends MX_Controller {
 
         echo "=== ESTIMASI KARAKTER DEEPL (data LOKAL, perkiraan) ===\n";
         echo "limit bulanan: {$limit} | terpakai bulan ini: {$terpakai} | sisa: " . max(0, $limit - $terpakai) . "\n\n";
+
+        // mode endpoint tunggal: validasi whitelist + rincian per tipe
+        if ($endpoint !== null) {
+            $this->load->library('Translator');
+            $spec = $this->translator->whitelist->endpoint_aktif($endpoint);
+            if ($spec === null) {
+                exit("endpoint tidak ada di whitelist aktif (atau seluruhnya excluded): {$endpoint}\n");
+            }
+            $ada_bersama = false;
+            foreach ($spec as $meta) {
+                if (is_array($meta) && !empty($meta['bersama'])) { $ada_bersama = true; break; }
+            }
+            if (!$ada_bersama) {
+                exit("endpoint tidak punya path whitelist bersama=true: {$endpoint}\n");
+            }
+            $queries = translator_endpoint_sources($endpoint);
+            if (empty($queries)) {
+                echo "endpoint ini tidak dipetakan di helper sumber (translator_sources_helper).\n";
+                return;
+            }
+            echo "-- Endpoint {$endpoint}\n";
+            $f = translator_fetch_strings($queries);
+            if ($f['err']) echo "   (perhatian: sebagian tabel sumber tidak terbaca / kosong)\n";
+            $tipe_stat = array();
+            foreach ($f['strings'] as $txt => $tipe) {
+                if (!isset($tipe_stat[$tipe])) $tipe_stat[$tipe] = array('n' => 0, 'c' => 0);
+                $tipe_stat[$tipe]['n']++;
+                $tipe_stat[$tipe]['c'] += strlen($txt);
+            }
+            ksort($tipe_stat);
+            foreach ($tipe_stat as $t => $s) {
+                echo sprintf("   tipe %-5s unik=%-5d chars=%d\n", $t, $s['n'], $s['c']);
+            }
+            $total_chars = 0;
+            foreach ($tipe_stat as $s) $total_chars += $s['c'];
+            echo sprintf("   TOTAL endpoint: %d string unik / %d karakter\n", count($f['strings']), $total_chars);
+            echo "CATATAN: data lokal bisa berbeda dari produksi (angka kasar).\n";
+            return;
+        }
 
         $total_semua = 0;
         foreach (array('1a', '1b', '2', '3') as $wave) {
