@@ -55,7 +55,7 @@ class Export_pdf_siswa extends REST_Controller {
           else{
             $no_peserta = $data->no_peserta;
           }
-          $logo = FCPATH . "/uploads/logo_labschool.png";
+          $logo = FCPATH . "/uploads/image_assets/logo_jacos_horizontal.png";
           //eksport pdf
           $pdf = new FPDF('L', 'mm','A4');
           $pdf->AddPage();

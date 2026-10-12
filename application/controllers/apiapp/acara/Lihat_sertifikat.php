@@ -90,7 +90,7 @@ class Lihat_sertifikat extends MY_Controller {
             );
             $jenjang = isset($jenjang_map[$role]) ? $jenjang_map[$role] : '';
             if (!empty($jenjang)) {
-                $datas['nama_instansi'] = strtoupper($jenjang) . ' LABSCHOOL CIBUBUR';
+                $datas['nama_instansi'] = strtoupper($jenjang) . ' JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
             }
         }
 

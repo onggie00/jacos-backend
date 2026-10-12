@@ -29,8 +29,14 @@ class Profile extends REST_Controller {
       if (!empty($token) && !empty($role)) {
         //get user
         if ($role == "sd") {
-          $user = $this->mymodel->withquery("select id_siswa_sd, nama_lengkap,foto_peserta from siswa_sd where token = '".$token."'","row");
+          $user = $this->mymodel->withquery("select id_siswa_sd, nama_lengkap,foto_peserta,email_ms_office from siswa_sd where token = '".$token."'","row");
           $user->foto_peserta=base_url('uploads/siswa_sd/').$user->foto_peserta;
+          // [JACOS] bahasa terpilih user utk aplikasi (fase 7)
+          if (!empty($user->email_ms_office)) {
+            $CI = &get_instance();
+            $CI->load->model('Setting_bahasa_model');
+            $user->selected_language = $CI->Setting_bahasa_model->get_kode_bahasa($user->email_ms_office, 'siswa');
+          }
         }
 
       }

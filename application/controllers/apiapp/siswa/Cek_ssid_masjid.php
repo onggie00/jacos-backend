@@ -32,7 +32,7 @@ class Cek_ssid_masjid extends REST_Controller {
           $status="200";
         }
         else{
-          //$msg = array('status' => 1, 'message'=>'SSID tidak ditemukan, namun berhasil melakukan pengecekan' ,'data'=>array("nama_ssid" =>"Labschool Cibubur WIFI", "id_pengaturan" =>"1") );
+          //$msg = array('status' => 1, 'message'=>'SSID tidak ditemukan, namun berhasil melakukan pengecekan' ,'data'=>array("nama_ssid" =>"JAKARTA COSMOPOLITE ISLAMIC SCHOOL WIFI", "id_pengaturan" =>"1") );
           $msg = array('status' => 0, 'message'=>'SSID tidak ditemukan' ,'data'=>array());
           $status="200";
         }

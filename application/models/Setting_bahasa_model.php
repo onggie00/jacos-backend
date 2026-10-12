@@ -321,6 +321,44 @@ class Setting_bahasa_model extends CI_Model {
     }
 
     /**
+     * Kode bahasa berdasarkan npp + nama tabel role (Home_notification).
+     * Tipe_user dibatasi allowlist agar query tabel aman.
+     * Gagal / tidak ketemu => 'id'.
+     */
+    public function kode_bahasa_by_npp($npp, $tipe_user)
+    {
+        $memo_npp =& $this->kode_memo; // memo per-request (instance)
+        $npp = trim((string) $npp);
+        $tipe = strtolower(trim((string) $tipe_user));
+        $key = $tipe . '|' . $npp;
+        if (isset($memo_npp[$key])) {
+            return $memo_npp[$key];
+        }
+        $kode = self::DEFAULT_KODE;
+        $izin = array('guru_sd' => 'guru', 'guru_smp' => 'guru', 'guru_sma' => 'guru',
+                      'guru_ft' => 'guru', 'pegawai' => 'pegawai',
+                      'pimpinan_sd' => 'pimpinan', 'pimpinan_smp' => 'pimpinan',
+                      'pimpinan_sma' => 'pimpinan');
+        if ($npp !== '' && isset($izin[$tipe])) {
+            try {
+                $row = translator_safe_query(
+                    "SELECT email_ms_office FROM {$tipe} WHERE npp = ? AND deleted_at IS NULL LIMIT 1",
+                    array($npp), 'row', null);
+                if (!empty($row) && !empty($row->email_ms_office)) {
+                    $kode = $this->get_kode_bahasa($row->email_ms_office, $izin[$tipe]);
+                } else {
+                }
+            } catch (Throwable $e) {
+                log_message('error', 'kode_bahasa_by_npp gagal: ' . substr($e->getMessage(), 0, 100));
+            } catch (Exception $e) {
+                log_message('error', 'kode_bahasa_by_npp gagal: ' . substr($e->getMessage(), 0, 100));
+            }
+        }
+        $memo_npp[$key] = $kode;
+        return $kode;
+    }
+
+    /**
      * Kode bahasa user, dengan memo per-request (dipakai fase translate agar
      * tidak query berulang). Error / row tidak ada => kembalikan default 'id',
      * tidak melempar error.

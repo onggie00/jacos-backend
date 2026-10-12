@@ -36,6 +36,18 @@ class Detail_pegawai extends REST_Controller {
           $data->id_mapel="";
         }
         if (!empty($data)) {
+          // [JACOS] bahasa terpilih user utk aplikasi (fase 7)
+          $tok = '';
+          foreach (getallheaders() as $hk => $hv) { if (strtolower($hk) === 'x-token') { $tok = trim($hv); break; } }
+          $this->load->helper('bahasa_token_helper');
+          $this->load->helper('translator_safe_db');
+          $this->load->config('translator');
+          $auth = validate_akun_bahasa_token($tok, 'pegawai', (bool) translator_cfg('translator_language_check_expiry', false));
+          $data->selected_language = 'id';
+          if (!empty($auth['valid']) && !empty($auth['data']->email_ms_office)) {
+            $this->load->model('Setting_bahasa_model');
+            $data->selected_language = $this->Setting_bahasa_model->get_kode_bahasa($auth['data']->email_ms_office, 'pegawai');
+          }
           $msg = array('status' => 1, 'message'=>'Berhasil ambil data' ,'data'=>$data);
           $status="200";
         }

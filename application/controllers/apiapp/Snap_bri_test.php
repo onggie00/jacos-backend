@@ -50,7 +50,7 @@ class Snap_bri_test extends REST_Controller {
             "trxId" => "TSLC ".$customerNo,
             "totalAmount" => $total_amount,
             "expiredDate" => date('Y-m-d\TH:i:s', strtotime('+1 day'))."+07:00",
-            "additionalInfo" =>  "Tagihan Sandbox Labschool Cibubur ".$customerNo,
+            "additionalInfo" =>  "Tagihan Sandbox JAKARTA COSMOPOLITE ISLAMIC SCHOOL ".$customerNo,
             "token" => $token['accessToken']
         );
         $data = $this->create_va($data_req);

@@ -80,7 +80,7 @@ class Snap_create_va extends MY_Snap_bri
         $virtualAccountNo   = isset($input['virtualAccountNo'])   ? $input['virtualAccountNo']   : ($partnerServiceId . $customerNo);
         $trxId              = isset($input['trxId'])              ? $input['trxId']              : ('TSLC ' . $customerNo);
         $expiredDate        = isset($input['expiredDate'])        ? $input['expiredDate']        : date('Y-m-d\TH:i:s', strtotime('+1 day')) . '+07:00';
-        $additionalInfo     = isset($input['additionalInfo'])     ? $input['additionalInfo']     : ('Tagihan Sandbox Labschool Cibubur ' . $customerNo);
+        $additionalInfo     = isset($input['additionalInfo'])     ? $input['additionalInfo']     : ('Tagihan Sandbox JAKARTA COSMOPOLITE ISLAMIC SCHOOL ' . $customerNo);
 
         // Step 1: ambil token BRI
         $tokenResp = $this->fetchAccessToken();

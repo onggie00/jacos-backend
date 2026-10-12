@@ -63,6 +63,19 @@ class Detail_pimpinan extends REST_Controller {
         }
 
         if (!empty($data)) {
+          // [JACOS] bahasa terpilih user utk aplikasi (fase 7)
+          $tok = '';
+          foreach (getallheaders() as $hk => $hv) { if (strtolower($hk) === 'x-token') { $tok = trim($hv); break; } }
+          $this->load->helper('bahasa_token_helper');
+          $this->load->helper('translator_safe_db');
+          $this->load->helper('pimpinan_token');
+          $this->load->config('translator');
+          $auth = validate_pimpinan_token($tok, (bool) translator_cfg('translator_language_check_expiry', false));
+          $data->selected_language = 'id';
+          if (!empty($auth['valid']) && !empty($auth['data']->email_ms_office)) {
+            $this->load->model('Setting_bahasa_model');
+            $data->selected_language = $this->Setting_bahasa_model->get_kode_bahasa($auth['data']->email_ms_office, 'pimpinan');
+          }
           $msg = array('status' => 1, 'message'=>'Berhasil ambil data' ,'data'=>$data);
           $status="200";
         }

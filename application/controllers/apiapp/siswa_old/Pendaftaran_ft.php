@@ -356,7 +356,7 @@ class Pendaftaran_ft extends REST_Controller {
                   "tipe_pendaftaran" => "PSB FT",
                   "jenjang" => "FT",
                   "transaksi" => $get_transaksi,
-                  "nama_panitia" => "Panitia PSB FT Labschool Cibubur ".date("Y", strtotime("+1 years"))."-".date("Y", strtotime("+2 years")),
+                  "nama_panitia" => "Panitia PSB FT JAKARTA COSMOPOLITE ISLAMIC SCHOOL ".date("Y", strtotime("+1 years"))."-".date("Y", strtotime("+2 years")),
                   "slip_pembayaran" => $no_transaksi.'-'.$this->post("nama_lengkap").'.pdf',
                 );
                 $this->send_email_file("",$data_email['email'],$data_email);
@@ -637,7 +637,7 @@ class Pendaftaran_ft extends REST_Controller {
         //           "tipe_pendaftaran" => "PSB FT",
         //           "jenjang" => "FT",
         //           "transaksi" => $get_transaksi,
-        //           "nama_panitia" => "Panitia PSB FT Labschool Cibubur ".date("Y", strtotime("+1 years"))."-".date("Y", strtotime("+2 years")),
+        //           "nama_panitia" => "Panitia PSB FT JAKARTA COSMOPOLITE ISLAMIC SCHOOL ".date("Y", strtotime("+1 years"))."-".date("Y", strtotime("+2 years")),
         //           "slip_pembayaran" => $no_transaksi.'-'.$this->post("nama_lengkap").'.pdf',
         //         );
         //         $this->send_email_file("",$data_email['email'],$data_email);
@@ -854,8 +854,8 @@ class Pendaftaran_ft extends REST_Controller {
       $mail->SMTPSecure = 'tls';
       $mail->Port = 587;
 
-      $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-      $mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+      $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+      $mail->setFrom('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
       // Menambahkan penerima
       $mail->addAddress($to);

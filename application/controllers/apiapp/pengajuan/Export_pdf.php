@@ -40,13 +40,13 @@ class Export_pdf extends MY_Controller {
             ob_start();
             
             if(strtoupper($data->head_role)=="OFFICE"){
-                $datas['yth'] = "Kepala Sekretariat Labschool Cibubur ";
+                $datas['yth'] = "Kepala Sekretariat JAKARTA COSMOPOLITE ISLAMIC SCHOOL ";
             }
             else if(strtoupper($data->head_role)=="SMA" || strtoupper($data->head_role)=="SMP" || strtoupper($data->head_role)=="SD"){
-                $datas['yth'] = "Kepala Sekolah ".strtoupper($data->head_role)." Labschool Cibubur";
+                $datas['yth'] = "Kepala Sekolah ".strtoupper($data->head_role)." JAKARTA COSMOPOLITE ISLAMIC SCHOOL";
             }
             else{
-                $datas['yth'] = "Kepala Divisi ".strtoupper($data->head_role)." Labschool Cibubur";
+                $datas['yth'] = "Kepala Divisi ".strtoupper($data->head_role)." JAKARTA COSMOPOLITE ISLAMIC SCHOOL";
             }
             $total_hari = $this->hitungHariIzin($data->date_start, $data->date_end);
 

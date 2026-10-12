@@ -69,8 +69,13 @@ class Home_notification_detail extends REST_Controller {
         );
         $data_notification[] = $data_add; */
 
+        // [JACOS] bahasa terpilih user (npp + role param) utk aplikasi (fase 7)
+        $this->load->helper('translator_safe_db');
+        $this->load->model('Setting_bahasa_model');
+        $selected_language = $this->Setting_bahasa_model->kode_bahasa_by_npp($npp, $tipe_user);
+
         if (!empty($data_notification)) {
-            $msg = array('status' => 1, 'message'=>'Berhasil ambil data' ,'data'=>$data_notification);
+            $msg = array('status' => 1, 'message'=>'Berhasil ambil data' ,'data'=>$data_notification, 'selected_language'=>$selected_language);
             $status="200";
         }
         else{

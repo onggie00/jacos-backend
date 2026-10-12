@@ -137,7 +137,7 @@ class Notification extends MY_Controller
                 "nama_lengkap" => $get_siswa->nama_lengkap,
                 "tipe_pendaftaran" => "PSB " . strtoupper($tipe_siswa),
                 "jenjang" => strtoupper($tipe_siswa),
-                "nama_panitia" => "Panitia PSB " . strtoupper($tipe_siswa) . " Labschool Cibubur " . date("Y", strtotime("+1 years")) . "-" . date("Y", strtotime("+2 years")),
+                "nama_panitia" => "Panitia PSB " . strtoupper($tipe_siswa) . " JAKARTA COSMOPOLITE ISLAMIC SCHOOL " . date("Y", strtotime("+1 years")) . "-" . date("Y", strtotime("+2 years")),
                 "kartu_siswa_sementara" => $tipe_siswa . '-' . $get_siswa->no_peserta . '-' . $get_siswa->nama_lengkap . '.pdf',
                 "kwitansi" => $get_transaksi->no_transaksi . '-' . $get_siswa->nama_lengkap . '.pdf',
               );
@@ -442,8 +442,8 @@ class Notification extends MY_Controller
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
 
-    $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-    $mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+    $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+    $mail->setFrom('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
     // Menambahkan penerima
     $mail->addAddress($to);
@@ -508,14 +508,14 @@ class Notification extends MY_Controller
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
 
-    $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-    $mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+    $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+    $mail->setFrom('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
     // Menambahkan penerima
     $mail->addAddress($to);
 
     // Subjek email
-    $mail->Subject = '[No Reply] KWITANSI DAN KARTU PESERTA SISWA LABSCHOOL CIBUBUR';
+    $mail->Subject = '[No Reply] KWITANSI DAN KARTU PESERTA SISWA JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
 
     // Mengatur format email ke HTML
     $mail->isHTML(true);
@@ -568,14 +568,14 @@ class Notification extends MY_Controller
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
 
-    $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-    $mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+    $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+    $mail->setFrom('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
     // Menambahkan penerima
     $mail->addAddress($to);
 
     // Subjek email
-    $mail->Subject = '[No Reply] KWITANSI DAN KARTU SISWA SEMENTARA LABSCHOOL CIBUBUR';
+    $mail->Subject = '[No Reply] KWITANSI DAN KARTU SISWA SEMENTARA JAKARTA COSMOPOLITE ISLAMIC SCHOOL';
 
     // Mengatur format email ke HTML
     $mail->isHTML(true);

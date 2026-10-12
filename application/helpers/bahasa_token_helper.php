@@ -137,12 +137,27 @@ if (!function_exists('bahasa_default_after_login')) {
         try {
             $CI =& get_instance();
             $CI->load->model('Setting_bahasa_model');
+            // aplikasi boleh mengirim pilihan bahasa saat login (biar tidak
+            // perlu select dulu). Terima dua ejaan parameter.
+            $lang = trim((string) $CI->input->post('selected_language'));
+            if ($lang === '') {
+                $lang = trim((string) $CI->input->post('selected_languange'));
+            }
+            $lang_valid = false;
+            if ($lang !== '') {
+                $CI->load->config('bahasa');
+                $daftar = $CI->config->item('bahasa');
+                $lang_valid = (is_array($daftar) && isset($daftar[$lang]));
+            }
             foreach ($accounts as $acc) {
                 if (empty($acc['email']) || empty($acc['role'])) {
                     continue;
                 }
                 $jenjang = isset($acc['jenjang']) ? $acc['jenjang'] : null;
                 $CI->Setting_bahasa_model->get_or_create_default($acc['email'], $acc['role'], $jenjang);
+                if ($lang_valid) {
+                    $CI->Setting_bahasa_model->update_bahasa($acc['email'], $acc['role'], $lang, $jenjang);
+                }
             }
         } catch (Exception $e) {
             log_message('error', 'bahasa_default_after_login gagal: ' . $e->getMessage());
