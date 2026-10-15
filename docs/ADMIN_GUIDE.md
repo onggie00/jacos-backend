@@ -34,6 +34,21 @@ Dokumen untuk admin JACOS yang memakai menu **Karier** di panel administrator (C
 - Daftar read-only + filter jenis aksi/objek/aktor/tanggal (pakai tanggal `YYYY-MM-DD` yang sah; filter kosong = semua).
 - Entri memuat aktor (id + tipe), objek, detail JSON (termasuk `before`/`after` utk edit). Kolom `detail_json` aman tetap valid (substitusi UTF-8).
 
+## Pelamar Karier — alur 6B (verifikasi → jadwal → keputusan)
+
+1. **Verifikasi dokumen/jawaban** (perm `career_pelamar_verify`): di halaman detail pelamar, tiap persyaratan berstatus `pending_review` punya tombol keputusan: **Terverifikasi / Perlu revisi / Ditolak**. Revisi & tolak wajib menulis pesan untuk kandidat (maks 500 karakter) — pesan ini satu-satunya jalur alasan ke kandidat (dikirim sebagai notifikasi in-app `requirement_revision`/`requirement_rejected`). Catatan internal (`review_note`) tidak pernah dikirim kandidat.
+2. **Verifikasi hanya bisa** lamaran status `submitted`/`in_process`; persyaratan belum diunggah tidak bisa diverifikasi; persyaratan `document` butuh >=1 dokumen; persyaratan text/number butuh jawaban.
+3. **Jadwal seleksi** (perm `career_pelamar_schedule`): per tahap — isi tanggal `Y-m-d H:i`, kanal (maks 200), catatan (maks 500) → **Simpan** (belum rilis). Setelah siap → **Publikasikan**: tahap jadi `scheduled` + kandidat dapat notifikasi `stage_scheduled`. Batal publikasi → kembali `pending` (jadwal boleh diedit ulang); hapus jadwal hanya sebelum publikasi. Tahap dapat dijadwalkan hanya bila seluruh tahap sebelumnya `passed`.
+4. **Keputusan tahap** (perm `career_pelamar_decide`): per tahap **Lulus (passed) / Gagal (failed)**. Aturan: hanya satu tahap berjalan (tahap N hanya bisa diproses bila tahap 1..N-1 passed); tahap yang sudah diputuskan terkunci — ubah lewat **Koreksi** (alasan wajib). Koreksi tahap pertama ke gagal/tahap apapun membatalkan keputusan tahap lain + status.
+5. **Status akhir** (perm `career_pelamar_decide`): tombol **Terima** hanya aktif setelah 5 tahap lulus → lamaran `accepted` (notifikasi `application_accepted`). Terima ulang pada status accepted → idempoten.
+6. **Nilai tahap** (perm `career_pelamar_score_view/_edit`): panel nilai per tahap — skor 0..100 + rubrik/catatan internal; tersimpan di `career_evaluation_scores`; tidak pernah tampil ke kandidat (D13). Perubahan tercatat di audit tanpa isi rubrik (panjang saja).
+7. **Koreksi (batal status akhir)**: mengoreksi tahap pada lamaran `accepted` mengembalikan lamaran ke status konsisten (tahap yang dikoreksi menjadi keputusan baru, tahap lain reset pending).
+
+## Kandidat Karier
+
+- Menu anak **Kandidat Karier** (perm `career_candidate_reset_password` untuk aksi reset): daftar kandidat + pencarian nama/email.
+- **Reset sandi**: tombol reset → isi sandi baru (min 8 karakter) → POST+CSRF; tersimpan sebagai hash bcrypt. Tidak ada email dikirim (D2 — proses lupa password ditangani admin).
+
 ## Catatan keamanan & batasan
 
 - Tipe persyaratan `select` belum didukung (opsi pilihan belum ada di skema) — tolak eksplisit.
