@@ -74,6 +74,15 @@ class Model_career_pelamar extends MY_Model {
         if (isset($filter['stage_id']) && (int) $filter['stage_id'] > 0) {
             $this->db->where('a.current_stage_id', (int) $filter['stage_id']);
         }
+        if ( ! empty($filter['perlu_verifikasi'])) {
+            // 6B: lamaran submitted/in_process dengan >=1 requirement
+            // pending_review (EXISTS — tetap 1 query anti-N+1).
+            $this->db->where('a.status IN ("submitted","in_process")', NULL, FALSE);
+            $this->db->where(
+                'EXISTS (SELECT 1 FROM career_application_requirements r'
+                . ' WHERE r.id_application = a.id_application'
+                . ' AND r.status = "pending_review")', NULL, FALSE);
+        }
         if (isset($filter['q']) && $filter['q'] !== '') {
             // LOW #21: tanpa scurity() (double-escape); like() sudah
             // di-escape oleh CI, wildcard dibungkus escape_like_str.
@@ -184,4 +193,383 @@ class Model_career_pelamar extends MY_Model {
             ->limit(50)
             ->get('career_notifications')->result();
     }
+
+// ====================================================================
+// Fase 6B — mutasi terkontrol (semua method di bawah ini hanya boleh
+// dipanggil controller dengan izin eksplisit + POST + CSRF + transaksi).
+// ====================================================================
+
+/** Kunci baris lamaran dalam transaksi (anti-race dua admin). */
+public function kunci_lamaran($id_application)
+{
+    return $this->db->query(
+        "SELECT a.*, c.full_name, c.email, c.token_version
+         FROM career_applications a
+         JOIN career_candidates c ON c.id_candidate = a.id_candidate
+         WHERE a.id_application = ? FOR UPDATE",
+        array((int) $id_application)
+    )->row();
+}
+
+/** Baris requirement utk verifikasi (pra-kontrol). */
+public function verifikasi_req($id_application_requirement)
+{
+    return $this->db->query(
+        "SELECT ar.id_application_requirement, ar.status AS requirement_status,
+                ar.answer_text, ar.id_application,
+                jr.requirement_name, jr.requirement_type, jr.input_type
+         FROM career_application_requirements ar
+         JOIN career_job_posting_requirements jr
+               ON jr.id_job_posting_requirement = ar.id_job_posting_requirement
+         WHERE ar.id_application_requirement = ?",
+        array((int) $id_application_requirement)
+    )->row();
+}
+
+/**
+ * Verifikasi satu persyaratan (D17) — PANGGIL DALAM TRANSAKSI,
+ * lamaran sudah terkunci FOR UPDATE & statusnya sudah dicek controller.
+ * $app = stdClass lamaran (hasil kunci_lamaran).
+ */
+public function set_verifikasi($id_application_requirement, $baris_req, $app, $keputusan_baru, $pesan_kandidat, $review_note)
+{
+    if ( ! in_array($keputusan_baru, array('verified', 'revision_requested', 'rejected'), TRUE)) {
+        return array(FALSE, '422|Keputusan verifikasi tidak sah.');
+    }
+    if ($baris_req->requirement_status === $keputusan_baru) {
+        return array(FALSE, '422|Persyaratan sudah berstatus ' . $keputusan_baru . '.');
+    }
+    if ($baris_req->requirement_status === 'not_uploaded') {
+        return array(FALSE, '422|Persyaratan belum diunggah/diisi kandidat — tidak dapat diverifikasi.');
+    }
+    if ($keputusan_baru === 'verified') {
+        if ($baris_req->input_type === 'document') {
+            // NOTE: CI3 count_all() mengabaikan WHERE seluruhnya (hanya menghitung
+            // total tabel) — gunakan count_all_results() agar WHERE dipakai.
+            $n = (int) $this->db->where('id_application_requirement', (int) $id_application_requirement)
+                ->count_all_results('career_application_documents');
+            if ($n < 1) {
+                return array(FALSE, '422|Verified tidak boleh: persyaratan belum punya dokumen.');
+            }
+        } else {
+            if (trim((string) $baris_req->answer_text) === '') {
+                return array(FALSE, '422|Verified tidak boleh: persyaratan belum ada jawaban.');
+            }
+        }
+    }
+    if (in_array($keputusan_baru, array('revision_requested', 'rejected'), TRUE)
+        && trim((string) $pesan_kandidat) === '') {
+        return array(FALSE, '422|Pesan untuk kandidat wajib diisi (maksimal 500 karakter).');
+    }
+
+    $ok = $this->db->where('id_application_requirement', (int) $id_application_requirement)
+        ->update('career_application_requirements', array(
+            'status'      => $keputusan_baru,
+            'reviewed_by' => (int) get_instance()->session->userdata('id'),
+            'reviewed_at' => date('Y-m-d H:i:s'),
+            // review_note = catatan INTERNAL — tidak pernah dikirim kandidat.
+            'review_note' => $review_note === NULL ? NULL : substr($review_note, 0, 2000),
+        ));
+    if ( ! $ok) { return array(FALSE, '500|Gagal menyimpan keputusan verifikasi.'); }
+
+    // D17/D18: revision_requested/rejected → notifikasi in-app dengan pesan
+    // admin (SATU-SATUNYA jalur alasan ke kandidat), dalam transaksi sama.
+    if (in_array($keputusan_baru, array('revision_requested', 'rejected'), TRUE)) {
+        $judul = ($keputusan_baru === 'revision_requested' ? 'Perlu revisi: ' : 'Berkas ditolak: ')
+            . $baris_req->requirement_name;
+        $tipe  = $keputusan_baru === 'revision_requested' ? 'requirement_revision' : 'requirement_rejected';
+        career_notify($app->id_candidate, $tipe, $judul, substr((string) $pesan_kandidat, 0, 500));
+    }
+    return array(TRUE, $keputusan_baru === 'verified' ? 'Dokumen terverifikasi.' : 'Status persyaratan diperbarui.');
+}
+
+/**
+ * Keputusan tahap (D16) — PANGGIL dalam transaksi + lamaran SUDAH
+ * terkunci FOR UPDATE. $n = stage order 1..5, $keputusan = passed/failed.
+ */
+public function putus_tahap($id_application, $n, $keputusan)
+{
+    $tahapan = career_stages_rekap($id_application);
+    list($ok, $pesan) = career_stage_keputusan_valid($tahapan, $n, $keputusan);
+    if ( ! $ok) { return array(FALSE, $pesan); }
+
+    $baris = $tahapan[$n - 1];
+    $ok = $this->db
+        ->where('id_application_stage', (int) $baris->id_application_stage)
+        ->update('career_application_stages', array(
+            'status'     => $keputusan,
+            'decided_at' => date('Y-m-d H:i:s'),
+        ));
+    if ( ! $ok) { return array(FALSE, '500|Gagal menyimpan keputusan tahap.'); }
+
+    // Rekap terkini + autokoreksi current_stage_id/status lamaran (D16.3-4).
+    $tahap_baru = career_stages_rekap($id_application);
+    $app = $this->db->where('id_application', (int) $id_application)->get('career_applications')->row();
+    career_lamaran_status_autokoreksi($id_application, $tahap_baru, $app->status);
+
+    // D18: notifikasi keputusan tahap — teks netral, tanpa skor.
+    if ($keputusan === 'failed') {
+        career_notify($app->id_candidate, 'stage_failed',
+            'Hasil tahap seleksi',
+            'Anda tidak melanjutkan ke tahap berikutnya. Terima kasih atas partisipasi Anda.');
+    } elseif ((int) $n < 5) {
+        career_notify($app->id_candidate, 'stage_passed',
+            'Tahap seleksi lulus',
+            'Anda melanjutkan ke tahap berikutnya. Pantau halaman riwayat untuk informasi jadwal.');
+    }
+    return array(TRUE, 'Keputusan tahap ' . (int) $n . ' tersimpan.');
+}
+
+/**
+ * Koreksi keputusan (D16.5) — wajib alasan; reset tahap selebihnya
+ * (lebih belakangan) yang sudah diputuskan ke pending; recompute
+ * current_stage_id & status lamaran secara konsisten.
+ * PANGGIL dalam transaksi + lamaran SUDAH terkunci FOR UPDATE.
+ */
+public function koreksi_tahap($id_application, $n, $keputusan_baru, $alasan)
+{
+    if (trim((string) $alasan) === '') {
+        return array(FALSE, '422|Alasan koreksi wajib diisi.');
+    }
+    $tahapan = career_stages_rekap($id_application);
+    if ( ! isset($tahapan[$n - 1])) { return array(FALSE, '404|Tahap tidak ditemukan.'); }
+    if ( ! in_array($keputusan_baru, array('passed', 'failed', 'pending'), TRUE)) {
+        return array(FALSE, '422|Koreksi tahap: passed/failed/pending.');
+    }
+
+    // Tahap setelah N yang sudah diputuskan → reset pending (dampak
+    // ditampilkan di dialog UI oleh controller sebelum aksi ini).
+    for ($i = $n + 1; $i <= count($tahapan); $i++) {
+        $t = $tahapan[$i - 1];
+        if (in_array($t->status, array('passed', 'failed'), TRUE)) {
+            $this->db->where('id_application_stage', (int) $t->id_application_stage)
+                ->update('career_application_stages', array('status' => 'pending', 'decided_at' => NULL));
+        }
+    }
+
+    $up = $keputusan_baru === 'pending'
+        ? array('status' => 'pending', 'decided_at' => NULL)
+        : array('status' => $keputusan_baru, 'decided_at' => date('Y-m-d H:i:s'));
+    $this->db->where('id_application_stage', (int) $tahapan[$n - 1]->id_application_stage)
+        ->update('career_application_stages', $up);
+
+    // Status akhir lama (accepted/not_accepted) tidak lagi konsisten setelah
+    // koreksi: kembalikan ke in_process lalu biarkan autokoreksi memutuskan.
+    $app = $this->db->where('id_application', (int) $id_application)->get('career_applications')->row();
+    if (in_array($app->status, array('accepted', 'not_accepted'), TRUE)) {
+        $this->db->where('id_application', (int) $id_application)
+            ->update('career_applications', array('status' => 'in_process'));
+    }
+    career_lamaran_status_autokoreksi($id_application, career_stages_rekap($id_application), $app->status);
+    return array(TRUE, 'Koreksi keputusan disimpan.');
+}
+
+/** Status akhir "Diterima" — eksplisit, hanya bila tahap 1..5 semua passed (D16.4). */
+public function terima_akhir($id_application)
+{
+    $tahapan = career_stages_rekap($id_application);
+    foreach ($tahapan as $t) {
+        if ($t->status !== 'passed') {
+            return array(FALSE, '409|Diterima hanya bila tahap 1-5 semua lulus.');
+        }
+    }
+    $app = $this->db->where('id_application', (int) $id_application)->get('career_applications')->row();
+    if ( ! in_array($app->status, array('in_process', 'submitted'), TRUE)) {
+        return array(FALSE, '409|Lamaran tidak sedang dalam proses.');
+    }
+
+    $this->db->where('id_application', (int) $id_application)
+        ->update('career_applications', array('status' => 'accepted', 'current_stage_id' => NULL));
+    career_notify($app->id_candidate, 'application_accepted',
+        'Lamaran diterima',
+        'Selamat, lamaran Anda dinyatakan diterima. Info lanjut akan disampaikan melalui kanal yang berlaku.');
+    return array(TRUE, 'Status akhir diperbarui: diterima.');
+}
+
+// --------------------------------------------------------------------
+// Jadwal per tahap (D16 + D18)
+// --------------------------------------------------------------------
+
+/** Baris tahap + lamaran utk jadwal. */
+public function app_status_dari_req($id_application_requirement)
+{
+    return $this->db->query(
+        "SELECT a.id_application, a.status AS app_status, a.id_candidate, a.current_stage_id, a.submitted_at
+         FROM career_application_requirements ar
+         JOIN career_applications a ON a.id_application = ar.id_application
+         WHERE ar.id_application_requirement = ?",
+        array((int) $id_application_requirement)
+    )->row();
+}
+
+public function stage_untuk_jadwal($id_application_stage)
+{
+    return $this->db->query(
+        "SELECT s.id_application_stage, s.id_stage, s.status, s.id_application,
+                a.id_candidate, a.status AS app_status,
+                st.stage_order, st.name
+         FROM career_application_stages s
+         JOIN career_applications a ON a.id_application = s.id_application
+         JOIN career_stages st ON st.id_stage = s.id_stage
+         WHERE s.id_application_stage = ?",
+        array((int) $id_application_stage)
+    )->row();
+}
+
+/** Baris jadwal milik satu tahap. */
+public function jadwal_tahap($id_application_stage)
+{
+    return $this->db->where('id_application_stage', (int) $id_application_stage)
+        ->get('career_selection_schedules')->row();
+}
+
+/**
+ * Tambah/ubah jadwal SATU baris career_selection_schedules per tahap.
+ * $data sudah divalidasi controller (tanggal/channel/note). Jadwal yang
+ * SUDAH dipublikasi tidak diubah diam-diam — harus batal publikasi dulu
+ * (batasan: baris terkunci is_published=0 pada UPDATE).
+ * PANGGIL dalam transaksi + lamaran terkunci.
+ */
+public function jadwal_simpan($id_application_stage, $data)
+{
+    $data['id_application_stage'] = (int) $id_application_stage;
+    $row = $this->jadwal_tahap($id_application_stage);
+    if ($row === NULL) {
+        if ( ! $this->db->insert('career_selection_schedules', $data)) { return 0; }
+        return (int) $this->db->insert_id();
+    }
+    if ((int) $row->is_published === 1) { return 0; }  // tolak perubahan terpublikasi
+    $ok = $this->db->where('id_selection_schedule', (int) $row->id_selection_schedule)
+        ->update('career_selection_schedules', $data);
+    return $ok ? (int) $row->id_selection_schedule : 0;
+}
+
+/** Hapus jadwal (hanya yang belum dipublikasi). */
+public function jadwal_hapus($id_application_stage)
+{
+    $row = $this->jadwal_tahap($id_application_stage);
+    if ($row === NULL) { return array(FALSE, '404|Jadwal tidak ditemukan.'); }
+    if ((int) $row->is_published === 1) {
+        return array(FALSE, '409|Jadwal sudah dipublikasikan — batalkan publikasi dulu.');
+    }
+    $this->db->where('id_selection_schedule', (int) $row->id_selection_schedule)->delete('career_selection_schedules');
+    return array(TRUE, 'Jadwal dihapus.');
+}
+
+/**
+ * Publikasi/batal publikasi jadwal + status tahap ikut 'scheduled'
+ * (aturan 6B: status tahap mengikuti jadwal terpublikasi; batal
+ * publikasi → kembali pending). D18: publikasi → notifikasi.
+ * PANGGIL dalam transaksi + lamaran terkunci.
+ */
+public function jadwal_publikasi($id_application_stage, $publikasi)
+{
+    $row = $this->jadwal_tahap($id_application_stage);
+    if ($row === NULL) { return array(FALSE, '404|Jadwal tidak ditemukan.'); }
+    $app_st = $this->stage_untuk_jadwal($id_application_stage);
+
+    if ((int) $publikasi === 1) {
+        if (in_array($app_st->status, array('passed', 'failed'), TRUE)) {
+            return array(FALSE, '409|Tahap sudah diputuskan — jadwal tidak dapat dipublikasikan.');
+        }
+        $this->db->where('id_selection_schedule', (int) $row->id_selection_schedule)
+            ->update('career_selection_schedules', array('is_published' => 1));
+        $this->db->set('status', 'scheduled')
+            ->where('id_application_stage', (int) $id_application_stage)
+            ->where('status', 'pending')
+            ->update('career_application_stages');
+        // D18: notifikasi jadwal terpublikasi (tanpa skor/catatan internal;
+        // detail tanggal tampil kandidat lewat stepper di FE).
+        career_notify($app_st->id_candidate, 'stage_scheduled',
+            'Jadwal tahap ' . $app_st->stage_order . ' dipublikasikan',
+            'Jadwal untuk tahap "' . $app_st->name . '" telah terbit. Lihat detail riwayat lamaran Anda.');
+        return array(TRUE, 'Jadwal dipublikasikan.');
+    }
+
+    // batal publikasi → tahap kembali pending (aturan konsisten).
+    $this->db->where('id_selection_schedule', (int) $row->id_selection_schedule)
+        ->update('career_selection_schedules', array('is_published' => 0));
+    $this->db->set('status', 'pending')
+        ->where('id_application_stage', (int) $id_application_stage)
+        ->where('status', 'scheduled')
+        ->update('career_application_stages');
+    return array(TRUE, 'Publikasi jadwal dibatalkan.');
+}
+
+// --------------------------------------------------------------------
+// Nilai & catatan internal (D13) — SATU sumber kebenaran:
+// tabel career_evaluation_scores (keputusan tercatat DATABASE_DESIGN §3:
+// score = agregasi dari career_evaluation_scores; kolom stages.score/
+// note_internal dibiarkan NULL — tidak dipakai, tidak duplikasi).
+// --------------------------------------------------------------------
+
+/** Semua catatan nilai satu lamaran (hanya utk halaman ber-izin skor). */
+public function nilai_lamaran($id_application)
+{
+    return $this->db->query(
+        "SELECT e.id_evaluation_score, e.id_application_stage, e.evaluator_id,
+                e.score, e.rubric_note, e.updated_at, st.stage_order, s.name AS stage_name
+         FROM career_evaluation_scores e
+         JOIN career_application_stages s ON s.id_application_stage = e.id_application_stage
+         JOIN career_stages st ON st.id_stage = s.id_stage
+         WHERE s.id_application = ?
+         ORDER BY st.stage_order ASC, e.id_evaluation_score ASC",
+        array((int) $id_application)
+    )->result();
+}
+
+/** Baris nilai utk satu tahap (satu baris per tahap). */
+public function nilai_tahap($id_application_stage)
+{
+    return $this->db->where('id_application_stage', (int) $id_application_stage)
+        ->order_by('id_evaluation_score', 'DESC')
+        ->get('career_evaluation_scores')->row();
+}
+
+/**
+ * Simpan (insert/update) nilai satu tahap — D13.
+ * score = 0..100 boleh desimal (kolom decimal(6,2)); rubric_note text.
+ * PANGGIL dalam transaksi. return array(ok, pesan).
+ */
+public function nilai_simpan($id_application_stage, $score, $rubric_note)
+{
+    if ($score === '' || $score === NULL) {
+        return array(FALSE, '422|Nilai (0-100) wajib diisi.');
+    }
+    if ( ! is_numeric($score) || (float) $score < 0 || (float) $score > 100) {
+        return array(FALSE, '422|Nilai harus angka 0-100.');
+    }
+    if (strlen((string) $rubric_note) > 5000) {
+        return array(FALSE, '422|Catatan maksimal 5000 karakter.');
+    }
+    $row = $this->nilai_tahap($id_application_stage);
+    $data = array(
+        'evaluator_id' => (int) get_instance()->session->userdata('id'),
+        'score'        => round((float) $score, 2),
+        'rubric_note'  => $rubric_note === NULL ? NULL : (string) $rubric_note,
+    );
+    if ($row === NULL) {
+        $data['id_application_stage'] = (int) $id_application_stage;
+        $ok = $this->db->insert('career_evaluation_scores', $data);
+    } else {
+        $ok = $this->db->where('id_evaluation_score', (int) $row->id_evaluation_score)
+            ->update('career_evaluation_scores', $data);
+    }
+    return $ok ? array(TRUE, 'Nilai lapangan tersimpan.') : array(FALSE, '500|Gagal menyimpan nilai.');
+}
+
+// --------------------------------------------------------------------
+// Ringkasan 6B (agregat, tanpa N+1)
+// --------------------------------------------------------------------
+
+/** Hitungan lamaran per status (1 query). */
+public function ringkasan_status()
+{
+    $rows = $this->db->select('status, COUNT(*) n', FALSE)
+        ->group_by('status')->get('career_applications')->result();
+    $out = array_fill_keys(
+        array('draft','submitted','in_process','accepted','not_accepted','withdrawn'), 0);
+    foreach ($rows as $r) { if (isset($out[$r->status])) { $out[$r->status] = (int) $r->n; } }
+    return $out;
+}
 }

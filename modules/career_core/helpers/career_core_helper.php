@@ -200,3 +200,111 @@ if ( ! function_exists('career_stream_admin_document')) {
                       // untuk unduhan yang benar-benar terkirim).
     }
 }
+
+// --------------------------------------------------------------------
+// Notifikasi in-app bersama (D18 — tanpa email, D2)
+// --------------------------------------------------------------------
+
+if ( ! function_exists('career_notify')) {
+    /**
+     * Sisipkan satu notifikasi in-app utk kandidat (career_notifications).
+     * PANGGIL DALAM TRANSAKSI AKSI — commit/rollback bersama.
+     * Teks harus netral: tanpa skor/catatan internal/angka keputusan.
+     * $title <=200, $body <=1000(null boleh).
+     */
+    function career_notify($id_candidate, $type, $title, $body = NULL)
+    {
+        $ci =& get_instance();
+        return $ci->db->insert('career_notifications', array(
+            'id_candidate' => (int) $id_candidate,
+            'type'         => substr((string) $type, 0, 50),
+            'title'        => substr((string) $title, 0, 200),
+            'body'         => $body === NULL ? NULL : substr((string) $body, 0, 1000),
+            'is_read'      => 0,
+        ));
+    }
+}
+
+// --------------------------------------------------------------------
+// Mesin aturan tahap D16 (share antara controller & smoke)
+// --------------------------------------------------------------------
+
+if ( ! function_exists('career_stages_rekap')) {
+    /**
+     * Rekap 5 tahap lamaran (diurut stage_order) utk mesin D16.
+     * PAKAI DI LUAR TRANSAKSI utk tampilan, atau DI DALAM transaksi
+     * SETELAH FOR UPDATE utk keputusan.
+     * Balik array stdClass: id_application_stage, id_stage (id_stage=stage
+     * order 1..5), status, decided_at.
+     */
+    function career_stages_rekap($id_application)
+    {
+        $ci =& get_instance();
+        return $ci->db->select('s.id_application_stage, s.id_stage, s.status, s.decided_at')
+            ->where('s.id_application', (int) $id_application)
+            ->order_by('s.id_stage', 'ASC')
+            ->get('career_application_stages s')->result();
+    }
+}
+
+if ( ! function_exists('career_stage_keputusan_valid')) {
+    /**
+     * Aturan D16 untuk KEPUTUSAN tahap $keputusan ('passed'|'failed') pada
+     * baris tahap ke-N (1..5) dari rekap $tahapan.
+     * Balik array(TRUE, '') utk lolos — atau array(FALSE, pesan_400/409).
+     */
+    function career_stage_keputusan_valid($tahapan, $n, $keputusan)
+    {
+        if ((int) $n < 1 || (int) $n > 5) { return array(FALSE, '404|Tahap tidak ditemukan.'); }
+        if ( ! in_array($keputusan, array('passed', 'failed'), TRUE)) {
+            return array(FALSE, '422|Keputusan harus passed/failed.');
+        }
+        $cur = isset($tahapan[$n - 1]) ? $tahapan[$n - 1] : NULL;
+        if ($cur === NULL) { return array(FALSE, '404|Tahap tidak ditemukan.'); }
+        if (in_array($cur->status, array('passed', 'failed'), TRUE)) {
+            return array(FALSE, '409|Tahap ini sudah diputuskan. Gunakan koreksi.');
+        }
+        for ($i = 1; $i < $n; $i++) {
+            if ( ! isset($tahapan[$i - 1]) || $tahapan[$i - 1]->status !== 'passed') {
+                return array(FALSE, '409|Tahap ' . $i . ' belum lulus — keputusan harus berurutan.');
+            }
+        }
+        return array(TRUE, '');
+    }
+}
+
+if ( ! function_exists('career_lamaran_status_autokoreksi')) {
+    /**
+     * Simpan row career_applications SETELAH perubahan tahap, supaya
+     * current_stage_id + status konsisten (D16.3/D16.4/koreksi D16.5).
+     * $tahapan = rekap TERKINI (setelah penulisan tahap, tapi dalam trans
+     * sama). Status akhir dipertahankan bila sudah accepted/not_accepted/
+     * withdrawn — koreksi akhir ditangani aksi khusus.
+     * return TRUE selalu (pemanggil menangani trans_status).
+     */
+    function career_lamaran_status_autokoreksi($id_application, $tahapan, $status_sekarang)
+    {
+        $ci =& get_instance();
+        $curr_stage = NULL;
+        $no_ada_failed = FALSE;
+        foreach ($tahapan as $t) {
+            if ($t->status === 'failed') { $no_ada_failed = TRUE; break; }
+        }
+        foreach ($tahapan as $t) {
+            if ($t->status !== 'passed') { $curr_stage = (int) $t->id_stage; break; }
+        }
+
+        $up = array('current_stage_id' => $curr_stage);
+        if ($no_ada_failed) {
+            // Ada tahap failed → lamaran harus GUGUR (bisa dari submitted,
+            // in_process, maupun hasil koreksi yang membuka status akhir).
+            $up['status'] = 'not_accepted';
+        } elseif ($status_sekarang === 'submitted') {
+            // Aksi pertama pada lamaran submitted → in_process (D16.3).
+            $up['status'] = 'in_process';
+        }
+        $ci->db->where('id_application', (int) $id_application)
+            ->update('career_applications', $up);
+        return TRUE;
+    }
+}
