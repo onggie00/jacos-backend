@@ -99,13 +99,11 @@ class Program_anggaran_konfirmasi extends MY_Controller {
       $mail->SMTPAuth = true;
       $mail->Username = 'noreply@labschoolcibubur.sch.id';
       $mail->Password = ''; // [JACOS] TODO(manual): password SMTP Jacos — kredensial lama dihapus
-      /*$mail->Username = 'sekretariat@labschoolcibubur.sch.id';
-      $mail->Password = 'Son05743';*/
       $mail->SMTPSecure = 'tls';
       $mail->Port = 587;
 
-      $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
-      $mail->setFrom('noreply@labschoolcibubur.sch.id', 'Labschool Cibubur');
+      $mail->addReplyTo('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
+      $mail->setFrom('noreply@labschoolcibubur.sch.id', 'JAKARTA COSMOPOLITE ISLAMIC SCHOOL');
 
       // Menambahkan penerima
       $mail->addAddress($to);

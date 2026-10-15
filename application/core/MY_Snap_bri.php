@@ -34,15 +34,30 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class MY_Snap_bri extends MY_Controller
 {
-    // BRI Sandbox credentials (konsisten dengan Snap_bri_test.php)
-    protected $clientId     = 'bmf114bUB3BjHsJfRFqXtiafpcG6MMH5';
-    protected $clientSecret = 'ed59fvnJx3VsA4lc';
+    // BRI Sandbox credentials dari pengaturan_akun (bri_sandbox_client_id/bri_sandbox_client_secret)
+    // [JACOS] TODO(manual): isi value bri_sandbox_* di pengaturan_akun server
+    protected $clientId     = '';
+    protected $clientSecret = '';
     protected $partnerId    = 'labschool';
     protected $channelId    = '00004';
 
     protected $baseDomain    = 'sandbox.partner.api.bri.co.id';
     protected $tokenEndpoint = '/snap/v1.0/access-token/b2b';
     protected $partnerServiceIdDefault = '   22216';
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        $row_client_id = $this->db->get_where('pengaturan_akun', array('name_setting' => 'bri_sandbox_client_id'))->row();
+        if (!empty($row_client_id) && !empty($row_client_id->value)) {
+            $this->clientId = $row_client_id->value;
+        }
+        $row_client_secret = $this->db->get_where('pengaturan_akun', array('name_setting' => 'bri_sandbox_client_secret'))->row();
+        if (!empty($row_client_secret) && !empty($row_client_secret->value)) {
+            $this->clientSecret = $row_client_secret->value;
+        }
+    }
 
     // Child WAJIB override $vaEndpoint dengan path SNAP yang dituju
     protected $vaEndpoint = NULL;
@@ -54,6 +69,10 @@ class MY_Snap_bri extends MY_Controller
     protected function fetchAccessToken()
     {
         $url = 'https://' . $this->baseDomain . $this->tokenEndpoint;
+
+        if (empty($this->clientId) || empty($this->clientSecret)) {
+            return array('responseCode' => '4013400', 'responseMessage' => 'Kredensial BRI sandbox belum diisi di pengaturan_akun');
+        }
 
         if (!file_exists(PRIVATE_BRI_KEY)) {
             return array('responseCode' => '4013400', 'responseMessage' => 'Private key not found');

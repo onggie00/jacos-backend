@@ -2,11 +2,7 @@
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header('Access-Control-Request-Headers: origin, x-requested-with, x-api-key, Accept, Content-Type, User-Agent');
-date_default_timezone_set('Asia/Jakarta');
-define( 'CLIENT_ID', 'a14698c4-b98b-4573-a6b7-13110ebf1335');
-define( 'TENANT_ID', '10fc2260-5c60-4800-af0e-789640a374a3'); // Only for user with mail Labschoolcibubur or just fill common to accept all microsoft mail
-define( 'SECRET_ID', '017ee22e-7091-433f-93c4-0897a7dcde5b');
-define( 'GRAPH_USER_SCOPES', 'user.read mail.read mail.send offline_access User.ReadWrite');
+date_default_timezone_set('Asia/Jakarta'); // kredensial Microsoft (sebelumnya CLIENT_ID/TENANT_ID/SECRET_ID/GRAPH_USER_SCOPES di sini) sudah tidak ada di source — pengaturan di DB microsoft_*
 require FCPATH . '/application/controllers/apiapp/phpmailer/PHPMailerAutoload.php';
 ob_start();
 
@@ -139,23 +135,6 @@ class Update_data_pegawai extends REST_Controller
     $this->response($msg);
   }
 
-  public function update_microsoft($data){
-      $appid = CLIENT_ID;
-	    $tennantid = TENANT_ID;
-	    //$secret = SECRET_ID;
-	    //$_SESSION['state']=session_id();
-	    $login_url = "https://login.microsoftonline.com/" . $tennantid . "/oauth2/v2.0/authorize";
-	    $params = array(
-	      'client_id' => $appid,
-	      'redirect_uri' => base_url("administrator/auth/oauth_login"),
-	      'response_type' => 'token',
-	      'response_mode' => 'form_post',
-	      'scope' => 'user.read openid profile offline_access',
-		  'prompt' => 'select_account'
-	      //'state' =>$_SESSION['state']
-	    );
-  }
-  
   public function send_email_file($file = "", $to = '', $data)
 	{
 		$to = urldecode($to);

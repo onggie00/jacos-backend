@@ -1456,3 +1456,17 @@ if (!function_exists('psb_cek_usia')) {
 		return true;
 	}
 }
+
+/**
+ * Ambil value pengaturan_akun untuk kredensial device face recognition
+ * (face_device_username / face_device_password).
+ * Device belum ada → default kosong string.
+ */
+if (!function_exists('face_device_setting')) {
+	function face_device_setting($name)
+	{
+		$ci =& get_instance();
+		$row = $ci->db->get_where('pengaturan_akun', array('name_setting' => $name))->row();
+		return (!empty($row) && isset($row->value)) ? $row->value : '';
+	}
+}

@@ -36,8 +36,8 @@ class Get_riwayat_presensi extends MY_Controller {
         $cek_hari_libur = (date("N") >= 6) ? 1 : 0;
     if($cek_hari_libur == 0){
         if (empty($token)) {
-            $username = (!empty($this->input->post('username'))) ? $this->input->post('username') : "admin";
-            $password = (!empty($this->input->post('password'))) ? $this->input->post('password') : "labschool123";
+            $username = (!empty($this->input->post('username'))) ? $this->input->post('username') : face_device_setting("face_device_username");
+            $password = (!empty($this->input->post('password'))) ? $this->input->post('password') : face_device_setting("face_device_password");
             $token = $this->request_token($host, $port, $username, $password);
             if (!empty($token)) {
                 $token = $token->token;
@@ -239,8 +239,8 @@ class Get_riwayat_presensi extends MY_Controller {
 
     private function request_token($host, $port, $username, $password){ //Works
       $data = new stdClass();
-      $data->username = (!empty($username)) ? $username : "admin";
-      $data->password = (!empty($password)) ? $password : "labschool123";
+      $data->username = (!empty($username)) ? $username : face_device_setting("face_device_username");
+      $data->password = (!empty($password)) ? $password : face_device_setting("face_device_password");
 
       $url = $host . ":" . $port . "/jwt-api-token-auth/";
       $data = json_encode($data);

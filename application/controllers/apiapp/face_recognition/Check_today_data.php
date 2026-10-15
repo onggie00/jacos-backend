@@ -134,8 +134,8 @@ class Check_today_data extends MY_Controller {
 
     private function request_token($host, $port, $username, $password){ //Works
         $data = new stdClass();
-        $data->username = (!empty($username)) ? $username : "admin";
-        $data->password = (!empty($password)) ? $password : "labschool123";
+        $data->username = (!empty($username)) ? $username : face_device_setting("face_device_username");
+        $data->password = (!empty($password)) ? $password : face_device_setting("face_device_password");
 
         $url = $host . ":" . $port . "/jwt-api-token-auth/";
         $data = json_encode($data);

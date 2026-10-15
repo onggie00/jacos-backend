@@ -30,6 +30,13 @@ class Get_category extends REST_Controller {
 
         $category = $this->moodle_rest($func,$params);
 
+        if ($category === null) {
+          $msg = array('status' => 0, 'message'=>'Kredensial Moodle belum diisi di pengaturan_akun', 'data'=>null);
+          $status="503";
+          $this->response($msg,$status);
+          return;
+        }
+
         $res=[
           "category"=>$category
         ];
@@ -44,22 +51,17 @@ class Get_category extends REST_Controller {
 
       $this->load->library('MoodleRest');
 
-      if (strtoupper($jenjang) == "SD") {
-        $url = "https://cbtsd.labschoolcibubur.sch.id/webservice/rest/server.php";
-        $token = ""; // [JACOS] TODO(manual): token webservice Moodle Jacos
-      }
-      else if (strtoupper($jenjang) == "SMP") {
-        $url="https://cbtsmp.labschoolcibubur.sch.id/webservice/rest/server.php";
-        $token="acd372a5007b3b3a7467b9a62ebe11ba";
-      }
-      else if(strtoupper($jenjang) == "SMA"){
-        $url="https://cbtsma.labschoolcibubur.sch.id/webservice/rest/server.php";
-        $token="a4930db5a31b430bc5fe6475b5aac46c";
-      }
-      else{
-        //arahkan ke smp
-        $url="https://cbtsmp.labschoolcibubur.sch.id/webservice/rest/server.php";
-        $token="acd372a5007b3b3a7467b9a62ebe11ba";
+      // Kredensial Moodle dari pengaturan_akun (moodle_url_*/moodle_token_*)
+      // [JACOS] TODO(manual): isi token webservice Moodle Jacos di pengaturan_akun
+      $jenjang = strtoupper($jenjang);
+      $key = ($jenjang == "SD" || $jenjang == "SMP" || $jenjang == "SMA") ? strtolower($jenjang) : "smp";
+      $row_url = $this->db->get_where("pengaturan_akun", array("name_setting" => "moodle_url_" . $key))->row();
+      $row_token = $this->db->get_where("pengaturan_akun", array("name_setting" => "moodle_token_" . $key))->row();
+      $url = (!empty($row_url) && !empty($row_url->value)) ? $row_url->value : "";
+      $token = (!empty($row_token) && !empty($row_token->value)) ? $row_token->value : "";
+
+      if ($url == "" || $token == "") {
+        return null; // kredensial belum diisi di pengaturan_akun
       }
 
 
