@@ -39,8 +39,13 @@ Tidak ada email verifikasi (keputusan proyek — lihat PROJECT_REQUIREMENTS.md).
 
 ### POST /Auth/login — publik
 Body JSON: `{email, password}`. 200 → `{id_candidate, full_name, token}`.
-401 kredensial salah; 429 bila `failed_login_count >= career_login_max_attempts`
-atau `locked_until` belum lewat (lock mengabaikan password benar).
+401 kredensial salah — respons SAMA untuk email tak terdaftar dan password
+salah (anti-enumerasi; password tetap diverifikasi ke hash dummy).
+Rate-limit (H3/H4): percobaan login GAGAL per (email + IP) maks
+`career_login_email_max_attempts` (=5) per `career_login_email_window` (=900s);
+plus per IP lintas email maks `career_login_ip_max_attempts` (=20) per
+`career_login_ip_window` (=900s) → 429. TIDAK ada lock total akun:
+password benar dari IP yang tidak terblokir tetap bisa login.
 
 ### POST /Auth/logout — auth
 Menaikkan `token_version` → token tersebut (dan semua versi lama) invalid. 200.
@@ -74,47 +79,65 @@ required|optional/input_type/allowed_formats/max_file_size_kb/display_order).
 ### POST /Lamaran/index — auth
 Body `{id_job_posting}` → 201 draft. Requirements lowongan otomatis dibuat
 (status `not_uploaded`). 409 bila sudah pernah melamar (1 lamaran per
-lowongan) atau lowongan tidak terbuka.
+lowongan) ATAU lowongan tidak terbuka (M6: bukan 404).
 
 ### GET /Lamaran/index — auth
 Daftar lamaran milik sendiri.
 
 ### GET /Lamaran/detail/:id — auth
-Detail + `requirements` + `stages`. Kandidat HANYA melihat data aman per tahap
-(stage_order/name/mode/status/scheduled_at/decided_at + jadwal terpublish
-channel/note dari `career_selection_schedules`). Kolom internal
-(score, note_internal, review_note) TIDAK PERNAH dikembalikan.
+Detail + `requirements` (termasuk `answer_text` untuk non-berkas dan
+`latest_document` metadata untuk berkas) + `stages`. Kandidat HANYA melihat
+data aman per tahap (stage_order/name/mode/status/scheduled_at/decided_at +
+jadwal terpublish channel/note dari `career_selection_schedules`). Kolom
+internal (score, note_internal, review_note) TIDAK PERNAH dikembalikan.
+
+### PUT /Lamaran_jawaban — auth (jawaban requirement non-berkas)
+Body `{id_application_requirement, answer}`. Hanya untuk requirement dgn
+`input_type text|number|select` (berkas ditolak 422). Lamaran harus draft
+(409 bila terkunci). 404 bila bukan milik kandidat (anti IDOR). Validasi:
+text ≤2000, number numerik ≤20 digit, select ≤200, UTF-8 4-byte ditolak 422.
+Jawaban kosong disimpan NULL (boleh, kecuali requirement wajib saat submit).
 
 ### POST /Lamaran/submit — auth
-Body `{id_application}`. Syarat: status draft, lowongan masih terbuka, semua
-requirement bertipe `required` dgn `input_type document` punya ≥1 dokumen →
-422 bila belum. transaksi: snapshot profil disimpan di `career_application_profile_snapshots`,
-5 baris stage dibuat di `career_application_stages` (semua status `pending`), status
-`submitted` + `submitted_at` + `current_stage_id`=stage 1.
-Lamaran TERKUNCI setelah submit; ubahan profil berikutnya tidak mengubah
-snapshot. CATATAN (pertanyaan terbuka): requirement non-file (text/number/
-select) belum punya tempat penyimpanan jawaban di skema — tidak divalidasi
-di submit Fase ini (lihat PHASE4_REPORT.md).
+Body `{id_application}`. Transaksi berisi SELECT ... FOR UPDATE pada baris
+lamaran (H2: dua submit paralel → satu 200, satu 409), sinkronisasi
+persyaratan lowongan yang belum tersalin (M6), lalu cek kelengkapan:
+- requirement `required` berkas (input_type file/document) → butuh ≥1 dokumen;
+- requirement `required` non-berkas (text/number/select) → butuh
+  `answer_text` non-kosong (diisi via PUT /Lamaran_jawaban).
+Belum lengkap → 422. Lowongan sudah tutup saat submit → 409.
+Snapshot profil disimpan di `career_application_profile_snapshots`, 5 baris
+stage dibuat di `career_application_stages` (semua status `pending`), status
+`submitted` + `submitted_at` + `current_stage_id`=stage 1. Lamaran TERKUNCI
+setelah submit; ubahan profil berikutnya tidak mengubah snapshot.
 
 ### POST /Lamaran_dokumen/upload — auth (multipart/form-data)
 Field: `id_application_requirement` + file `document`. Syarat: lamaran masih
-draft. Validasi: ukuran vs `max_file_size_kb` requirement (fallback
-`career_upload_max_kb`), ekstensi vs `allowed_formats`, **MIME asli (finfo)
-harus cocok** dengan ekstensi diizinkan. File disimpan ke
-`application/storage/career/` (deny dari web), nama acak
-`app{id}_req{id}_v{v}_{hex}.<ext>`. Checksum sha256 file identik →
-respons 200 "File identik sudah diunggah" TANPA versi baru (idempotent).
-201 → `{id_application_document, version, original_name, download_url}`.
-Status requirement → `pending_review`. Audit log dicatat.
+draft dan requirement bertipe berkas (document file; non-berkas dijawab via
+`PUT /Lamaran_jawaban`). Validasi: ukuran vs `max_file_size_kb` requirement
+(fallback `career_upload_max_kb`), kuota versi per requirement maks 5 → 409,
+kuota total ≤25 MB per lamaran → 409, ekstensi vs `allowed_formats`,
+**MIME asli (finfo) harus cocok** persis dengan ekstensi (fail-closed:
+ekstensi di luar map mime ditolak; PDF ber-ekstensi .jpg ditolak). File
+disimpan ke `application/storage/career/` (deny dari web; produksi WAJIB di
+luar docroot), nama acak `app{id}_req{id}_v{v}_{hex}.<ext>`. Checksum sha256
+file identik → respons 200 "File identik sudah diunggah" TANPA versi baru
+(idempotent). 201 → `{id_application_document, version, original_name,
+download_url}`. Status requirement → `pending_review`. Audit log dicatat.
 
 ### GET /Lamaran_dokumen/detail/:id — auth
 Unduh binary file milik kandidat bersangkutan (404 bila milik orang lain).
+Header: `X-Content-Type-Options: nosniff`, `Content-Disposition` dengan
+`filename*=UTF-8''`.
 
 ### GET /Notifikasi/index — auth
 ### PUT /Notifikasi/read/:id — auth (tandai sudah dibaca)
 
 ## Audit
 Setiap aksi penting (register/login/logout/login_gagal/upload/unduh/submit)
-dicatat di `career_audit_logs` + percobaan login/login gagal di
-`career_login_attempts`. Kegagalan login berturut-turut menaikkan
-`failed_login_count`; mencapai batas → `locked_until` = sekarang + lockout.
+dicatat di `career_audit_logs` + percobaan login/register (sukses+gagal) di
+`career_login_attempts` — purge percobaan >30 hari (lihat
+`docs/PHASES/PHASE4_5_REPORT.md`). Kesalahan DB ditangani apicareer sendiri
+(dup-key → 409, lainnya → 500 generik) — produksi WAJIB CI_ENV=production.
+Token JWT memuat klaim `iss=jacos-career`, `iat`, `exp`, `ver` — token tanpa
+klaim wajib / iss salah / tanda tangan salah → 401.}
