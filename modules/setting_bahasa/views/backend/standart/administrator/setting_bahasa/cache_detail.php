@@ -8,6 +8,18 @@
 </section>
 <section class="content">
    <div class="row">
+      <div class="col-md-12">
+         <ul class="nav nav-tabs">
+            <li><a href="<?= site_url('administrator/setting_bahasa'); ?>">Bahasa User</a></li>
+            <li><a href="<?= site_url('administrator/setting_bahasa/override'); ?>">Override</a></li>
+            <li class="active"><a href="<?= site_url('administrator/setting_bahasa/cache'); ?>">Cache</a></li>
+            <li><a href="<?= site_url('administrator/setting_bahasa/warmup'); ?>">Warm-up</a></li>
+            <li><a href="<?= site_url('administrator/setting_bahasa/statistik'); ?>">Statistik</a></li>
+            <li><a href="<?= site_url('administrator/setting_bahasa/status'); ?>">Status</a></li>
+         </ul>
+      </div>
+   </div>
+   <div class="row">
       <div class="col-md-8">
          <div class="box box-warning">
             <div class="box-body">

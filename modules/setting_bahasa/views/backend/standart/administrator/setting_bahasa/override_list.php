@@ -12,6 +12,7 @@
             <li><a href="<?= site_url('administrator/setting_bahasa'); ?>">Bahasa User</a></li>
             <li class="active"><a href="<?= site_url('administrator/setting_bahasa/override'); ?>">Override</a></li>
             <li><a href="<?= site_url('administrator/setting_bahasa/cache'); ?>">Cache</a></li>
+            <li><a href="<?= site_url('administrator/setting_bahasa/warmup'); ?>">Warm-up</a></li>
             <li><a href="<?= site_url('administrator/setting_bahasa/statistik'); ?>">Statistik</a></li>
             <li><a href="<?= site_url('administrator/setting_bahasa/status'); ?>">Status</a></li>
          </ul>
