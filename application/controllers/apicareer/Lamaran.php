@@ -98,13 +98,13 @@ return $this->_err('Gagal membuat draft lamaran. Coba lagi.', 500);
 		$candidate = $this->_require_auth();
 		if ($candidate === NULL) return;
 
-		$rows = $this->db->select('a.id_application, a.status, a.submitted_at, a.created_at, p.title AS posting_title, p.closing_date')
+		$rows = $this->db->select('a.id_application, a.status, a.submitted_at, a.created_at, a.id_job_posting, p.title AS posting_title, p.closing_date')
 			->from('career_applications a')
 			->join('career_job_postings p', 'p.id_job_posting = a.id_job_posting')
 			->where('a.id_candidate', $candidate->id_candidate)
 			->order_by('a.id_application', 'DESC')
 			->get()->result_array();
-		foreach ($rows as &$r) { $r['id_application'] = (int) $r['id_application']; }
+		foreach ($rows as &$r) { $r['id_application'] = (int) $r['id_application']; $r['id_job_posting'] = (int) $r['id_job_posting']; }
 		unset($r); // jebakan referensi foreach
 		$this->_ok($rows, 'OK');
 	}

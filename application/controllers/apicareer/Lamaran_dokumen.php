@@ -247,10 +247,13 @@ return $this->_err('File fisik tidak ditemukan di server.', 404);
 		// nosniff, Content-Length; streaming tanpa muat seluruh file ke memori.
 		$ascii = preg_replace("/[^A-Za-z0-9._\- ]+/", '_', $doc->original_name);
 		if ($ascii === '' OR $ascii === '.') $ascii = 'dokumen';
-		$this->output->set_content_type($doc->mime_type ? $doc->mime_type : 'application/octet-stream')
-			->set_header('X-Content-Type-Options: nosniff')
-			->set_header('Content-Disposition: attachment; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode($doc->original_name))
-			->set_header('Content-Length: ' . filesize($path));
+		// Patch 5C.1: set_content_type()/set_header() + exit membuat header tidak
+		// pernah dikirim (CI output tidak tersalurkan) — kirim header langsung.
+		$mime = trim((string) ($doc->mime_type ? $doc->mime_type : 'application/octet-stream'), "\r\n\0");
+		header('Content-Type: ' . $mime);
+		header('X-Content-Type-Options: nosniff');
+		header('Content-Disposition: attachment; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode($doc->original_name));
+		header('Content-Length: ' . filesize($path));
 
 		$fh = fopen($path, 'rb');
 		if ($fh === FALSE)

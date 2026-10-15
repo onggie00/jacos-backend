@@ -82,7 +82,9 @@ Body `{id_job_posting}` → 201 draft. Requirements lowongan otomatis dibuat
 lowongan) ATAU lowongan tidak terbuka (M6: bukan 404).
 
 ### GET /Lamaran/index — auth
-Daftar lamaran milik sendiri.
+Daftar lamaran milik sendiri. Patch 5C.1: tiap item menyertakan
+`id_job_posting` (integer) agar klien dapat mencocokkan lamaran lama dgn
+lowongan tepat (dua lowongan berjudul sama tidak tertukar).
 
 ### GET /Lamaran/detail/:id — auth
 Detail + `requirements` (termasuk `answer_text` untuk non-berkas dan
