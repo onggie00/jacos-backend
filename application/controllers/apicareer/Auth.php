@@ -59,15 +59,21 @@ class Auth extends Career_base {
 		try
 		{
 			$this->db->trans_start();
-			$this->db->insert('career_candidates', array(
+			$insert_ok = $this->db->insert('career_candidates', array(
 				'email'         => $email,
 				'password_hash' => password_hash($password, PASSWORD_BCRYPT),
 				'full_name'     => $name,
 				'is_active'     => 1,
 				'token_version' => 1,
 			));
+			// db_debug=FALSE: error() hanya valid SEKARANG (query berikutnya
+			// termasuk ROLLBACK menimpanya).
+			$err_code = (int) $this->db->error()['code'];
 			$id = (int) $this->db->insert_id();
-			$this->db->insert('career_candidate_profiles', array('id_candidate' => $id));
+			if ($insert_ok !== FALSE)
+			{
+				$this->db->insert('career_candidate_profiles', array('id_candidate' => $id));
+			}
 			$this->db->trans_complete();
 		}
 		catch (Exception $e)
@@ -76,10 +82,10 @@ class Auth extends Career_base {
 		}
 
 		// H5: dup-key (uq_candidate_email) → 409 ramah, bukan 500
-		if ($this->db->trans_status() === FALSE)
+		if ($insert_ok === FALSE OR $this->db->trans_status() === FALSE)
 		{
 			$this->_log_attempt('register', $email, FALSE);
-			if ($this->_is_db_dup())
+			if ($err_code === 1062)
 			{
 		return $this->_err('Email sudah terdaftar.', 409);
 			}

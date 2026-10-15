@@ -46,21 +46,26 @@ return $this->_err('Lowongan tidak terbuka (belum dibuka atau sudah ditutup).', 
 		try
 		{
 			$this->db->trans_start();
-			$this->db->insert('career_applications', array(
+			$insert_ok = $this->db->insert('career_applications', array(
 				'id_candidate'   => $candidate->id_candidate,
 				'id_job_posting' => $id_posting,
 				'status'         => 'draft',
 				'current_stage_id' => NULL,
 			));
+			// db_debug=FALSE: error() hanya valid SEKARANG (ROLLBACK menimpanya).
+			$err_code = (int) $this->db->error()['code'];
 			$id_app = (int) $this->db->insert_id();
-			foreach ($reqs as $r)
+			if ($insert_ok !== FALSE)
 			{
-				// konfigurasi transaksi disalin saat draft (status awal not_uploaded)
-				$this->db->insert('career_application_requirements', array(
-					'id_application'             => $id_app,
-					'id_job_posting_requirement' => (int) $r['id_job_posting_requirement'],
-					'status'                     => 'not_uploaded',
-				));
+				foreach ($reqs as $r)
+				{
+					// konfigurasi transaksi disalin saat draft (status awal not_uploaded)
+					$this->db->insert('career_application_requirements', array(
+						'id_application'             => $id_app,
+						'id_job_posting_requirement' => (int) $r['id_job_posting_requirement'],
+						'status'                     => 'not_uploaded',
+					));
+				}
 			}
 			$this->db->trans_complete();
 		}
@@ -71,7 +76,7 @@ return $this->_err('Lowongan tidak terbuka (belum dibuka atau sudah ditutup).', 
 
 		if ($this->db->trans_status() === FALSE)
 		{
-			if ($this->_is_db_dup())
+			if ($err_code === 1062)
 			{
 return $this->_err('Kandidat sudah punya lamaran untuk lowongan ini (satu lamaran per lowongan).', 409);
 			}
@@ -128,7 +133,7 @@ return $this->_err('Gagal membuat draft lamaran. Coba lagi.', 500);
 			$reqs[$i]['upload_url'] = 'apicareer/Lamaran_dokumen/upload';
 			if ($this->_req_is_document($r['input_type']))
 			{
-				$doc = $this->db->select('id_application_document, version, original_name, mime_type, file_size, uploaded_at, status AS doc_status')
+				$doc = $this->db->select('id_application_document, version, original_name, mime_type, file_size, uploaded_at')
 					->where('id_application_requirement', $r['id_application_requirement'])
 					->order_by('version', 'DESC')
 					->get('career_application_documents')->row_array();
@@ -138,6 +143,7 @@ return $this->_err('Gagal membuat draft lamaran. Coba lagi.', 500);
 					$reqs[$i]['latest_document'] = $doc;
 					$reqs[$i]['download_url'] = 'apicareer/Lamaran_dokumen/detail/' . $doc['id_application_document'];
 				}
+				else { $reqs[$i]['latest_document'] = NULL; }
 			}
 		}
 
@@ -205,7 +211,7 @@ return $this->_err('Lamaran sudah terkunci (status bukan draft).', 409);
 
 		// M6: sinkronkan persyaratan lowongan yang belum tersalin (admin
 		// menambah persyaratan setelah draft dibuat tidak boleh lolos begitu saja).
-		$salinan = $this->db->select('ar.id_job_posting_requirement')
+		$salinan = $this->db->select('id_job_posting_requirement')
 			->where('id_application', (int) $app->id_application)
 			->get('career_application_requirements')->result_array();
 		$ada = array();

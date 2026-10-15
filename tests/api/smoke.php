@@ -84,6 +84,11 @@ function arr_get($arr, $path, $default = null) {
 
 $EMAIL = 'smoke' . time() . '@example.test';
 
+// purge rate-limit (H3 menghitung SEMUA percobaan per IP/jam — jangan kunci suite)
+$mysqli = new mysqli('127.0.0.1', 'root', '', 'jacos_db');
+$mysqli->query('DELETE FROM career_login_attempts');
+function smoke_purge($mysqli) { $mysqli->query('DELETE FROM career_login_attempts'); }
+
 // ---------- 1. Auth ----------
 echo "== 1. Auth ==\n";
 list($c, ) = http_json('POST', $BASE . '/Auth/login', array());
@@ -179,6 +184,25 @@ $ID_DOC = arr_get(json_decode($j, true), 'data.id_application_document');
 list($c, ) = http('POST', $BASE . '/Lamaran_dokumen/upload', $AUTH,
     array('id_application_requirement' => 999999), array('document' => $pdfPath));
 pass_fail('upload requirement bukan milik -> 404', 404, $c);
+
+// H1: lengkapi jawaban persyaratan wajib non-berkas sebelum submit
+$ID_REQ_TXT = 0;
+list($c, $jd) = http('GET', $BASE . '/Lamaran/detail/' . $ID_APP, $AUTH);
+$det = json_decode($jd, true);
+if (is_array($det)) {
+	foreach (arr_get($det, 'data.requirements', array()) as $r) {
+		if (arr_get($r, 'requirement_type') === 'required'
+			AND in_array(arr_get($r, 'input_type'), array('text','number','select'))
+			AND (int) arr_get($r, 'id_application_requirement') > 0)
+		{
+			$ID_REQ_TXT = (int) arr_get($r, 'id_application_requirement');
+		}
+	}
+}
+if ($ID_REQ_TXT > 0) {
+	list($c, ) = http_json('PUT', $BASE . '/Lamaran_jawaban', array(
+		'id_application_requirement' => $ID_REQ_TXT, 'answer' => 'Alasan uji smoke'), $TOKEN);
+}
 
 list($c, ) = http_json('POST', $BASE . '/Lamaran/submit', array('id_application' => $ID_APP), $TOKEN);
 pass_fail('submit -> 200', 200, $c);

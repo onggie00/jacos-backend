@@ -71,9 +71,13 @@ abstract class Career_base extends REST_Controller {
 
 		// H5: jangan bocorkan SQL/pesan DB ke respons — apicareer menangani
 		// error DB sendiri (dup-key → 409, lainnya → 500 generik).
-		if (isset($this->db) AND is_object($this->db))
+		$ci = function_exists('get_instance') ? get_instance() : NULL;
+		if (is_object($ci) AND isset($ci->db) AND is_object($ci->db))
 		{
-			$this->db->db_debug = FALSE;
+			// H5: error DB ditangani apicareer sendiri (dup-key → 409,
+			// lainnya → 500 generik); jangan sampai CI menampilkan halaman
+			// error DB yang bocorkan SQL/pesan ke kandidat.
+			$ci->db->db_debug = FALSE;
 		}
 
 		$this->_career_fix_cors();

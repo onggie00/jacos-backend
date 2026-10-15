@@ -244,7 +244,7 @@ return $this->_err('Item tidak ditemukan.', 404);
 			$order = isset($fields['display_order']) ? $fields['display_order'] : NULL;
 			if ($order !== NULL AND $order !== '' )
 			{
-				if ( ! is_numeric($order) OR (int) $order !== (float) $order OR (int) $order < 0)
+				if ( ! is_numeric($order) OR (float) $order != (int) $order OR (int) $order < 0)
 				{
 					return 'display_order harus bilangan >= 0.';
 				}
