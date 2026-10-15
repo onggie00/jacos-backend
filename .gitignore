@@ -108,3 +108,9 @@ Design.md
 PRD.md
 Rules.md
 Schema.md
+
+# Career uploads (Fase 4.5): file unggahan kandidat tidak masuk git;
+# .htaccess tetap di-track (struktur chmod denials wajib ikut repo).
+# Produksi: storage WAJIB dipindah di luar docroot (checklist Fase 7).
+application/storage/career/*
+!application/storage/career/.htaccess
