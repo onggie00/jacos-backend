@@ -75,10 +75,12 @@ class Model_career_pelamar extends MY_Model {
             $this->db->where('a.current_stage_id', (int) $filter['stage_id']);
         }
         if (isset($filter['q']) && $filter['q'] !== '') {
-            $q = $this->scurity($filter['q']);
+            // LOW #21: tanpa scurity() (double-escape); like() sudah
+            // di-escape oleh CI, wildcard dibungkus escape_like_str.
+            $q = $this->db->escape_like_str(career_q($filter['q']));
             $this->db->group_start();
-            $this->db->like('c.full_name', $q);
-            $this->db->or_like('c.email', $q);
+            $this->db->like('c.full_name', $q, 'both', FALSE);
+            $this->db->or_like('c.email', $q, 'both', FALSE);
             $this->db->group_end();
         }
     }
@@ -131,8 +133,7 @@ class Model_career_pelamar extends MY_Model {
     {
         return $this->db->query(
             "SELECT s.id_application_stage, s.id_stage, s.status, s.scheduled_at,
-                    s.decided_at, s.score, s.note_internal,
-                    st.stage_order, st.name, st.mode,
+                    s.decided_at, st.stage_order, st.name, st.mode,
                     sch.schedule_datetime, sch.channel, sch.note, sch.is_published
              FROM career_application_stages s
              JOIN career_stages st ON st.id_stage = s.id_stage
@@ -159,7 +160,7 @@ class Model_career_pelamar extends MY_Model {
                 OR (object_type = 'job_posting_requirement' AND object_id IN
                     (SELECT id_job_posting_requirement FROM career_application_requirements
                      WHERE id_application = ?))
-             ORDER BY created_at DESC
+             ORDER BY created_at DESC, id_audit_log DESC
              LIMIT ? OFFSET ?",
             array((int) $id_application, (int) $id_application, (int) $id_application,
                   (int) $limit, (int) $offset)
@@ -175,7 +176,7 @@ class Model_career_pelamar extends MY_Model {
             ->get('career_application_documents')->row();
     }
 
-    /** Notifikasi ($id_candidate) — 20 terbaru. */
+    /** Notifikasi ($id_candidate) — 50 terbaru. */
     public function notifikasi($id_candidate)
     {
         return $this->db->where('id_candidate', (int) $id_candidate)

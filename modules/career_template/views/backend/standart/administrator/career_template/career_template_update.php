@@ -19,7 +19,7 @@
                         <img class="img-circle" src="<?= BASE_ASSET; ?>/img/update.png" alt="Ubah">
                      </div>
                      <h3 class="widget-user-username">Master Persyaratan</h3>
-                     <h5 class="widget-user-desc">Ubah template #<?= (int) $template->id_requirement_template; ?></h5>
+                     <h5 class="widget-user-desc">Ubah template #<?= (int) $tpl->id_requirement_template; ?></h5>
                      <hr>
                   </div>
                   <?php if ($used): ?>
@@ -29,27 +29,27 @@
                         memakainya tidak berubah. Menghapus akan ditolak.
                      </div>
                   <?php endif; ?>
-                  <?= form_open('', ['name' => 'form_career_template', 'class' => 'form-horizontal', 'id' => 'form_career_template', 'method' => 'POST']); ?>
+                  <?= form_open(site_url('administrator/career_template/edit_save/' . (int) $tpl->id_requirement_template), ['name' => 'form_career_template', 'class' => 'form-horizontal', 'id' => 'form_career_template', 'method' => 'POST']); ?>
                   <?= career_csrf_field(); ?>
                   <div class="form-group">
                      <label for="name" class="col-sm-2 control-label">Nama <i class="required">*</i></label>
                      <div class="col-sm-8">
-                        <input type="text" class="form-control" name="name" id="name" value="<?= set_value('name', $template->name); ?>" maxlength="200">
+                        <input type="text" class="form-control" name="name" id="name" value="<?= set_value('name', $tpl->name); ?>" maxlength="200">
                         <small class="info help-block">Wajib, maks 200 karakter.</small>
                      </div>
                   </div>
                   <div class="form-group">
                      <label for="description" class="col-sm-2 control-label">Deskripsi</label>
                      <div class="col-sm-8">
-                        <textarea class="form-control" name="description" id="description" rows="4" maxlength="2000"><?= set_value('description', $template->description); ?></textarea>
+                        <textarea class="form-control" name="description" id="description" rows="4" maxlength="2000"><?= set_value('description', $tpl->description); ?></textarea>
                         <small class="info help-block">Opsional, maks 2000 karakter. Teks murni.</small>
                      </div>
                   </div>
                   <div class="form-group">
                      <label class="col-sm-2 control-label">Status</label>
                      <div class="col-sm-8">
-                        <label class="radio-inline"><input type="radio" name="is_active" value="1" <?= set_radio('is_active', '1', (int) $template->is_active === 1); ?>> Aktif</label>
-                        <label class="radio-inline"><input type="radio" name="is_active" value="0" <?= set_radio('is_active', '0', (int) $template->is_active === 0); ?>> Nonaktif</label>
+                        <label class="radio-inline"><input type="radio" name="is_active" value="1" <?= set_radio('is_active', '1', (int) $tpl->is_active === 1); ?>> Aktif</label>
+                        <label class="radio-inline"><input type="radio" name="is_active" value="0" <?= set_radio('is_active', '0', (int) $tpl->is_active === 0); ?>> Nonaktif</label>
                      </div>
                   </div>
                   <div class="message"></div>

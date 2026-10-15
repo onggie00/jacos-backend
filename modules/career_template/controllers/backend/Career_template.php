@@ -3,11 +3,11 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
 *| --------------------------------------------------------------------------
-*| Career Template Controller (Fase 6A)
+*| Career Template Controller (Fase 6A, revisi 6A.1)
 *| --------------------------------------------------------------------------
 *| Master template persyaratan karier (career_requirement_templates).
 *| Aturan D12: template yang pernah dipakai lowongan TIDAK boleh dihapus
-*| — hanya dinonaktifkan. Semua mutasi dicatat ke career_audit_logs.
+*| — hanya dinonaktifkan. Semua mutasi POST + CSRF + audit career_audit_logs.
 */
 class Career_template extends Admin
 {
@@ -26,13 +26,19 @@ class Career_template extends Admin
 	{
 		$this->is_allowed('career_template_list');
 
-		$q      = $this->input->get('q');
-		$status = $this->input->get('status');
+		$q      = career_q($this->input->get('q'));
+		$status = career_q($this->input->get('status'));
+		$offset = max(0, (int) $offset);
 
 		$this->data['q']        = $q;
 		$this->data['status']   = $status;
 		$this->data['templates']      = $this->model_career_template->career_list($q, $status, $this->limit_page, $offset);
 		$this->data['template_counts'] = $this->model_career_template->career_count($q, $status);
+
+		// MED #5/#11: peta dipakai 1 query, bukan N+1 per baris.
+		$ids = array();
+		foreach ($this->data['templates'] as $t) { $ids[] = (int) $t->id_requirement_template; }
+		$this->data['dipakai'] = $this->model_career_template->used_map($ids);
 
 		$config = [
 			'base_url'    => 'administrator/career_template/index/',
@@ -42,6 +48,9 @@ class Career_template extends Admin
 		];
 		$this->data['pagination'] = $this->pagination($config);
 
+		// token CSRF utk tombol hapus via AJAX POST (HIGH #2/#7)
+		$this->data['csrf_field'] = career_csrf_field();
+
 		$this->template->title('Master Persyaratan');
 		$this->render('backend/standart/administrator/career_template/career_template_list', $this->data);
 	}
@@ -49,7 +58,9 @@ class Career_template extends Admin
 	/** Form tambah template. */
 	public function add()
 	{
-		$this->is_allowed('career_template_add');
+		if (!$this->is_allowed('career_template_add')) {
+			return;
+		}
 
 		$this->template->title('Tambah Master Persyaratan');
 		$this->render('backend/standart/administrator/career_template/career_template_add', $this->data);
@@ -80,24 +91,32 @@ class Career_template extends Admin
 			'is_active'   => $this->input->post('is_active') == '1' ? 1 : 0,
 		];
 
+		// MED #9: transaksi + audit HANYA setelah commit sukses.
 		$this->db->trans_start();
 		$id = $this->model_career_template->store_template($save_data);
+		$ok = $this->db->trans_complete();
+
+		if (!$ok || $id <= 0) {
+			return $this->_json_done(false, NULL, 'Gagal menyimpan template.');
+		}
+
 		career_audit('create_template', 'career_requirement_template', $id, [
 			'name' => $save_data['name'],
 			'is_active' => $save_data['is_active'],
 		]);
-		$this->db->trans_complete();
 
-		return $this->_json_done($id !== NULL && $id > 0, (int) $id);
+		return $this->_json_done(true, $id);
 	}
 
 	/** Form ubah template. */
 	public function edit($id)
 	{
-		$this->is_allowed('career_template_update');
+		if (!$this->is_allowed('career_template_update')) {
+			return;
+		}
 
-		$this->data['template'] = $this->model_career_template->find_template($id);
-		if (!$this->data['template']) {
+		$this->data['tpl'] = $this->model_career_template->find_template($id);
+		if (!$this->data['tpl']) {
 			show_error('Template tidak ditemukan.', 404);
 		}
 		$this->data['used'] = $this->model_career_template->used_by_postings($id);
@@ -137,70 +156,89 @@ class Career_template extends Admin
 		];
 
 		$this->db->trans_start();
-		$ok = $this->model_career_template->change_template($id, $save_data);
-		career_audit('update_template', 'career_requirement_template', $id, [
-			'before' => ['name' => $old->name, 'is_active' => (int) $old->is_active],
-			'after'  => ['name' => $save_data['name'], 'is_active' => $save_data['is_active']],
-		]);
-		$this->db->trans_complete();
+		$ok = $this->model_career_template->change_template($id, $save_data)
+			&& $this->db->trans_complete();
 
-		return $this->_json_done($ok, (int) $id);
+		if (!$ok) {
+			return $this->_json_done(false, (int) $id, 'Gagal menyimpan template.');
+		}
+
+		// MED #16: audit sebelum/setelah SEMUA field yang bisa berubah.
+		career_audit('update_template', 'career_requirement_template', (int) $id, [
+			'before' => [
+				'name'        => $old->name,
+				'description' => $old->description,
+				'is_active'   => (int) $old->is_active,
+			],
+			'after' => [
+				'name'        => $save_data['name'],
+				'description' => $save_data['description'],
+				'is_active'   => $save_data['is_active'],
+			],
+		]);
+
+		return $this->_json_done(true, (int) $id);
 	}
 
 	/**
-	 * Hapus template (GET link dgn konfirmasi di list).
-	 * Hanya yang BELUM pernah dipakai lowongan (D12).
+	 * Hapus template (POST dgn konfirmasi AJAX di list — HIGH #2: GET
+	 * mutasi ditolak). Hanya yang BELUM pernah dipakai lowongan (D12).
 	 */
 	public function delete($id = null)
 	{
+		if ($this->input->method() !== 'post') {
+			return $this->_json_deny('Metode harus POST.', 403);
+		}
 		if (!$this->is_allowed('career_template_delete', false)) {
-			set_message(cclang('sorry_you_do_not_have_permission_to_access'), 'error');
-			redirect('administrator/career_template', 'refresh');
+			return $this->_json_deny(cclang('sorry_you_do_not_have_permission_to_access'), 403);
+		}
+		if (!career_csrf_ok()) {
+			return $this->_json_deny('Sesi tidak sah (CSRF). Muat ulang halaman.', 403);
 		}
 
 		$old = $this->model_career_template->find_template($id);
 		if (!$old) {
-			set_message('Template tidak ditemukan.', 'error');
-			redirect('administrator/career_template', 'refresh');
+			return $this->_json_done(false, (int) $id, 'Template tidak ditemukan.');
 		}
 
 		if ($this->model_career_template->delete_unused($id)) {
-			career_audit('delete_template', 'career_requirement_template', $id, [
+			career_audit('delete_template', 'career_requirement_template', (int) $id, [
 				'name' => $old->name,
 			]);
-			set_message('Template dihapus.', 'success');
-		} else {
-			// D12: template dipakai lowongan → nonaktifkan saja.
-			set_message('Template sudah pernah dipakai lowongan dan tidak boleh dihapus — nonaktifkan saja.', 'error');
+			return $this->_json_done(true, (int) $id, 'Template dihapus.');
 		}
 
-		redirect('administrator/career_template', 'refresh');
+		// D12: template dipakai lowongan → nonaktifkan saja.
+		return $this->_json_done(false, (int) $id,
+			'Template sudah pernah dipakai lowongan dan tidak boleh dihapus — nonaktifkan saja.');
 	}
 
-	private function _json_done($success, $id = NULL)
+	private function _json_done($success, $id = NULL, $message = NULL)
 	{
-		echo json_encode([
+		$this->output->set_content_type('application/json')->set_output(json_encode([
 			'success' => (bool) $success,
 			'id'      => $id,
-			'message' => $success ? cclang('data_not_change') : 'Gagal menyimpan.',
-			'redirect' => $success ? base_url('administrator/career_template') : NULL,
-		]);
-		exit;
+			'message' => $message !== NULL
+				? $message
+				: ($success ? 'Tersimpan.' : 'Gagal menyimpan.'),
+		]));
 	}
 
-	private function _json_deny($message)
+	private function _json_deny($message, $status = 403)
 	{
-		echo json_encode(['success' => false, 'message' => $message]);
-		exit;
+		$this->output->set_status_header($status);
+		$this->output->set_content_type('application/json')->set_output(json_encode([
+			'success' => false,
+			'message' => $message,
+		]));
 	}
 
 	private function _json_invalid($errors)
 	{
-		echo json_encode([
+		$this->output->set_content_type('application/json')->set_output(json_encode([
 			'success' => false,
 			'message' => 'Opss validation failed',
 			'errors'  => $errors,
-		]);
-		exit;
+		]));
 	}
 }

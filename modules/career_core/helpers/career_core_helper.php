@@ -82,9 +82,34 @@ if ( ! function_exists('career_audit')) {
             'action'      => (string) $action,
             'object_type' => (string) $object_type,
             'object_id'   => $object_id === NULL ? NULL : (int) $object_id,
-            'detail_json' => json_encode($detail),
+            'detail_json' => json_encode(
+                $detail,
+                JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE
+            ) ?: '{}',
             'ip_address'  => $ci->input->ip_address(),
         ));
+    }
+}
+
+// --------------------------------------------------------------------
+// Input helper kecil
+// --------------------------------------------------------------------
+
+if ( ! function_exists('career_q')) {
+    /**
+     * Normalisasi input GET/POST untuk filter: selalu string skalar.
+     * Array (mis. ?q[]=x) dipangkas: elemen pertama skalar, kalau tak ada
+     * → ''. (IP #21 — cegah warning + double-escape dari scurity().)
+     */
+    function career_q($v)
+    {
+        if (is_array($v)) {
+            foreach ($v as $first) {
+                if ( ! is_array($first)) { return (string) $first; }
+            }
+            return '';
+        }
+        return (string) $v;
     }
 }
 
@@ -140,7 +165,7 @@ if ( ! function_exists('career_stream_admin_document')) {
     {
         $ci =& get_instance();
         $rel = trim((string) (isset($doc->file_path) ? $doc->file_path : ''), '/\\');
-        if ($rel === '' || strpbrk($rel, '..') === '..') { return FALSE; }
+        if ($rel === '' || strpos($rel, '..') !== FALSE) { return FALSE; }
 
         $base_dir = rtrim($ci->config->item('career_upload_dir'), '/\\');
         $full = realpath(FCPATH . str_replace('/', DIRECTORY_SEPARATOR, $rel));
@@ -152,7 +177,14 @@ if ( ! function_exists('career_stream_admin_document')) {
         }
 
         $mime = trim((string) $doc->mime_type, "\r\n\0");
-        if ($mime === '') { $mime = 'application/octet-stream'; }
+        $mime_whitelist = array(
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
+        if ( ! in_array($mime, $mime_whitelist, TRUE)) { $mime = 'application/octet-stream'; }
         $ascii = preg_replace('/[^A-Za-z0-9._\-]/', '_', $doc->original_name);
         if ($ascii === '' || $ascii === NULL) { $ascii = 'dokumen'; }
 
@@ -164,6 +196,7 @@ if ( ! function_exists('career_stream_admin_document')) {
         header('Content-Length: ' . filesize($full));
         header('Cache-Control: no-store');
         readfile($full);
-        return TRUE;
+        return TRUE;  // caller menulis audit lalu exit (agar audit hanya
+                      // untuk unduhan yang benar-benar terkirim).
     }
 }

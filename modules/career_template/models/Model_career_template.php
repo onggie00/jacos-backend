@@ -29,7 +29,7 @@ class Model_career_template extends MY_Model {
     {
         $this->db->from($this->table_name);
         if ($q !== NULL && $q !== '') {
-            $this->db->like('name', $this->scurity($q));
+            $this->db->like('name', $this->db->escape_like_str(career_q($q)), 'both', FALSE);
         }
         if ($status === 'active') {
             $this->db->where('is_active', 1);
@@ -37,8 +37,9 @@ class Model_career_template extends MY_Model {
             $this->db->where('is_active', 0);
         }
         $this->db->order_by('name', 'ASC');
+        $offset = max(0, (int) $offset);
         if ($limit !== NULL) {
-            $this->db->limit((int) $limit, (int) $offset);
+            $this->db->limit((int) $limit, $offset);
         }
         return $this->db->get()->result();
     }
@@ -47,7 +48,7 @@ class Model_career_template extends MY_Model {
     {
         $this->db->from($this->table_name);
         if ($q !== NULL && $q !== '') {
-            $this->db->like('name', $this->scurity($q));
+            $this->db->like('name', $this->db->escape_like_str(career_q($q)), 'both', FALSE);
         }
         if ($status === 'active') {
             $this->db->where('is_active', 1);
@@ -65,6 +66,23 @@ class Model_career_template extends MY_Model {
         return $n > 0;
     }
 
+    /**
+     * Peta id_template => bool dipakai untuk satu halaman list
+     * (MED #5/#11 — hindari query N+1 per baris).
+     */
+    public function used_map(array $ids)
+    {
+        $map = array();
+        $ids = array_map('intval', $ids);
+        if ($ids === array()) { return $map; }
+        $rows = $this->db->select('id_requirement_template')
+            ->where_in('id_requirement_template', $ids)
+            ->group_by('id_requirement_template')
+            ->get('career_job_posting_requirements')->result();
+        foreach ($rows as $r) { $map[(int) $r->id_requirement_template] = TRUE; }
+        return $map;
+    }
+
     /** Simpan (insert) — timestamps diisi eksplisit. */
     public function store_template($data)
     {
@@ -76,8 +94,8 @@ class Model_career_template extends MY_Model {
             'created_at'  => $now,
             'updated_at'  => $now,
         );
-        $this->db->insert($this->table_name, $row);
-        return (int) $this->db->insert_id();
+        $ok = $this->db->insert($this->table_name, $row);
+        return $ok ? (int) $this->db->insert_id() : 0;
     }
 
     /** Update template (semua kolom editable modul). */
@@ -103,10 +121,21 @@ class Model_career_template extends MY_Model {
     public function delete_unused($id)
     {
         $id = (int) $id;
-        if ($id <= 0 || $this->used_by_postings($id)) {
-            return FALSE;
+        if ($id <= 0) { return FALSE; }
+        // Transaksi + check-then-delete atomik (MED #10): kandidat mungkin
+        // menyusun lamaran di antara check dan delete — lalu FK RESTRICT
+        // bikin DB error kasar. Kunci baris + cek di dalam satu transaksi.
+        $this->db->trans_start();
+        $row = $this->db->select('id_requirement_template')
+            ->where($this->primary_key, $id)
+            ->for_update()->get($this->table_name)->row();
+        $used = $this->used_by_postings($id);
+        if ($row === NULL || ! $used) {
+            $this->db->where($this->primary_key, $id);
+            $this->db->delete($this->table_name);
         }
-        $this->db->where($this->primary_key, $id);
-        return $this->db->delete($this->table_name);
+        $ok = $this->db->trans_complete();
+        if ( ! $ok) { return FALSE; }
+        return (! $used);
     }
 }

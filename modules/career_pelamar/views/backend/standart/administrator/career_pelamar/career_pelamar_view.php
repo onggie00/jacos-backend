@@ -78,12 +78,12 @@
                         if (!is_object($snap)) { $snap = new stdClass(); }
                         $rows = array(
                            'Nama lengkap'   => $snap->candidate->full_name ?? '-',
-                           'Nomor HP'       => $snap->phone ?? '-',
+                           'Nomor HP'       => $snap->profile->phone ?? '-',
                            'Tempat lahir'   => $snap->place_of_birth ?? '-',
-                           'Tanggal lahir'  => $snap->date_of_birth ?? '-',
-                           'Jenis kelamin'  => $snap->gender ?? '-',
-                           'Alamat'         => $snap->address ?? '-',
-                           'Ringkasan diri' => $snap->summary ?? '-',
+                           'Tanggal lahir'  => $snap->profile->date_of_birth ?? '-',
+                           'Jenis kelamin'  => $snap->profile->gender ?? '-',
+                           'Alamat'         => $snap->profile->address ?? '-',
+                           'Ringkasan diri' => $snap->profile->summary ?? '-',
                         );
                      ?>
                         <table class="table">
@@ -108,7 +108,7 @@
                               <td><span class="label label-default"><?= html_escape($it->item_type ?? '-'); ?></span></td>
                               <td><?= html_escape($it->title ?? '-'); ?></td>
                               <td><?= html_escape($it->institution ?? '-'); ?></td>
-                              <td><?= html_escape($it->start_date ?: '-'); ?> → <?= html_escape($it->end_date ?: '-'); ?></td>
+                              <td><?= html_escape(($it->start_date ?? '') ?: '-'); ?> → <?= html_escape(($it->end_date ?? '') ?: '-'); ?></td>
                               <td><?= nl2br(html_escape($it->description ?? '')); ?></td>
                            </tr>
                         <?php endforeach; ?>

@@ -22,7 +22,7 @@
                      <h5 class="widget-user-desc">Tambah template persyaratan</h5>
                      <hr>
                   </div>
-                  <?= form_open('', ['name' => 'form_career_template', 'class' => 'form-horizontal', 'id' => 'form_career_template', 'method' => 'POST']); ?>
+                  <?= form_open(site_url('administrator/career_template/add_save'), ['name' => 'form_career_template', 'class' => 'form-horizontal', 'id' => 'form_career_template', 'method' => 'POST']); ?>
                   <?= career_csrf_field(); ?>
                   <div class="form-group">
                      <label for="name" class="col-sm-2 control-label">Nama <i class="required">*</i></label>

@@ -64,7 +64,7 @@
                         <tr>
                            <td><?= (int) $t->id_requirement_template; ?></td>
                            <td><?= html_escape($t->name); ?></td>
-                           <td><?= esc(character_limiter((string) $t->description, 60)); ?></td>
+                           <td><?php $this->load->helper('text'); ?><?= html_escape(character_limiter((string) $t->description, 60)); ?></td>
                            <td>
                               <?php if ((int) $t->is_active === 1): ?>
                                  <span class="label label-success">Aktif</span>
@@ -96,3 +96,27 @@
       </div>
    </div>
 </section>
+
+<div id="career_csrf_holder" style="display:none"><?= isset($csrf_field) ? $csrf_field : ''; ?></div>
+<script>
+// HIGH #2/#7: hapus via POST + CSRF, bukan GET link.
+document.addEventListener('DOMContentLoaded', function () {
+   document.querySelectorAll('.remove-data').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
+         ev.preventDefault();
+         if (!window.confirm('Hapus template ini? Penghapusan permanen untuk yang belum pernah dipakai.')) { return; }
+         var tokEl = document.querySelector('#career_csrf_holder input[name=career_csrf]');
+         var fd = new FormData();
+         if (tokEl) { fd.append('career_csrf', tokEl.value); }
+         btn.disabled = true;
+         fetch(btn.getAttribute('data-href'), { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (j) {
+               window.alert(j.message || (j.success ? 'Berhasil.' : 'Gagal.'));
+               window.location.reload();
+            })
+            .catch(function () { btn.disabled = false; window.alert('Gagal menghubungi server.'); });
+      });
+   });
+});
+</script>

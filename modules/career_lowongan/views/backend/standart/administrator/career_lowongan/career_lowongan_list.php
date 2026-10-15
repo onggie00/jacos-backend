@@ -103,9 +103,27 @@
                   </table>
                   </div>
                   <div style="padding:10px"><?= $pagination; ?></div>
+                  <span style="display:none" id="csrf_holder"><?= $csrf_field; ?></span>
                </div>
             </div>
          </div>
       </div>
    </div>
 </section>
+<script>
+$(document).ready(function(){
+   var CSRF = $('#csrf_holder input[name="career_csrf"]').val();
+
+   // Hapus lowongan — konfirmasi + POST + CSRF (bukan GET).
+   $('#tbody_career_lowongan').on('click', '.remove-data', function(){
+      var url = $(this).data('href');
+      if (!confirm('Hapus lowongan ini?')) { return false; }
+      $.post(url, { career_csrf: CSRF },
+         function(res){
+            if (res.success) { window.location.href = BASE_URL + 'administrator/career_lowongan'; }
+            else { alert(res.message || 'Gagal menghapus.'); }
+         }, 'json').fail(function(){ alert('Ditolak (403).'); });
+      return false;
+   });
+});
+</script>

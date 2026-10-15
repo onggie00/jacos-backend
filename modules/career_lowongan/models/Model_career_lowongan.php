@@ -42,25 +42,54 @@ class Model_career_lowongan extends MY_Model {
 
     public function lowongan_list($q = NULL, $status = NULL, $limit = NULL, $offset = 0)
     {
-        $this->db->from($this->table_name);
+        $where  = '';
+        $params = array();
         if ($q !== NULL && $q !== '') {
-            $this->db->like('title', $this->scurity($q));
+            $where .= ' AND title LIKE ? ';
+            $params[] = '%' . $this->db->escape_like_str(career_q($q)) . '%';
         }
-        $this->db->order_by('id_job_posting', 'DESC');
-        $rows = ($limit !== NULL)
-            ? $this->db->limit((int) $limit, (int) $offset)->get()->result()
-            : $this->db->get()->result();
-        if ($status === NULL || $status === '') {
-            return $rows;
+        // MED #11: status dihitung di SQL (LIMIT/OFFSET hrs konsisten).
+        $where .= $this->_status_where($status, $params);
+        $offset = max(0, (int) $offset);
+        $sql = 'SELECT * FROM ' . $this->table_name . ' WHERE 1' . $where
+            . ' ORDER BY id_job_posting DESC';
+        if ($limit !== NULL) {
+            $sql .= ' LIMIT ? OFFSET ?';
+            $params[] = (int) $limit;
+            $params[] = $offset;
         }
-        return array_values(array_filter($rows, function ($r) use ($status) {
-            return $this->status_tampil($r) === $status;
-        }));
+        return $this->db->query($sql, $params)->result();
     }
 
     public function lowongan_count($q = NULL, $status = NULL)
     {
-        return count($this->lowongan_list($q, $status, NULL, 0));
+        $where  = '';
+        $params = array();
+        if ($q !== NULL && $q !== '') {
+            $where .= ' AND title LIKE ? ';
+            $params[] = '%' . $this->db->escape_like_str(career_q($q)) . '%';
+        }
+        $where .= $this->_status_where($status, $params);
+        $row = $this->db->query('SELECT COUNT(*) n FROM ' . $this->table_name
+            . ' WHERE 1' . $where, $params)->row();
+        return (int) $row->n;
+    }
+
+    /** WHERE potongan status (draft/buka/tutup) — konsisten dgn status_tampil. */
+    private function _status_where($status, &$params)
+    {
+        if ($status === 'draft') {
+            $params[] = (int) 0;
+            return ' AND (is_published = ? OR opening_date > CURDATE()) ';
+        }
+        if ($status === 'buka') {
+            return ' AND (is_published = 1 AND opening_date <= CURDATE()
+                         AND closing_date >= CURDATE()) ';
+        }
+        if ($status === 'tutup') {
+            return ' AND (is_published = 1 AND closing_date < CURDATE()) ';
+        }
+        return '';
     }
 
     public function find_lowongan($id)
@@ -75,6 +104,20 @@ class Model_career_lowongan extends MY_Model {
         $n = $this->db->where('id_job_posting', (int) $id)
             ->count_all_results('career_applications');
         return $n > 0;
+    }
+
+    /** Peta id_posting => bool punya lamaran utk 1 halaman list (anti N+1). */
+    public function punya_ids(array $ids)
+    {
+        $map = array();
+        $ids = array_map('intval', $ids);
+        if ($ids === array()) { return $map; }
+        $rows = $this->db->select('id_job_posting')
+            ->distinct()
+            ->where_in('id_job_posting', $ids)
+            ->get('career_applications')->result();
+        foreach ($rows as $r) { $map[(int) $r->id_job_posting] = TRUE; }
+        return $map;
     }
 
     // ---------------- mutasi lowongan ----------------
@@ -115,11 +158,20 @@ class Model_career_lowongan extends MY_Model {
     public function delete_lowongan($id)
     {
         $id = (int) $id;
-        if ($id <= 0 || $this->punya_lamaran($id)) {
-            return FALSE;
+        if ($id <= 0) { return FALSE; }
+        // MED #10: transaksi + kunci baris — cek & hapus atomik
+        // (tidak bocor ke kandidat yg melamar di selaDELETE).
+        $this->db->trans_start();
+        $lock = $this->db->query('SELECT id_job_posting FROM ' . $this->table_name
+            . ' WHERE id_job_posting = ? FOR UPDATE', array($id))->row();
+        $used = $lock !== NULL && $this->punya_lamaran($id);
+        if ($lock !== NULL && ! $used) {
+            $this->db->where($this->primary_key, $id);
+            $this->db->delete($this->table_name);  // baris persyr = FK CASCADE
         }
-        $this->db->where($this->primary_key, $id);
-        return $this->db->delete($this->table_name);  // baris persyr TNK sediri by FK CASCADE
+        $ok = $this->db->trans_complete();
+        if ( ! $ok) { return FALSE; }
+        return ($lock !== NULL && ! $used);
     }
 
     // ---------------- persyaratan lowongan ----------------
@@ -178,6 +230,8 @@ class Model_career_lowongan extends MY_Model {
      * Update persyaratan — field SECRENNya hanya yang boleh diubah:
      * requirement_name, allowed_formats, max_file_size_kb, display_order.
      * input_type/requirement_type HARUS sama dgn record eksisting (D12).
+     * HIGH #6: display_order dipertahankan bila payload tidak mengirimnya
+     * (ubah biasa di form jangan me-reset urutan baris).
      */
     public function change_requirement($id_requirement, $data, $locked_input_type, $locked_requirement_type)
     {
@@ -187,22 +241,33 @@ class Model_career_lowongan extends MY_Model {
             'requirement_type' => $locked_requirement_type,
             'allowed_formats'  => $data['allowed_formats'],
             'max_file_size_kb' => $data['max_file_size_kb'],
-            'display_order'    => (int) $data['display_order'],
             'updated_at'       => date('Y-m-d H:i:s'),
         );
+        if (isset($data['display_order'])) {
+            $row['display_order'] = (int) $data['display_order'];
+        }
         $this->db->where('id_job_posting_requirement', (int) $id_requirement);
         return $this->db->update('career_job_posting_requirements', $row);
     }
 
-    /** Hapus persyaratan — hanya bila belum dipakai lamaran (dgn FK CASCADE). */
+    /** Hapus persyaratan — hanya bila belum dipakai lamaran. MED #10:
+     *  transaksi + FOR UPDATE — jangan sampai CASCADE menghapus
+     *  jawaban/dokumen kandidat yang submit pas di sela. */
     public function delete_requirement($id_requirement)
     {
         $id = (int) $id_requirement;
-        if ($id <= 0 || $this->requirement_dipakai($id)) {
-            return FALSE;
+        if ($id <= 0) { return FALSE; }
+        $this->db->trans_start();
+        $lock = $this->db->query('SELECT id_job_posting_requirement FROM career_job_posting_requirements
+            WHERE id_job_posting_requirement = ? FOR UPDATE', array($id))->row();
+        $used = $lock !== NULL && $this->requirement_dipakai($id);
+        if ($lock !== NULL && ! $used) {
+            $this->db->where('id_job_posting_requirement', $id);
+            $this->db->delete('career_job_posting_requirements');
         }
-        $this->db->where('id_job_posting_requirement', $id);
-        return $this->db->delete('career_job_posting_requirements');
+        $ok = $this->db->trans_complete();
+        if ( ! $ok) { return FALSE; }
+        return ($lock !== NULL && ! $used);
     }
 
     /** TRUE mk lowongan layak terbit: >=1 persyr + tanggal valid. */
@@ -220,5 +285,31 @@ class Model_career_lowongan extends MY_Model {
             return array(FALSE, 'Tanggal tutup tidak boleh lebih awal dari tanggal buka.');
         }
         return array(TRUE, '');
+    }
+
+    /** Jumlah persyaratan dlm lowongan (utk validasi terbit in-transaksi). */
+    public function hitung_persyaratan($id_job_posting)
+    {
+        return $this->db->where('id_job_posting', (int) $id_job_posting)
+            ->count_all_results('career_job_posting_requirements');
+    }
+
+    /**
+     * Peta id_requirement => bool dipakai utk SEMUA persyaratan satu
+     * lowongan (anti N+1 di halaman ubah).
+     */
+    public function dipakai_map($id_job_posting)
+    {
+        $rows = $this->db->query(
+            'SELECT jr.id_job_posting_requirement
+             FROM career_job_posting_requirements jr
+             WHERE jr.id_job_posting = ?
+               AND EXISTS (SELECT 1 FROM career_application_requirements ar
+                           WHERE ar.id_job_posting_requirement = jr.id_job_posting_requirement)',
+            array((int) $id_job_posting)
+        )->result();
+        $map = array();
+        foreach ($rows as $r) { $map[(int) $r->id_job_posting_requirement] = TRUE; }
+        return $map;
     }
 }

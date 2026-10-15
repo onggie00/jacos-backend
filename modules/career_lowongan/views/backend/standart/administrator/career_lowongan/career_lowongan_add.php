@@ -22,7 +22,7 @@
                      <h5 class="widget-user-desc">Tambah lowongan + persyaratannya</h5>
                      <hr>
                   </div>
-                  <?= form_open('', ['name' => 'form_career_lowongan', 'class' => 'form-horizontal', 'id' => 'form_career_lowongan', 'method' => 'POST']); ?>
+                  <?= form_open(site_url('administrator/career_lowongan/add_save'), ['name' => 'form_career_lowongan', 'class' => 'form-horizontal', 'id' => 'form_career_lowongan', 'method' => 'POST']); ?>
                   <?= career_csrf_field(); ?>
                   <div class="form-group">
                      <label for="title" class="col-sm-2 control-label">Judul <i class="required">*</i></label>
@@ -83,8 +83,8 @@
                                  <option value="document">Dokumen</option>
                               </select>
                            </div>
-                           <div class="col-sm-2" style="padding-left:0"><input type="text" class="form-control" name="allowed_formats[]" placeholder="pdf,jpg" disabled></div>
-                           <div class="col-sm-1" style="padding-left:0"><input type="number" class="form-control" name="max_file_size_kb[]" min="1" max="5120" placeholder="KB" disabled></div>
+                           <div class="col-sm-2" style="padding-left:0"><input type="text" class="form-control" name="allowed_formats[]" placeholder="pdf,jpg"></div>
+                           <div class="col-sm-1" style="padding-left:0"><input type="number" class="form-control" name="max_file_size_kb[]" min="1" max="5120" placeholder="KB"></div>
                            <div class="col-sm-3">
                               <select class="form-control template_picker">
                                  <option value="">-- dari template --</option>
@@ -136,14 +136,18 @@ $(document).ready(function(){
       if (name) { $(this).closest('.req_row').find('input[name="requirement_name[]"]').first().val(name); }
    });
 
-   // Dokumen → aktifkan kolom formats & ukuran.
+   // Dokumen → set formats & ukuran (input tetap ENABLED, tidak pakai
+   // disabled — input disabled tidak disubmit dan menggeser index
+   // parallel array di server).
    $(document).on('change', 'select[name="input_type[]"]', function(){
       var is_doc = $(this).val() === 'document';
       var $row = $(this).closest('.req_row');
-      $row.find('input[name="allowed_formats[]"]').prop('disabled', !is_doc);
-      $row.find('input[name="max_file_size_kb[]"]').prop('disabled', !is_doc);
       if (is_doc && !$row.find('input[name="allowed_formats[]"]').val()) {
          $row.find('input[name="allowed_formats[]"]').val('pdf,jpg,jpeg,png,doc,docx');
+      }
+      if (!is_doc) {
+         $row.find('input[name="allowed_formats[]"]').val('');
+         $row.find('input[name="max_file_size_kb[]"]').val('');
       }
    });
 
@@ -171,8 +175,8 @@ $(document).ready(function(){
       })
       .done(function(res) {
          if(res.success) {
-            if (save_type == 'back') { window.location.href = BASE_URL + 'administrator/career_lowongan/edit/' + res.id; return; }
-            $('.message').printMessage({message : 'Lowongan disimpan. Lanjut atur persyaratan di halaman ubah.', type : 'success'});
+            // HIGH #26: selalu ke halaman ubah (hindari duplikat saat tetap di form).
+            window.location.href = res.redirect;
          } else {
             $('.message').printMessage({message : res.message, type : 'warning'});
          }

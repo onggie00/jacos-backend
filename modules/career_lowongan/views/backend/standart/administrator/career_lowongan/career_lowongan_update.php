@@ -26,16 +26,29 @@
                      <div class="alert alert-warning" style="margin:0 15px 10px">
                         Lowongan ini <b>sudah memiliki lamaran</b>. Judul/tanggal tetap bisa diubah, tapi:
                         <ul style="margin-bottom:0">
-                           <li>Lowongan tidak dapat dihapus — cukup tutup oleh tanggal tutup / di-unpublish.</li>
-                           <li>Persyaratan yang sudah dipakai lamaran terkunci: tipe isian &amp; wajib/opsional tidak dapat diubah, baris persyaratan tidak dapat dihapus.</li>
-                           <li>Menambah persyaratan baru masih memungkinkan — kandidat yang sudah submit tidak akan diminta isian baru.</li>
+                           <li>Lowongan tidak dapat dihapus — cukup tutup lewat tanggal tutup atau tombol &ldquo;Tutup&rdquo; (unpublikasi).</li>
+                           <li>Persyaratan yang <b>sudah dipakai lamaran</b> terkunci per baris (D12): nama/format/ukuran masih boleh diubah, tipe isian, wajib/opsional, dan hapus tidak boleh.</li>
+                           <li>Menambah persyaratan <b>WAJIB</b> baru perlu konfirmasi eksplisit (lamaran yang sudah masuk bisa jadi kekurangan syarat).</li>
                         </ul>
                      </div>
                   <?php endif; ?>
 
-                  <?= form_open('', ['name' => 'form_career_lowongan', 'class' => 'form-horizontal', 'id' => 'form_career_lowongan', 'method' => 'POST']); ?>
+                  <div id="btn_terbit_area" style="padding:0 15px 10px">
+                     <?php if ((int) $lowongan->is_published === 1): ?>
+                        <span class="label label-success">Status: terbit</span>
+                     <?php else: ?>
+                        <span class="label label-default">Status: draf</span>
+                     <?php endif; ?>
+                     <?php if ((int) $lowongan->is_published === 0 && $this->aauth->is_allowed('career_lowongan_update')): ?>
+                        <button class="btn btn-flat btn-success" id="btn_terbitkan"><i class="fa fa-bullhorn"></i> Terbitkan</button>
+                     <?php elseif ($this->aauth->is_allowed('career_lowongan_update')): ?>
+                        <button class="btn btn-flat btn-warning" id="btn_tutup"><i class="fa fa-life-ring"></i> Tutup (jadi draf)</button>
+                     <?php endif; ?>
+                  </div>
+
+                  <!-- HIGH #4: action eksplisit ke edit_save/$id -->
+                  <?= form_open(site_url('administrator/career_lowongan/edit_save/' . (int) $lowongan->id_job_posting), ['name' => 'form_career_lowongan', 'class' => 'form-horizontal', 'id' => 'form_career_lowongan', 'method' => 'POST']); ?>
                   <?= career_csrf_field(); ?>
-                  <?= form_hidden('id_job_posting', (int) $lowongan->id_job_posting); ?>
                   <div class="form-group">
                      <label for="title" class="col-sm-2 control-label">Judul <i class="required">*</i></label>
                      <div class="col-sm-8">
@@ -47,7 +60,7 @@
                      <label for="description" class="col-sm-2 control-label">Deskripsi</label>
                      <div class="col-sm-8">
                         <textarea class="form-control" name="description" id="description" rows="6"><?= set_value('description', $lowongan->description); ?></textarea>
-                        <small class="info help-block">Teks murni (di-escape saat tampil ke kandidat).</small>
+                        <small class="info help-block">Teks murni (di-escape saat tampil ke kandidat), maks 10.000 karakter.</small>
                      </div>
                   </div>
                   <div class="form-group">
@@ -73,7 +86,7 @@
                      <div class="col-sm-8">
                         <label class="radio-inline"><input type="radio" name="is_published" value="1" <?= set_radio('is_published', '1', (int) $lowongan->is_published === 1); ?>> Terbit</label>
                         <label class="radio-inline"><input type="radio" name="is_published" value="0" <?= set_radio('is_published', '0', (int) $lowongan->is_published === 0); ?>> Draf / unpublikasi</label>
-                        <small class="info help-block">Terbut butuh min. 1 persyaratan + tanggal sah; lowongan yang sudah terbit tidak dapat di-unpublish melalui cek ini bila kurang?</small>
+                        <small class="info help-block">Terbit butuh min. 1 persyaratan + tanggal sah (dicek juga saat draf → terbit lewat simpan).</small>
                      </div>
                   </div>
                   <div class="message"></div>
@@ -111,6 +124,7 @@
                         </thead>
                         <tbody>
                         <?php foreach ($requirements as $r): ?>
+                           <?php $terkunci = !empty($dipakai_req[(int) $r->id_job_posting_requirement]); ?>
                            <tr data-rid="<?= (int) $r->id_job_posting_requirement; ?>">
                               <td><?= (int) $r->display_order; ?></td>
                               <td><?= html_escape($r->requirement_name); ?></td>
@@ -119,32 +133,29 @@
                               <td><?= html_escape($r->allowed_formats !== NULL ? $r->allowed_formats : '-'); ?></td>
                               <td><?= $r->max_file_size_kb !== NULL ? (int) $r->max_file_size_kb : '-'; ?></td>
                               <td>
-                                 <?php is_allowed('career_lowongan_update', function() use ($r){ ?>
-                                    <a href="javascript:void(0);" class="label-default req-edit" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-name="<?= html_escape($r->requirement_name); ?>" data-type="<?= html_escape($r->requirement_type); ?>" data-input="<?= html_escape($r->input_type); ?>" data-formats="<?= html_escape($r->allowed_formats); ?>" data-maxkb="<?= $r->max_file_size_kb !== NULL ? (int) $r->max_file_size_kb : ''; ?>"><i class="fa fa-edit"></i> Ubah</a>
-                                 <?php }) ?>
-                                 <?php is_allowed('career_lowongan_update', function() use ($r){ ?>
-                                    <a href="javascript:void(0);" class="label-default req-move" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-dir="up" <?= (int) $r->display_order === 1 ? 'style="visibility:hidden"' : ''; ?>><i class="fa fa-arrow-up"></i></a>
-                                 <?php }) ?>
-                                 <?php if (!$this->model_career_lowongan->requirement_dipakai($r->id_job_posting_requirement)) {
-                                    is_allowed('career_lowongan_delete', function() use ($r){ ?>
-                                       <a href="javascript:void(0);" data-href="<?= site_url('administrator/career_lowongan/requirement_delete/' . $r->id_job_posting_requirement); ?>" class="label-default remove-data"><i class="fa fa-close"></i> Hapus</a>
-                                    <?php });
-                                 } else { ?>
+                                 <?php if ($this->aauth->is_allowed('career_lowongan_update')): ?>
+                                    <a href="javascript:void(0);" class="label-default req-edit" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-name="<?= html_escape($r->requirement_name); ?>" data-type="<?= html_escape($r->requirement_type); ?>" data-input="<?= html_escape($r->input_type); ?>" data-formats="<?= html_escape($r->allowed_formats); ?>" data-maxkb="<?= $r->max_file_size_kb !== NULL ? (int) $r->max_file_size_kb : ''; ?>" data-terkunci="<?= $terkunci ? '1' : '0'; ?>"><i class="fa fa-edit"></i> Ubah</a>
+                                    <a href="javascript:void(0);" class="label-default req-move" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-dir="up"><i class="fa fa-arrow-up"></i></a>
+                                    <a href="javascript:void(0);" class="label-default req-move" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-dir="down"><i class="fa fa-arrow-down"></i></a>
+                                 <?php endif; ?>
+                                 <?php if (!$terkunci && $this->aauth->is_allowed('career_lowongan_update')): ?>
+                                    <a href="javascript:void(0);" data-href="<?= site_url('administrator/career_lowongan/requirement_delete/' . $r->id_job_posting_requirement); ?>" class="label-default remove-data"><i class="fa fa-close"></i> Hapus</a>
+                                 <?php elseif ($terkunci): ?>
                                     <span class="label label-info" title="Sudah dipakai lamaran — terkunci (D12)">Terkunci</span>
-                                 <?php } ?>
+                                 <?php endif; ?>
                               </td>
                            </tr>
                         <?php endforeach; ?>
                         <?php if (count($requirements) == 0): ?>
-                           <tr><td colspan="7" class="text-center">Belum ada persyarat — tambah satu minimal sebelum terbit.</td></tr>
+                           <tr><td colspan="7" class="text-center">Belum ada persyaratan — tambah minimal satu sebelum terbit.</td></tr>
                         <?php endif; ?>
                         </tbody>
                      </table>
+                     <span style="display:none" id="csrf_holder"><?= career_csrf_field(); ?></span>
 
-                     <!-- Form persyratan baru (dari template/ad-hoc) -->
+                     <!-- Form persyaratan baru (dari template/ad-hoc) -->
                      <h4 style="margin-top:18px">Tambah persyaratan</h4>
-                     <?= form_open('', ['name' => 'form_req', 'id' => 'form_req', 'class' => 'form-inline', 'method' => 'POST']); ?>
-                     <?= career_csrf_field(); ?>
+                     <div class="form-inline">
                      <div class="form-group" style="margin-bottom:8px">
                         <select class="form-control template_picker" id="req_template">
                            <option value="">-- dari template (opsional) --</option>
@@ -154,7 +165,7 @@
                         </select>
                      </div>
                      <div class="form-group" style="margin-bottom:8px">
-                        <input type="text" class="form-control" name="requirement_name" id="req_name" placeholder="Nama persyratan" maxlength="200">
+                        <input type="text" class="form-control" name="requirement_name" id="req_name" placeholder="Nama persyaratan" maxlength="200">
                      </div>
                      <div class="form-group" style="margin-bottom:8px">
                         <select class="form-control" name="requirement_type" id="req_type">
@@ -181,9 +192,10 @@
                         </div>
                      </div>
                      <div id="req_message" class="help-block" style="margin-left:2px"></div>
-                     <?= form_close(); ?>
+                     </div>
+                     <div style="clear:both"></div>
 
-                     <!-- Dialog ubah persyratan (inline dgn form kecil) -->
+                     <!-- Dialog ubah persyaratan (inline dgn form kecil) -->
                      <div class="modal fade" id="modal_req_edit" tabindex="-1" role="dialog">
                         <div class="modal-dialog" role="document">
                            <div class="modal-content">
@@ -192,25 +204,23 @@
                                  <h4 class="modal-title">Ubah persyaratan</h4>
                               </div>
                               <div class="modal-body">
-                                 <?php if ($punya_lamaran): ?>
-                                    <div class="alert alert-warning">Tipe isian &amp; wajib/opsional terkunci (baris sudah dipakai lamaran).</div>
-                                 <?php endif; ?>
+                                 <div class="alert alert-warning" id="edit_lock_note" style="display:none">Baris ini sudah dipakai lamaran — nama/format/ukuran boleh diubah, tipe isian &amp; wajib/opsional terkunci (D12).</div>
                                  <form id="form_req_edit" class="form">
-                                    <?= career_csrf_field(); ?>
+                                    <?php $csrf = career_csrf_token(); ?>
                                     <div class="form-group">
                                        <label>Nama</label>
                                        <input type="text" class="form-control" name="requirement_name" id="edit_name" maxlength="200">
                                     </div>
                                     <div class="form-group">
-                                       <label>Wajib/opsional <?= $punya_lamaran ? '(terkunci)' : ''; ?></label>
-                                       <select class="form-control" name="requirement_type" id="edit_type" <?= $punya_lamaran ? 'disabled' : ''; ?>>
+                                       <label>Wajib/opsional</label>
+                                       <select class="form-control" name="requirement_type" id="edit_type">
                                           <option value="required">Wajib</option>
                                           <option value="optional">Opsional</option>
                                        </select>
                                     </div>
                                     <div class="form-group">
-                                       <label>Tipe isian <?= $punya_lamaran ? '(terkunci)' : ''; ?></label>
-                                       <select class="form-control" name="input_type" id="edit_input" <?= $punya_lamaran ? 'disabled' : ''; ?>>
+                                       <label>Tipe isian</label>
+                                       <select class="form-control" name="input_type" id="edit_input">
                                           <option value="text">Teks</option>
                                           <option value="number">Angka</option>
                                           <option value="document">Dokumen</option>
@@ -246,13 +256,13 @@
 <script>
 $(document).ready(function(){
    var ID_POST = <?= (int) $lowongan->id_job_posting; ?>;
-   var CSRF = $('input[name="career_csrf"]').first().val();
+   var CSRF    = $('#csrf_holder input[name="career_csrf"]').val();
+   var PUNYA   = <?= $punya_lamaran ? 'true' : 'false'; ?>;
 
    $('#btn_cancel').click(function(){ window.location.href = BASE_URL + 'administrator/career_lowongan'; return false; });
 
-   // ---- Simpan head posting ----
+   // ---- Simpan head posting (action form = edit_save/$id) ----
    $('.btn_save').click(function(){
-      $('.message').fadeOut();
       var form = $('#form_career_lowongan');
       var data_post = form.serializeArray();
       var save_type = $(this).attr('data-stype');
@@ -264,8 +274,8 @@ $(document).ready(function(){
       })
       .done(function(res) {
          if(res.success) {
-            if (save_type == 'back') { window.location.href = res.redirect; return; }
-            $('.message').printMessage({message : 'Lowongan disimpan.', type : 'success'});
+            // Selalu ke halaman ubah setelah simpan (anti duplikasi lowongan baru).
+            window.location.href = BASE_URL + 'administrator/career_lowongan/edit/' + ID_POST;
          } else {
             $('.message').printMessage({message : res.message, type : 'warning'});
          }
@@ -275,7 +285,27 @@ $(document).ready(function(){
       return false;
    });
 
-   // ---- persyratan: dari template isi nama ----
+   // ---- Terbitkan / tutup (POST + CSRF) ----
+   $('#btn_terbitkan').click(function(){
+      $.post(BASE_URL + 'administrator/career_lowongan/terbitkan/' + ID_POST,
+         { career_csrf: CSRF },
+         function(res){
+            if (res.success) { window.location.href = BASE_URL + 'administrator/career_lowongan/edit/' + ID_POST; }
+            else { alert(res.message || 'Gagal menerbitkan.'); }
+         }, 'json').fail(function(){ alert('Error jaringan.'); });
+      return false;
+   });
+   $('#btn_tutup').click(function(){
+      $.post(BASE_URL + 'administrator/career_lowongan/tutup/' + ID_POST,
+         { career_csrf: CSRF },
+         function(res){
+            if (res.success) { window.location.href = BASE_URL + 'administrator/career_lowongan/edit/' + ID_POST; }
+            else { alert(res.message || 'Gagal menutup.'); }
+         }, 'json').fail(function(){ alert('Error jaringan.'); });
+      return false;
+   });
+
+   // ---- persyaratan: dari template isi nama ----
    $('#req_template').change(function(){
       var name = $(this).find('option:selected').data('name') || '';
       if (name) { $('#req_name').val(name); }
@@ -287,86 +317,108 @@ $(document).ready(function(){
       if (is_doc && !$('#req_formats').val()) { $('#req_formats').val('pdf,jpg,jpeg,png,doc,docx'); }
    });
 
-   function reloadPage(msg, type){
-      $('#req_message').text('');
+   function reloadPage(){
       window.location.href = BASE_URL + 'administrator/career_lowongan/edit/' + ID_POST;
    }
 
-   // ---- tambah persyratan ----
+   // ---- tambah persyaratan (konfirmasi utk WAJIB di lowongan berlamaran) ----
    $('#btn_req_save').click(function(){
       $('#req_message').text('Menyimpan…');
+      var payload = {
+         career_csrf: CSRF,
+         id_requirement_template: $('#req_template').val() || 0,
+         requirement_name: $('#req_name').val(),
+         requirement_type: $('#req_type').val(),
+         input_type: $('#req_input').val(),
+         allowed_formats: $('#req_formats').is(':disabled') ? '' : $('#req_formats').val(),
+         max_file_size_kb: $('#req_maxkb').is(':disabled') ? '' : $('#req_maxkb').val()
+      };
       $.post(BASE_URL + 'administrator/career_lowongan/requirement_add/' + ID_POST,
-         { career_csrf: CSRF,
-           id_requirement_template: $('#req_template').val() || 0,
-           requirement_name: $('#req_name').val(),
-           requirement_type: $('#req_type').val(),
-           input_type: $('#req_input').val(),
-           allowed_formats: $('#req_formats').is(':disabled') ? '' : $('#req_formats').val(),
-           max_file_size_kb: $('#req_maxkb').is(':disabled') ? '' : $('#req_maxkb').val() },
+         payload,
          function(res){
             if (res.success) { reloadPage(); }
+            else if (PUNYA && $('#req_type').val() === 'required' && confirm(res.message + '\n\nTambahkan tetap?')) {
+               payload.konfirmasi = '1';
+               $.post(BASE_URL + 'administrator/career_lowongan/requirement_add/' + ID_POST, payload,
+                  function(r2){ if (r2.success) { reloadPage(); } else { $('#req_message').text(r2.message || 'Gagal.'); } }, 'json')
+                  .fail(function(){ $('#req_message').text('Error jaringan.'); });
+            }
             else { $('#req_message').text(res.message || 'Gagal.'); }
          }, 'json').fail(function(){ $('#req_message').text('Error jaringan.'); });
       return false;
    });
 
-   // ---- ubah persyratan (modal) ----
+   // ---- ubah persyaratan (modal) — kunci per-baris, bukan global ----
    $('#tbl_requirements').on('click', '.req-edit', function(){
       var $tr = $(this).closest('tr');
-      $('#edit_name').val($tr.find('.req-edit').data('name'));
-      $('#edit_type').val($tr.find('.req-edit').data('type'));
-      $('#edit_input').val($tr.find('.req-edit').data('input'));
-      $('#edit_formats').val($tr.find('.req-edit').data('formats') || '');
-      $('#edit_maxkb').val($tr.find('.req-edit').data('maxkb') || '');
-      $('#edit_message').text('');
-      var is_doc = $('#edit_input').val() === 'document';
+      $('#edit_name').val($(this).data('name'));
+      $('#edit_type').val($(this).data('type'));
+      $('#edit_input').val($(this).data('input'));
+      $('#edit_formats').val($(this).data('formats') || '');
+      $('#edit_maxkb').val($(this).data('maxkb') || '');
+      var terkunci = $(this).data('terkunci') == '1';
+      $('#edit_lock_note').toggle(terkunci);
+      if (PUNYA || terkunci) {
+         $('#edit_type').val($tr.find('td:eq(2)').text().indexOf('Wajib') === 0 ? 'required' : 'optional');
+      }
+      var is_doc = $(this).data('input') === 'document';
       $('#edit_formats').prop('disabled', !is_doc);
       $('#edit_maxkb').prop('disabled', !is_doc);
-      $('#modal_req_edit').modal('show');
+      $('#edit_message').text('');
+      $('#modal_req_edit').data('rid', $(this).data('rid')).modal('show');
       return false;
    });
-   $('#edit_input').change(function(){
-      var is_doc = $(this).val() === 'document';
-      $('#edit_formats').prop('disabled', !is_doc || $('#edit_input').prop('disabled'));
-      $('#edit_maxkb').prop('disabled', !is_doc || $('#edit_input').prop('disabled'));
-   });
    $('#btn_req_edit_save').click(function(){
-      var rid = $('#tbl_requirements tr.active-edit').data('rid');
-      // pakai row yang terakhir di edit (simpan data-rid di modal itu sendiri)
-      rid = $('#modal_req_edit').data('rid') || rid;
+      var rid = $('#modal_req_edit').data('rid');
       $('#edit_message').text('Menyimpan…');
       $.post(BASE_URL + 'administrator/career_lowongan/requirement_update/' + rid,
          { career_csrf: CSRF,
            requirement_name: $('#edit_name').val(),
-           requirement_type: $('#edit_input').is(':disabled') ? $('#edit_type').val() : $('#edit_type').val(),
+           requirement_type: $('#edit_type').val(),
            input_type: $('#edit_input').val(),
            allowed_formats: $('#edit_formats').is(':disabled') ? '' : $('#edit_formats').val(),
            max_file_size_kb: $('#edit_maxkb').is(':disabled') ? '' : $('#edit_maxkb').val() },
          function(res){
-            if (res.success) { window.location.href = BASE_URL + 'administrator/career_lowongan/edit/' + ID_POST; }
+            if (res.success) { reloadPage(); }
             else { $('#edit_message').text(res.message || 'Gagal.'); }
          }, 'json').fail(function(){ $('#edit_message').text('Error jaringan.'); });
       return false;
    });
-   // simpan rid di modal saat open
-   $('#tbl_requirements').on('click', '.req-edit', function(){
-      $('#modal_req_edit').data('rid', $(this).data('rid'));
-      $('#tbl_requirements tr').removeClass('active-edit');
-      $(this).closest('tr').addClass('active-edit');
-   });
 
-   // ---- naik/turun persyratan (form POST biasa, konfirmasi CSRF) ----
+   // ---- naik/turun persyaratan — AJAX POST + CSRF (bukan form navigasi) ----
    $('#tbl_requirements').on('click', '.req-move', function(){
       var rid = $(this).data('rid');
       var dir = $(this).data('dir');
-      var form = document.createElement('form');
-      form.method = 'POST';
-      form.action = BASE_URL + 'administrator/career_lowongan/requirement_move/' + rid + '/' + dir;
-      var inp = document.createElement('input');
-      inp.type = 'hidden'; inp.name = 'career_csrf'; inp.value = CSRF;
-      form.appendChild(inp);
-      document.body.appendChild(form);
-      form.submit();
+      $.post(BASE_URL + 'administrator/career_lowongan/requirement_move/' + rid,
+         { career_csrf: CSRF, dir: dir },
+         function(res){
+            if (res.success) { reloadPage(); }
+            else { alert(res.message || 'Gagal mengubah urutan.'); }
+         }, 'json').fail(function(){ alert('Error jaringan.'); });
+      return false;
+   });
+
+   // ---- hapus persyaratan — konfirmasi + POST + CSRF ----
+   $('#tbl_requirements').on('click', '.remove-data', function(){
+      var url = $(this).data('href');
+      if (!confirm('Hapus persyaratan ini?')) { return false; }
+      $.post(url, { career_csrf: CSRF },
+         function(res){
+            if (res.success) { reloadPage(); }
+            else { alert(res.message || 'Gagal menghapus.'); }
+         }, 'json').fail(function(){ alert('Ditolak (403).'); });
+      return false;
+   });
+
+   // ---- hapus lowongan — konfirmasi + POST + CSRF ----
+   $('.btn_delete_row').on('click', function(){
+      var url = $(this).data('href');
+      if (!confirm('Hapus lowongan ini?')) { return false; }
+      $.post(url, { career_csrf: CSRF },
+         function(res){
+            if (res.success) { window.location.href = BASE_URL + 'administrator/career_lowongan'; }
+            else { alert(res.message || 'Gagal menghapus.'); }
+         }, 'json').fail(function(){ alert('Ditolak (403).'); });
       return false;
    });
 });

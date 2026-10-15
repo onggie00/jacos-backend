@@ -21,6 +21,7 @@ class Model_career_audit extends MY_Model {
         $this->_where_filter($filter);
         $this->db->from('career_audit_logs')
             ->order_by('created_at', 'DESC')
+            ->order_by('id_audit_log', 'DESC')
             ->limit((int) $limit, (int) $offset);
         return $this->db->get()->result();
     }

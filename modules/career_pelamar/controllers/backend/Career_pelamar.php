@@ -28,10 +28,11 @@ class Career_pelamar extends Admin
 
 		$filter = array(
 			'id_job_posting' => (int) $this->input->get('id_job_posting'),
-			'status'         => $this->input->get('status'),
+			'status'         => career_q($this->input->get('status')),
 			'stage_id'       => (int) $this->input->get('stage_id'),
-			'q'              => $this->input->get('q'),
+			'q'              => career_q($this->input->get('q')),
 		);
+		$offset = max(0, (int) $offset);
 
 		$this->data['q']              = $filter['q'];
 		$this->data['status']         = $filter['status'];
@@ -85,20 +86,26 @@ class Career_pelamar extends Admin
 	 */
 	public function unduh($id_application_document = NULL)
 	{
-		$this->is_allowed('career_pelamar_view', false);
+		// HIGH #1: hasil is_allowed HARUS dicek — tanpa ini anonim bisa
+		// mengunduh dokumen kandidat (PII).
+		if (! $this->is_allowed('career_pelamar_view', false)) {
+			show_error('Forbidden', 403);
+		}
 
 		$id_app = (int) $this->input->get('app');
-		$doc = $this->model_career_pelamar->dokumen_unduh($id_application_document, $id_app);
+		$doc = $this->model_career_pelamar->dokumen_unduh((int) $id_application_document, $id_app);
 		if (!$doc) {
 			show_error('Dokumen tidak ditemukan.', 404);
 		}
 
-		career_audit('unduh_dokumen_admin', 'career_application_document', $id_application_document, [
-			'id_application' => $id_app,
-		]);
-
 		if (!career_stream_admin_document($doc)) {
 			show_error('Berkas tidak dapat ditemukan di server.', 404);
 		}
+		// MED #17: audit SETELAH berkas benar-benar terkirim, supaya log
+		// tidak mencatat unduhan yang ternyata gagal 404.
+		career_audit('unduh_dokumen_admin', 'career_application_document', (int) $id_application_document, [
+			'id_application' => $id_app,
+		]);
+		exit;
 	}
 }

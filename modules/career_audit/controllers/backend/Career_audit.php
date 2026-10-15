@@ -16,6 +16,7 @@ class Career_audit extends Admin
 		parent::__construct();
 
 		$this->load->model('model_career_audit');
+		$this->load->helper('career_core/career_core');
 	}
 
 	/** GET administrator/career_audit — filter + paging server-side. */
@@ -24,10 +25,10 @@ class Career_audit extends Admin
 		$this->is_allowed('career_audit_list');
 
 		$filter = array(
-			'action'      => $this->input->get('action'),
-			'object_type' => $this->input->get('object_type'),
+			'action'      => career_q($this->input->get('action')),
+			'object_type' => career_q($this->input->get('object_type')),
 			'object_id'   => (int) $this->input->get('object_id'),
-			'actor_type'  => $this->input->get('actor_type'),
+			'actor_type'  => career_q($this->input->get('actor_type')),
 			'tgl_dari'    => $this->input->get('tgl_dari'),
 			'tgl_sampai'  => $this->input->get('tgl_sampai'),
 		);
