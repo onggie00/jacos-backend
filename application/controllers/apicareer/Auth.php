@@ -12,61 +12,79 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Auth extends Career_base {
 
+	/** H4: hash bcrypt dummy — email tak terdaftar tetap menjalankan
+	 * password_verify supaya timing seragam (anti-enumerasi). */
+	const DUMMY_HASH = '$2y$10$SZ2ogSkTcDn1enkhRQpIwetV7U/egu5AnJu4FLGWoYG2im.ARWw7y';
+
 	// --------------------------------------------------------------
 	// POST apicareer/Auth/register
 	// body: {"email","password","full_name"}
 	// --------------------------------------------------------------
 	public function register_post()
 	{
-		$email    = trim((string) $this->post('email'));
-		$password = (string) $this->post('password');
-		$name     = trim((string) $this->post('full_name'));
+		// M9: kunci JWT dicek SEBELUM akun dibuat — bukan setelahnya.
+		$this->_career_require_key();
 
-		if ($email === '' OR $password === '' OR $name === '')
-		{
-return $this->_err('email, password, dan full_name wajib diisi.', 400);
-		}
-		if ( ! filter_var($email, FILTER_VALIDATE_EMAIL) OR strlen($email) > 190)
-		{
-return $this->_err('Format email tidak valid (maks 190 karakter).', 422);
-		}
-		if (strlen($password) < 8)
-		{
-return $this->_err('Password minimal 8 karakter.', 422);
-		}
-		if (strlen($name) > 150)
-		{
-return $this->_err('Nama maksimal 150 karakter.', 422);
-		}
-
+		// H3: blokir dulu, lalu catat SEMUA percobaan (termasuk gagal validasi).
 		if ($this->_register_blocked())
 		{
-return $this->_err('Terlalu banyak percobaan pendaftaran. Coba lagi nanti.', 429);
+			//$email mungkin belum sah; log tanpa email supaya tetap terhitung
+			$this->_log_attempt('register', NULL, FALSE);
+		return $this->_err('Terlalu banyak percobaan pendaftaran. Coba lagi nanti.', 429);
 		}
 
-		// Email unik di level DB; cek dulu untuk pesan ramah (idempotent race tetap aman).
-		$exists = $this->db->where('email', $email)->count_all_results('career_candidates');
-		if ($exists > 0)
+		$email = $this->post('email');
+		$password = $this->post('password');
+		$name = $this->post('full_name');
+
+		// L5: is_string dulu (array input tidak boleh memicu notice).
+		$email = is_string($email) ? trim($email) : '';
+		$password = is_string($password) ? $password : '';
+		$name = is_string($name) ? trim($name) : '';
+
+		$invalid = FALSE;
+		if ($email === '' OR $password === '' OR $name === '') $invalid = TRUE;
+		if ($invalid === FALSE AND ( ! filter_var($email, FILTER_VALIDATE_EMAIL) OR strlen($email) > 190)) $invalid = TRUE;
+		if ($invalid === FALSE AND (strlen($password) < 8 OR strlen($password) > 72)) $invalid = TRUE;
+		if ($invalid === FALSE AND (strlen($name) > 150 OR $this->_has_4byte_char($name))) $invalid = TRUE;
+
+		if ($invalid)
 		{
-			$this->_log_attempt('register', $email, FALSE);
-return $this->_err('Email sudah terdaftar.', 409);
+			$this->_log_attempt('register', ($email !== '' ? $email : NULL), FALSE);
+		return $this->_err('Data pendaftaran tidak valid (email sah, password 8-72 karakter, nama maks 150).', 422);
 		}
 
-		$this->db->trans_start();
-		$this->db->insert('career_candidates', array(
-			'email'         => $email,
-			'password_hash' => password_hash($password, PASSWORD_BCRYPT),
-			'full_name'     => $name,
-			'is_active'     => 1,
-			'token_version' => 1,
-		));
-		$id = (int) $this->db->insert_id();
-		$this->db->insert('career_candidate_profiles', array('id_candidate' => $id));
-		$this->db->trans_complete();
+		// M2 (keputusan Lead): 409 eksplisit diterima sadar
+		// (risiko enumerasi diketahui; mitigasi = rate-limit /IP 5/jam).
+		try
+		{
+			$this->db->trans_start();
+			$this->db->insert('career_candidates', array(
+				'email'         => $email,
+				'password_hash' => password_hash($password, PASSWORD_BCRYPT),
+				'full_name'     => $name,
+				'is_active'     => 1,
+				'token_version' => 1,
+			));
+			$id = (int) $this->db->insert_id();
+			$this->db->insert('career_candidate_profiles', array('id_candidate' => $id));
+			$this->db->trans_complete();
+		}
+		catch (Exception $e)
+		{
+			$this->db->trans_complete();
+		}
 
+		// H5: dup-key (uq_candidate_email) → 409 ramah, bukan 500
 		if ($this->db->trans_status() === FALSE)
 		{
-return $this->_err('Gagal menyimpan akun. Coba lagi.', 500);
+			$this->_log_attempt('register', $email, FALSE);
+			if ($this->_is_db_dup())
+			{
+		return $this->_err('Email sudah terdaftar.', 409);
+			}
+			log_message('error', 'career/register gagal (non-dup) untuk email: ' . substr($email, 0, 190));
+		return $this->_err('Gagal menyimpan akun. Coba lagi.', 500);
 		}
 
 		$this->career_candidate_id = $id;
@@ -86,15 +104,33 @@ return $this->_err('Gagal menyimpan akun. Coba lagi.', 500);
 	// --------------------------------------------------------------
 	public function login_post()
 	{
-		$email    = trim((string) $this->post('email'));
-		$password = (string) $this->post('password');
+		$this->_career_require_key();
+
+		$email = $this->post('email');
+		$password = $this->post('password');
+		$email = is_string($email) ? trim($email) : '';
+		$password = is_string($password) ? $password : '';
 
 		if ($email === '' OR $password === '')
 		{
 return $this->_err('email dan password wajib diisi.', 400);
 		}
 
-		// Lock aktif di level kandidat (independen dari email/password benar).
+		// H3/L5: email divalidasi panjangnya juga (kolom VARCHAR(190) + rate table).
+		if (strlen($email) > 190 OR ! filter_var($email, FILTER_VALIDATE_EMAIL))
+		{
+			$this->_log_attempt('login', NULL, FALSE);
+		return $this->_err('Email atau password salah.', 401);
+		}
+
+		// H4: lock level akun DIHAPUS — limit per (email+IP) dan per-IP saja,
+		// tanpa menblokir password benar dari IP yang tidak melebihi limit.
+		if ($this->_login_blocked($email))
+		{
+			$this->_log_attempt('login', $email, FALSE);
+		return $this->_err('Terlalu banyak percobaan login gagal. Coba lagi nanti.', 429);
+		}
+
 		$candidate = $this->db->select('id_candidate, email, password_hash, full_name, is_active, failed_login_count, locked_until, token_version')
 			->where('email', $email)
 			->get('career_candidates')
@@ -102,22 +138,18 @@ return $this->_err('email dan password wajib diisi.', 400);
 
 		if ($candidate === NULL)
 		{
+			// H4: jalur sama (bcrypt tetap dijalankan) anti-enumerasi timing.
+			password_verify($password, self::DUMMY_HASH);
 			$this->_log_attempt('login', $email, FALSE);
-return $this->_err('Email atau password salah.', 401);
-		}
-
-		if ($this->_login_locked($candidate))
-		{
-			$this->_log_attempt('login', $email, FALSE);
-return $this->_err('Akun terkunci sementara karena gagal login berulang. Coba lagi nanti.', 429);
+		return $this->_err('Email atau password salah.', 401);
 		}
 
 		if ($candidate->is_active != 1 OR ! password_verify($password, $candidate->password_hash))
 		{
 			$this->_log_attempt('login', $email, FALSE);
-			$this->career_candidate_id = $candidate->id_candidate;
-			$this->_login_note_failure($candidate);
-			$this->_audit('login_gagal', 'career_candidates', $candidate->id_candidate);
+			$this->career_candidate_id = (int) $candidate->id_candidate;
+			$this->_login_note_failure($candidate->id_candidate);
+			$this->_audit('login_gagal', 'career_candidates', (int) $candidate->id_candidate, array(), 'system');
 return $this->_err('Email atau password salah.', 401);
 		}
 
@@ -179,18 +211,9 @@ return $this->_err('Email atau password salah.', 401);
 	// --------------------------------------------------------------
 	protected function _issue_token($id_candidate, $version)
 	{
-		$key = $this->_career_jwt_key();
-		if ($key === NULL)
-		{
-			// Tidak selamat berlanjut; hentikan response 500 eksplisit.
-			$this->set_response(array(
-				'status' => FALSE,
-				'message' => 'Server belum dikonfigurasi (career_jwt_key).',
-				'data' => NULL,
-			), 500);
-			log_message('error', 'CAREER_JWT_KEY belum diisi di credentials.php');
-			exit;
-		}
+		// M9: _career_require_key() mengirim 500 nyata + exit; tidak ada
+		// set_response+exit yang mengosongkan output.
+		$this->_career_require_key();
 		$expire = (int) $this->config->item('career_jwt_expire');
 		$now = time();
 		return CareerJWT::encode(array(
@@ -199,6 +222,6 @@ return $this->_err('Email atau password salah.', 401);
 			'ver' => (int) $version,
 			'iat' => $now,
 			'exp' => $now + $expire,
-		), $key);
+		), $this->_career_jwt_key());
 	}
 }

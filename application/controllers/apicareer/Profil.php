@@ -44,6 +44,15 @@ return $this->_err('Profil belum ada.', 404);
 		{
 			$val = $this->put($field);
 			if ($val === NULL) continue; // tidak diubah
+			// L5: nilai wajib scalar string (array/objek = invalid).
+			if ( ! is_string($val))
+			{
+return $this->_err('Nilai ' . $field . ' tidak valid (harus berupa teks).', 422);
+			}
+			if ($this->_has_4byte_char($val))
+			{
+return $this->_err('Nilai ' . $field . ' berisi karakter unicode 4-byte yang tidak didukung (emoji tidak didukung).', 422);
+			}
 			if ( ! $this->_validate_field($field, $val))
 			{
 return $this->_err('Nilai ' . $field . ' tidak valid.', 422);

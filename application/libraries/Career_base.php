@@ -69,6 +69,13 @@ abstract class Career_base extends REST_Controller {
 
 		$this->config->load('career', FALSE, TRUE);
 
+		// H5: jangan bocorkan SQL/pesan DB ke respons — apicareer menangani
+		// error DB sendiri (dup-key → 409, lainnya → 500 generik).
+		if (isset($this->db) AND is_object($this->db))
+		{
+			$this->db->db_debug = FALSE;
+		}
+
 		$this->_career_fix_cors();
 	}
 
@@ -84,7 +91,7 @@ abstract class Career_base extends REST_Controller {
 
 		// Buang `*` yang dicat REST_Controller sendiri (rest.php
 		// allow_any_cors_domain=true) hanya bila origin tidak allowlist.
-		if ($origin === '' OR ! in_array($origin, $allowed))
+		if ($origin === '' OR ! in_array($origin, $allowed, TRUE))
 		{
 			// tanpa ACAO — browser blokir akses JS cross-origin.
 			@header_remove('Access-Control-Allow-Origin');
@@ -128,9 +135,33 @@ abstract class Career_base extends REST_Controller {
 	{
 		if (defined('CAREER_JWT_KEY') AND CAREER_JWT_KEY !== '')
 		{
+			if (strlen(CAREER_JWT_KEY) < 32)
+			{
+				// M1: kunci terlalu pendek = mudah dipaksa; tolak fail-closed.
+				log_message('error', 'CAREER_JWT_KEY lemah (kurang dari 32 byte). Perpanjang kunci.');
+				return NULL;
+			}
 			return CAREER_JWT_KEY;
 		}
 		return NULL; // fail-closed: key belum diisi
+	}
+
+	/**
+	 * M9: cek kunci JWT SEBELUM bekerja tulis apa pun (mis. register), dan
+	 * hentikan dengan respons yang benar-benar terkirim.
+	 * response(continue=FALSE) mengirim output lalu exit — tidak kosong.
+	 */
+	protected function _career_require_key()
+	{
+		if ($this->_career_jwt_key() === NULL)
+		{
+			log_message('error', 'CAREER_JWT_KEY belum diisi (credentials.php).');
+			$this->response(array(
+				'status'  => FALSE,
+				'message' => 'Server belum dikonfigurasi (career_jwt_key).',
+				'data'    => NULL,
+			), 500); // continue=FALSE: output dikirim, lalu exit
+		}
 	}
 
 	/**
@@ -177,10 +208,19 @@ abstract class Career_base extends REST_Controller {
 			return NULL;
 		}
 		$payload = (array) $payload;
-		if ( ! isset($payload['sub'], $payload['ver'])
+		// M1: wajib exp, iat, dan iss yang benar — token tanda tangan valid
+		// tanpa exp tidak boleh berlaku selamanya.
+		if ( ! isset($payload['sub'], $payload['ver'], $payload['exp'], $payload['iat'], $payload['iss'])
+			OR $payload['iss'] !== 'jacos-career'
+			OR ! is_numeric($payload['exp']) OR ! is_numeric($payload['iat'])
 			OR ! ctype_digit((string) $payload['sub']))
 		{
 			$this->_err('Token tidak valid (payload).', 401);
+			return NULL;
+		}
+		if ((int) $payload['exp'] < time())
+		{
+			$this->_err('Token kedaluwarsa. Silakan login ulang.', 401);
 			return NULL;
 		}
 
@@ -251,7 +291,11 @@ abstract class Career_base extends REST_Controller {
 		return ($ip === '0.0.0.0') ? '127.0.0.1' : $ip;
 	}
 
-	/** Catat percobaan attempt_type login|register. */
+	/**
+	 * Catat percobaan attempt_type login|register. Semua percobaan (sukses
+	 * dan gagal) tercatat — register dihitung dari SEMUA baris, login gagal
+	 * dari baris gagal (H3/H4).
+	 */
 	protected function _log_attempt($type, $email = NULL, $succeeded = FALSE)
 	{
 		$this->db->insert('career_login_attempts', array(
@@ -262,62 +306,60 @@ abstract class Career_base extends REST_Controller {
 		));
 	}
 
-	/** Atasan: hitung percobaan gagal jendela waktu (register per-IP). */
+	/**
+	 * H3: register per-IP menghitung SEMUA percobaan dalam jendela waktu
+	 * (sukses + gagal + gagal validasi) — tidak ada celah spam akun.
+	 */
 	protected function _register_blocked()
 	{
 		$window = (int) $this->config->item('career_register_rate_window');
 		$cutoff = date('Y-m-d H:i:s', time() - $window);
 		$cnt = $this->db->where('ip_address', $this->_client_ip())
 			->where('attempt_type', 'register')
-			->where('succeeded', 0)
 			->where('created_at >=', $cutoff)
 			->count_all_results('career_login_attempts');
 		return ($cnt >= (int) $this->config->item('career_register_max_attempts'));
 	}
 
 	/**
-	 * Login: cek locked_until di candidate + hitung fail baru (max, lockout)
-	 * berhasil dipakai oleh Auth::login.
+	 * H3/H4: login dibatasi dua arah TANPA lock total akun:
+	 * - 5 gagal per (email+IP) dalam jendela per-email
+	 * - 20 gagal per-IP lintas email dalam jendela per-IP
+	 * Password yang benar dari IP yang tidak melebihi limit per-IP tetap
+	 * bisa login (anti-DoS terhadap korban; locked_until tidak dipakai).
 	 */
-	protected function _login_locked($candidate)
+	protected function _login_blocked($email)
 	{
-		if ($candidate->locked_until !== NULL AND $candidate->locked_until > date('Y-m-d H:i:s'))
-		{
-			return TRUE;
-		}
-		return FALSE;
-	}
+		$ip = $this->_client_ip();
 
-	protected function _login_fail_window_count($email)
-	{
-		$max = (int) $this->config->item('career_login_max_attempts');
-		$window = (int) $this->config->item('career_login_window');
-		$cutoff = date('Y-m-d H:i:s', time() - $window);
-		return $this->db->where('email', $email)
+		$email_max = (int) $this->config->item('career_login_email_max_attempts');
+		$email_win = (int) $this->config->item('career_login_email_window');
+		$cnt_email = $this->db->where('email', $email)
+			->where('ip_address', $ip)
 			->where('attempt_type', 'login')
 			->where('succeeded', 0)
-			->where('created_at >=', $cutoff)
+			->where('created_at >=', date('Y-m-d H:i:s', time() - $email_win))
 			->count_all_results('career_login_attempts');
+		if ($cnt_email >= $email_max) return TRUE;
+
+		$ip_max = (int) $this->config->item('career_login_ip_max_attempts');
+		$ip_win = (int) $this->config->item('career_login_ip_window');
+		$cnt_ip = $this->db->where('ip_address', $ip)
+			->where('attempt_type', 'login')
+			->where('succeeded', 0)
+			->where('created_at >=', date('Y-m-d H:i:s', time() - $ip_win))
+			->count_all_results('career_login_attempts');
+		return ($cnt_ip >= $ip_max);
 	}
 
 	/**
-	 * Setelah gagal ke-$n, tandai locked_until di career_candidates bila
-	 * capai max attempt; reset failed_login_count saat success.
+	 * Catat +1 gagal login ATOMIK (H4: bukan baca-dulu-lalu-simpan).
 	 */
-	protected function _login_note_failure($candidate)
+	protected function _login_note_failure($id_candidate)
 	{
-		$max = (int) $this->config->item('career_login_max_attempts');
-		$lockout = (int) $this->config->item('career_login_lockout');
-		$fail = $this->_login_fail_window_count($candidate->email); // sudah dicatat
-		$cnt = (int) $candidate->failed_login_count + 1;
-		$data = array('failed_login_count' => $cnt);
-		if ($cnt >= $max)
-		{
-			$data['locked_until'] = date('Y-m-d H:i:s', time() + $lockout);
-			$data['failed_login_count'] = 0; // reset setelah lock dipasang
-		}
-		$this->db->where('id_candidate', $candidate->id_candidate)->update('career_candidates', $data);
-		return ($cnt >= $max);
+		$this->db->set('failed_login_count', 'failed_login_count + 1', FALSE)
+			->where('id_candidate', (int) $id_candidate)
+			->update('career_candidates');
 	}
 
 	// ------------------------------------------------------------------
@@ -356,21 +398,28 @@ abstract class Career_base extends REST_Controller {
 	}
 
 	// ------------------------------------------------------------------
-	// Helper validasi primitif (5.2-style; dipanggil manual oleh controller)
+	// Helper validasi/error (dipanggil manual oleh controller)
 	// ------------------------------------------------------------------
-	protected function _json_int($value, $min = 1, $max = 2147483647)
+
+	/**
+	 * H5: apakah error DB terakhir = duplikat unique key?
+	 */
+	protected function _is_db_dup()
 	{
-		if ( ! is_numeric($value)) return FALSE;
-		$v = (int) $value;
-		return ($v >= $min AND $v <= $max) ? $v : FALSE;
+		$err = $this->db->error();
+		return isset($err['code']) AND (int) $err['code'] === 1062;
 	}
 
-	protected function _json_string($value, $maxlen = 255, $minlen = 1)
+	/**
+	 * H5/L14 (fisik utf8 3-byte): kolom skema memakai utf8_general_ci
+	 * (3-byte) — tolak karakter di atas BMP (emoji 4-byte) sejak input
+	 * supaya tidak jatuh ke error DB.
+	 * @return bool TRUE bila ada karakter 4-byte
+	 */
+	protected function _has_4byte_char($value)
 	{
-		if ( ! is_string($value) OR ! is_scalar($value)) return FALSE;
-		$value = trim($value);
-		if (strlen($value) < $minlen OR strlen($value) > $maxlen) return FALSE;
-		return $value;
+		if ( ! is_string($value)) return FALSE;
+		return (bool) preg_match('/[\x{10000}-\x{10FFFF}]/u', $value);
 	}
 
 	// ------------------------------------------------------------------

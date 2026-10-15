@@ -10,7 +10,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   GET    apicareer/Lamaran/detail/<id>  (detail + persyaratan + 5 tahap; TANPA
  *          score/note_internal/review_note/rubric_note — kolom SENSITIF tidak
  *          pernah dikembalikan ke kandidat)
- *   POST   apicareer/Lamaran/submit     (body id_application; transaksi)
+ *   POST   apicareer/Lamaran/submit     (body id_application; transaksi
+ *          kunci FOR UPDATE — anti-race submit paralel dan upload bersamaan)
  */
 
 class Lamaran extends Career_base {
@@ -27,47 +28,54 @@ class Lamaran extends Career_base {
 return $this->_err('id_job_posting wajib diisi.', 400);
 		}
 
+		// M8: lowongan tidak terbuka/tutup → 409 (sesuai kontrak), bukan 404.
 		$posting = $this->_get_open_posting($id_posting);
 		if ($posting === NULL)
 		{
-return $this->_err('Lowongan tidak ditemukan, belum dibuka, atau sudah ditutup.', 404);
+return $this->_err('Lowongan tidak terbuka (belum dibuka atau sudah ditutup).', 409);
 		}
 
-		$dup = $this->db->where('id_candidate', $candidate->id_candidate)
+		// M6: tanpa cek-dulu-then-insert yang bisa race — langsung insert dan tangkap
+		// duplicate key (uq_applications_candidate_posting) → 409.
+		$reqs = $this->db->select('id_job_posting_requirement')
 			->where('id_job_posting', $id_posting)
-			->count_all_results('career_applications');
-		if ($dup > 0)
-		{
-return $this->_err('Kandidat sudah punya lamaran untuk lowongan ini (satu lamaran per lowongan).', 409);
-		}
-
-		// Important: job_requirements = konfigurasi transaksi; buat baris
-		// career_application_requirements untuk tiap persyaratan lowongan
-		// (status awal not_uploaded) supaya wizard bisa mengunggah per baris.
-		$reqs = $this->db->select('id_job_posting_requirement')->where('id_job_posting', $id_posting)
 			->order_by('display_order, id_job_posting_requirement')
 			->get('career_job_posting_requirements')->result_array();
 
-		$this->db->trans_start();
-		$this->db->insert('career_applications', array(
-			'id_candidate'   => $candidate->id_candidate,
-			'id_job_posting' => $id_posting,
-			'status'         => 'draft',
-			'current_stage_id' => NULL,
-		));
-		$id_app = (int) $this->db->insert_id();
-		foreach ($reqs as $r)
+		$id_app = 0;
+		try
 		{
-			$this->db->insert('career_application_requirements', array(
-				'id_application'             => $id_app,
-				'id_job_posting_requirement' => (int) $r['id_job_posting_requirement'],
-				'status'                     => 'not_uploaded',
+			$this->db->trans_start();
+			$this->db->insert('career_applications', array(
+				'id_candidate'   => $candidate->id_candidate,
+				'id_job_posting' => $id_posting,
+				'status'         => 'draft',
+				'current_stage_id' => NULL,
 			));
+			$id_app = (int) $this->db->insert_id();
+			foreach ($reqs as $r)
+			{
+				// konfigurasi transaksi disalin saat draft (status awal not_uploaded)
+				$this->db->insert('career_application_requirements', array(
+					'id_application'             => $id_app,
+					'id_job_posting_requirement' => (int) $r['id_job_posting_requirement'],
+					'status'                     => 'not_uploaded',
+				));
+			}
+			$this->db->trans_complete();
 		}
-		$this->db->trans_complete();
+		catch (Exception $e)
+		{
+			$this->db->trans_complete();
+		}
 
 		if ($this->db->trans_status() === FALSE)
 		{
+			if ($this->_is_db_dup())
+			{
+return $this->_err('Kandidat sudah punya lamaran untuk lowongan ini (satu lamaran per lowongan).', 409);
+			}
+			log_message('error', 'career/lamaran draft gagal untuk posting ' . $id_posting);
 return $this->_err('Gagal membuat draft lamaran. Coba lagi.', 500);
 		}
 
@@ -92,6 +100,7 @@ return $this->_err('Gagal membuat draft lamaran. Coba lagi.', 500);
 			->order_by('a.id_application', 'DESC')
 			->get()->result_array();
 		foreach ($rows as &$r) { $r['id_application'] = (int) $r['id_application']; }
+		unset($r); // jebakan referensi foreach
 		$this->_ok($rows, 'OK');
 	}
 
@@ -104,8 +113,8 @@ return $this->_err('Gagal membuat draft lamaran. Coba lagi.', 500);
 		$app = $this->_own_application($id);
 		if ($app === NULL) return;
 
-		// Persyaratan + status dokumen versi terbaru
-		$reqs = $this->db->select('jr.id_job_posting_requirement, jr.requirement_name, jr.requirement_type, jr.input_type, jr.allowed_formats, jr.max_file_size_kb, ar.id_application_requirement, ar.status AS requirement_status')
+		// Persyaratan + status dokumen versi terbaru + jawaban non-berkas
+		$reqs = $this->db->select('jr.id_job_posting_requirement, jr.requirement_name, jr.requirement_type, jr.input_type, jr.allowed_formats, jr.max_file_size_kb, ar.id_application_requirement, ar.status AS requirement_status, ar.answer_text')
 			->from('career_application_requirements ar')
 			->join('career_job_posting_requirements jr', 'jr.id_job_posting_requirement = ar.id_job_posting_requirement')
 			->where('ar.id_application', (int) $app->id_application)
@@ -117,7 +126,7 @@ return $this->_err('Gagal membuat draft lamaran. Coba lagi.', 500);
 		{
 			$reqs[$i]['id_application_requirement'] = (int) $r['id_application_requirement'];
 			$reqs[$i]['upload_url'] = 'apicareer/Lamaran_dokumen/upload';
-			if ($r['input_type'] === 'file')
+			if ($this->_req_is_document($r['input_type']))
 			{
 				$doc = $this->db->select('id_application_document, version, original_name, mime_type, file_size, uploaded_at, status AS doc_status')
 					->where('id_application_requirement', $r['id_application_requirement'])
@@ -160,28 +169,75 @@ return $this->_err('Gagal membuat draft lamaran. Coba lagi.', 500);
 		$app = $this->_own_application($id_app, TRUE);
 		if ($app === NULL) return;
 
-		if ($app->status !== 'draft')
-		{
-return $this->_err('Lamaran sudah terkunci (status bukan draft).', 409);
-		}
-
 		$posting = $this->_get_open_posting((int) $app->id_job_posting);
 		if ($posting === NULL)
 		{
 return $this->_err('Lowongan sudah ditutup; lamaran tidak dapat dikirim.', 409);
 		}
 
-		// Kelengkapan: semua persyaratan required punya dokumen versi terbaru.
-		$missing = 0;
-		$reqs = $this->db->select('jr.id_job_posting_requirement, jr.requirement_name, jr.requirement_type, jr.input_type, ar.id_application_requirement, ar.status')
+		// M10: validasi tahap SEBELUM transaksi — tepat 5 tahap aktif,
+		// pesan 500 jelas, bukan undefined index di tengah transaksi.
+		$stage_by_order = $this->_stage_ids();
+		if (count($stage_by_order) !== 5
+			OR ! isset($stage_by_order[1], $stage_by_order[2], $stage_by_order[3], $stage_by_order[4], $stage_by_order[5]))
+		{
+			log_message('error', 'career/lamaran submit: career_stages tidak tepat 5 tahap aktif.');
+return $this->_err('Konfigurasi tahap seleksi tidak lengkap (harus tepat 5 tahap aktif). Hubungi admin.', 500);
+		}
+
+		// Snapshot profil + item (berbeda dari profil hidup — FE mengambil dari
+		// lamaran) + kunci baris lamaran supaya submit paralel dan upload
+		// bersamaan tidak bisa lolos bersamaan (H2).
+		$this->db->trans_start();
+
+		// Kunci baris lamaran (SELECT ... FOR UPDATE dengan binding).
+		$app = $this->db->query('SELECT a.*, p.title AS posting_title FROM career_applications a JOIN career_job_postings p ON p.id_job_posting = a.id_job_posting WHERE a.id_application = ? AND a.id_candidate = ? FOR UPDATE', array((int) $id_app, (int) $candidate->id_candidate))->row();
+		if ($app === NULL)
+		{
+			$this->db->trans_complete();
+return $this->_err('Lamaran tidak ditemukan.', 404);
+		}
+		if ($app->status !== 'draft')
+		{
+			$this->db->trans_complete();
+return $this->_err('Lamaran sudah terkunci (status bukan draft).', 409);
+		}
+
+		// M6: sinkronkan persyaratan lowongan yang belum tersalin (admin
+		// menambah persyaratan setelah draft dibuat tidak boleh lolos begitu saja).
+		$salinan = $this->db->select('ar.id_job_posting_requirement')
+			->where('id_application', (int) $app->id_application)
+			->get('career_application_requirements')->result_array();
+		$ada = array();
+		foreach ($salinan as $s) { $ada[(int) $s['id_job_posting_requirement']] = TRUE; }
+		$kurang = $this->db->select('id_job_posting_requirement')
+			->where('id_job_posting', (int) $app->id_job_posting)
+			->get('career_job_posting_requirements')->result_array();
+		foreach ($kurang as $k)
+		{
+			$id_req = (int) $k['id_job_posting_requirement'];
+			if ( ! isset($ada[$id_req]))
+			{
+				$this->db->insert('career_application_requirements', array(
+					'id_application'             => $app->id_application,
+					'id_job_posting_requirement' => $id_req,
+					'status'                     => 'not_uploaded',
+				));
+			}
+		}
+
+		// Kelengkapan (cek DALAM transaksi, setelah kunci): persyaratan
+		// required wajib punya berkas (H1: file ATAU document) / jawaban non-empty.
+		$reqs = $this->db->select('jr.requirement_type, jr.input_type, ar.id_application_requirement, ar.answer_text')
 			->from('career_application_requirements ar')
 			->join('career_job_posting_requirements jr', 'jr.id_job_posting_requirement = ar.id_job_posting_requirement')
 			->where('ar.id_application', (int) $app->id_application)
 			->get()->result();
+		$missing = 0;
 		foreach ($reqs as $r)
 		{
 			if ($r->requirement_type !== 'required') continue;
-			if ($r->input_type === 'file')
+			if ($this->_req_is_document($r->input_type))
 			{
 				$ndocs = $this->db->where('id_application_requirement', $r->id_application_requirement)
 					->count_all_results('career_application_documents');
@@ -190,27 +246,31 @@ return $this->_err('Lowongan sudah ditutup; lamaran tidak dapat dikirim.', 409);
 					$missing++;
 				}
 			}
-			// CATATAN: persyaratan non-file (text/number/date/select) belum punya
-			// tempat penyimpanan jawaban di skema (kolom jawaban tidak ada di
-			// career_applications; tampilkan sebagai pertanyaan terbuka di report
-			// Fase 4). Pertanyaan non-file TIDAK memblokir submit di fase ini.
+			elseif (trim((string) $r->answer_text) === '')
+			{
+				$missing++;
+			}
 		}
 		if ($missing > 0)
 		{
+			$this->db->trans_complete();
 return $this->_err('Persyaratan wajib belum lengkap (' . $missing . ' belum terpenuhi). Submit diblokir.', 422);
 		}
 
-		// Snapshot profil + item (berbeda dari profil hidup — FE mengambil dari lamaran)
-		$this->db->trans_start();
-
-		$profile = $this->db->where('id_candidate', $candidate->id_candidate)
+		// L9: snapshot kolom eksplisit — TANPA attachment_path/created_at/id.
+		$profile = $this->db
+			->select('phone, place_of_birth, date_of_birth, gender, address, summary')
+			->where('id_candidate', $candidate->id_candidate)
 			->get('career_candidate_profiles')->row_array();
-		$items = $this->db->where('id_candidate', $candidate->id_candidate)
+		$items = $this->db->select('item_type, title, institution, start_date, end_date, description, extra_json, display_order')
+			->where('id_candidate', $candidate->id_candidate)
 			->order_by('item_type, display_order')
 			->get('career_candidate_items')->result_array();
 		$candidate_row = $this->db->select('email, full_name')
 			->where('id_candidate', $candidate->id_candidate)->get('career_candidates')->row_array();
 
+		$this->db->where('id_application', $app->id_application)
+			->delete('career_application_profile_snapshots'); // rerun submit draft jadi idempotent
 		$this->db->insert('career_application_profile_snapshots', array(
 			'id_application' => $app->id_application,
 			'profile_json'   => json_encode(array(
@@ -221,8 +281,13 @@ return $this->_err('Persyaratan wajib belum lengkap (' . $missing . ' belum terp
 			'snapshot_at'    => date('Y-m-d H:i:s'),
 		));
 
-		$stage1 = $this->_stage_ids();
-		$orders = array($stage1[1] => 1, $stage1[2] => 2, $stage1[3] => 3, $stage1[4] => 4, $stage1[5] => 5);
+		// Mulai ulang baris tahap (idempotent juga) — 5 tahap, urutan data.
+		$this->db->where('id_application', $app->id_application)
+			->delete('career_application_stages');
+		$orders = array(
+			$stage_by_order[1] => 1, $stage_by_order[2] => 2, $stage_by_order[3] => 3,
+			$stage_by_order[4] => 4, $stage_by_order[5] => 5,
+		);
 		foreach ($orders as $id_stage => $order)
 		{
 			$this->db->insert('career_application_stages', array(
@@ -232,17 +297,26 @@ return $this->_err('Persyaratan wajib belum lengkap (' . $missing . ' belum terp
 			));
 		}
 
-		$this->db->where('id_application', $app->id_application)
+		$ok_update = $this->db->where('id_application', $app->id_application)
+			->where('status', 'draft')
 			->update('career_applications', array(
 				'status'           => 'submitted',
 				'submitted_at'     => date('Y-m-d H:i:s'),
-				'current_stage_id' => $stage1[1],
+				'current_stage_id' => $stage_by_order[1],
 			));
+		$n_affected = $this->db->affected_rows();
 		$this->db->trans_complete();
 
-		if ($this->db->trans_status() === FALSE)
+		if ($ok_update === FALSE OR $this->db->trans_status() === FALSE)
 		{
+			log_message('error', 'career/lamaran submit gagal untuk aplikasi ' . $id_app);
 return $this->_err('Gagal submit lamaran. Coba lagi.', 500);
+		}
+		// H2: UPDATE ... WHERE status='draft' — affected_rows()==0 berarti
+		// status sudah berubah (los submit paralel) → 409, bukan 200.
+		if ($n_affected === 0)
+		{
+return $this->_err('Lamaran sudah terkunci (submitted oleh sesi lain).', 409);
 		}
 
 		$this->_audit('submit_lamaran', 'career_applications', $app->id_application);
@@ -263,6 +337,12 @@ return $this->_err('Gagal submit lamaran. Coba lagi.', 500);
 		$by_order = array();
 		foreach ($rows as $r) { $by_order[(int) $r['stage_order']] = (int) $r['id_stage']; }
 		return $by_order;
+	}
+
+	/** H1: tipe input berkas = file ATAU document (default skema). */
+	protected function _req_is_document($input_type)
+	{
+		return ($input_type === 'file' OR $input_type === 'document');
 	}
 
 	/** Tahap yang AMAN ditampilkan ke kandidat (tanpa score/note_internal). */
@@ -311,13 +391,8 @@ return $this->_err('Gagal submit lamaran. Coba lagi.', 500);
 
 	protected function _get_open_posting($id_posting)
 	{
-		$posting = $this->db->where('id_job_posting', (int) $id_posting)
-			->where('is_published', 1)->get('career_job_postings')->row();
+		$posting = $this->db->where('id_job_posting', (int) $id_posting)->get('career_job_postings')->row();
 		if ($posting === NULL) return NULL;
-
-		$today = date('Y-m-d');
-		if ($posting->opening_date !== NULL AND $posting->opening_date > $today) return NULL;
-		if ($posting->closing_date !== NULL AND $posting->closing_date < $today) return NULL;
-		return $posting;
+		return $this->_posting_is_open($posting) ? $posting : NULL;
 	}
 }

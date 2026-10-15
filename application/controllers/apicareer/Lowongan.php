@@ -11,33 +11,31 @@ class Lowongan extends Career_base {
 	// GET apicareer/Lowongan
 	public function index_get()
 	{
+		// L10: filter jendela buka/tutup di SQL (pemakaian kolom tanggal).
 		$today = date('Y-m-d');
 		$rows = $this->db->select('id_job_posting, title, description, opening_date, closing_date')
 			->where('is_published', 1)
+			->group_start()
+				->where('opening_date IS NULL', NULL, FALSE)
+				->or_where('opening_date <=', $today)
+			->group_end()
+			->group_start()
+				->where('closing_date IS NULL', NULL, FALSE)
+				->or_where('closing_date >=', $today)
+			->group_end()
 			->order_by('id_job_posting', 'DESC')
 			->get('career_job_postings')
 			->result_array();
 
-		$out = array();
-		foreach ($rows as $r)
-		{
-			if ($r['opening_date'] !== NULL AND $r['opening_date'] > $today) continue;
-			if ($r['closing_date'] !== NULL AND $r['closing_date'] < $today) continue;
-			$out[] = $r;
-		}
-
-		$this->_ok($out, 'OK');
+		$this->_ok($rows, 'OK');
 	}
 
 	// GET apicareer/Lowongan/detail/<id>  (+ daftar persyaratan lowongan)
 	public function detail_get($id = 0)
 	{
-		$today = date('Y-m-d');
 		$posting = $this->db->where('id_job_posting', (int) $id)->where('is_published', 1)->get('career_job_postings')->row();
 
-		if ($posting === NULL
-			OR ($posting->opening_date !== NULL AND $posting->opening_date > $today)
-			OR ($posting->closing_date !== NULL AND $posting->closing_date < $today))
+		if ($posting === NULL OR ! $this->_posting_is_open($posting))
 		{
 return $this->_err('Lowongan tidak ditemukan atau sudah ditutup.', 404);
 		}
