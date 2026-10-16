@@ -88,7 +88,8 @@ class Career_kandidat extends Admin
 		return $this->_json_done(
 			'Sandi baru dibuat server. Catat dan bagikan lewat saluran administrasi '
 			.'(BUKAN email — keputusan D2); sarankan kandidat ganti sandi setelah masuk.',
-			array('password' => (string) $buah['password'])
+			array('password' => (string) $buah['password']),
+			TRUE
 		);
 	}
 
@@ -99,12 +100,17 @@ class Career_kandidat extends Admin
 		return array($kode, isset($pisah[1]) ? $pisah[1] : $pesan);
 	}
 
-	private function _json_done($pesan, $data = array())
+	private function _json_done($pesan, $data = array(), $no_store = false)
 	{
 		$badan = array('success' => true, 'message' => (string) $pesan);
 		if (! empty($data)) { $badan['data'] = $data; }
 		$this->output->set_status_header(200);
 		$this->output->set_content_type('application/json');
+		if ($no_store) {
+			// Reset sandi: respons TIDAK boleh dicache apa pun (#10).
+			$this->output->set_header('Cache-Control: no-store');
+			$this->output->set_header('Pragma: no-cache');
+		}
 		$this->output->set_output(json_encode($badan));
 	}
 

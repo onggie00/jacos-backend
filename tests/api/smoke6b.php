@@ -12,7 +12,8 @@
 $BASE = (isset($argv[1]) && $argv[1] !== '') ? rtrim($argv[1], '/') : 'http://jacos.test:8080';
 
 $H = parse_url($BASE, PHP_URL_HOST);
-if ($H !== 'localhost' && $H !== '127.0.0.1' && $H !== null && stripos($H, 'jacos.test') === false) {
+$HB = ($H === null) ? '' : explode(':', $H)[0];
+if ($HB !== 'jacos.test' && $HB !== 'localhost' && $HB !== '127.0.0.1') {
 	echo "FAIL  host tidak lokal: {$H}\n"; exit(1);
 }
 
@@ -39,8 +40,6 @@ function career_sandi_kuatsu($s) { return strlen($s) >= 8 && preg_match('/[A-Za-
 
 function check($nama, $harap, $terima) {
 	global $pass, $fail;
-	if (getenv('S6B_TRACE') === '1') { echo "TRACE check '$nama' harap=" . var_export($harap, true) . " terima=" . var_export($terima, true) . "
-"; }
 	if ((string) $harap === (string) $terima) {
 		$pass++; echo "PASS  $nama\n";
 	} else {
@@ -51,6 +50,14 @@ function json_ok($raw) { $j = json_decode($raw, true); return is_array($j) ? $j 
 
 $pdo = new mysqli('127.0.0.1', 'root', '', 'jacos_db');
 if ($pdo->connect_errno) { echo "FAIL  mysqli jacos_db: {$pdo->connect_error}\n"; exit(1); }
+
+/* Database wajib jacos_db — smoke TIDAK BOLEH jalan di DB lain */
+$DBN = ''; $rd = $pdo->query('SELECT DATABASE() AS d');
+if ($rd) { $DBN = (string) $rd->fetch_assoc()['d']; }
+if ($DBN !== 'jacos_db') {
+	fwrite(STDERR, "FAIL  database aktif '{$DBN}' bukan jacos_db — dibatalkan.\n"); exit(1);
+}
+$RUN_T0 = date('Y-m-d H:i:s');
 
 $STAMP = date('ymdHis');
 
@@ -67,54 +74,67 @@ $EMAIL_B = 'smoke6b-b-' . $STAMP . '@example.test';
 $pdo->query("INSERT INTO aauth_users (email, pass, username, full_name, banned, avatar, top_secret)
              VALUES ('{$EMAIL_B}', '{$hash}', '{$EMAIL_B}', 'Admin TanpaIzin 6B', 0, '', '')");
 $NOID = (int) $pdo->query("SELECT id FROM aauth_users WHERE email = '{$EMAIL_B}'")->fetch_assoc()['id'];
+/* admin C: career_pelamar_list + career_pelamar_view saja (tanpa score_view) */
+$EMAIL_C = 'smoke6b-c-' . $STAMP . '@example.test';
+$pdo->query("INSERT INTO aauth_users (email, pass, username, full_name, banned, avatar, top_secret)
+             VALUES ('{$EMAIL_C}', '{$hash}', '{$EMAIL_C}', 'Admin ViewOnly 6B', 0, '', '')");
+$CID = (int) $pdo->insert_id;
+$pdo->query("INSERT INTO aauth_groups (name, definition) VALUES ('Smoke6B ViewOnly {$STAMP}', 'fixture')");
+$GID_C = (int) $pdo->insert_id;
+foreach (array('career_pelamar_list', 'career_pelamar_view') as $pnama) {
+	$pid = $pdo->query("SELECT id FROM aauth_perms WHERE name = '" . $pnama . "'")->fetch_assoc();
+	if ($pid) { $pdo->query("INSERT INTO aauth_perm_to_group (perm_id, group_id) VALUES (" . (int) $pid['id'] . ", {$GID_C})"); }
+}
+$pdo->query("INSERT INTO aauth_user_to_group (user_id, group_id) VALUES ({$CID}, {$GID_C})");
+
 $g = $pdo->query("SELECT id FROM aauth_groups WHERE id <> 1 ORDER BY id LIMIT 1")->fetch_assoc();
 $NOGR = $g ? (int) $g['id'] : 0;
 if ($NOGR > 0) { $pdo->query("INSERT INTO aauth_user_to_group (user_id, group_id) VALUES ({$NOID}, {$NOGR})"); }
 
 /* ---------- cleanup shutdown ---------- */
-if (getenv('S6B_NOCLEAN') !== '1') {
 register_shutdown_function(function () {
-	global $pdo, $ADMIN_ID, $NOID;
-	// Kandidat dibuat SETIAP RUN (stempel waktu + email unik) — hapus SEMUA
-	// baris career bagi fixture smoke6b; jangan tunda id per-run.
-	$root = "SELECT id_application FROM career_applications WHERE id_candidate IN
-	         (SELECT id_candidate FROM career_candidates WHERE full_name = 'Kandidat Smoke6B')";
-	$root2 = "SELECT id_application FROM career_applications WHERE id_job_posting IN
-	          (SELECT id_job_posting FROM career_job_postings WHERE title LIKE '[DUMMY TEST6B]%')";
-	$pdo->query("DELETE n FROM career_notifications n WHERE n.id_candidate IN
-	             (SELECT id_candidate FROM career_candidates WHERE full_name = 'Kandidat Smoke6B')");
+	global $pdo, $ADMIN_ID, $NOID, $CID, $GID_C, $G_APPS, $G_POSTS, $G_CANDS, $RUN_T0;
+
+	/* #22: pembersihan berbasis ID yang TERCATAT saat membuat fixture
+	   (tanpa pencocokan nama/deskripsi); urutan DELETE anak dulu baru induk (FK). */
+	$apps   = implode(',', array_map('intval', $G_APPS));
+	$posts  = implode(',', array_map('intval', $G_POSTS));
+	$cands  = implode(',', array_map('intval', $G_CANDS));
+	$users  = implode(',', array_map('intval', array_merge(array($ADMIN_ID, $NOID), (int) $CID > 0 ? array($CID) : array())));
+	$pdo->query("DELETE n FROM career_notifications n WHERE n.id_candidate IN ({$cands})");
 	$pdo->query("DELETE e FROM career_evaluation_scores e
 	             JOIN career_application_stages s ON s.id_application_stage = e.id_application_stage
-	             WHERE s.id_application IN ({$root}) OR s.id_application IN ({$root2})");
+	             WHERE s.id_application IN ({$apps})");
 	$pdo->query("DELETE FROM career_selection_schedules WHERE id_application_stage IN
-	             (SELECT id_application_stage FROM career_application_stages WHERE id_application IN ({$root}) UNION SELECT 0)");
-	$pdo->query("DELETE s FROM career_application_stages s WHERE s.id_application IN ({$root}) OR s.id_application IN ({$root2})");
-	$pdo->query("DELETE d FROM career_application_documents d WHERE d.id_application IN ({$root}) OR d.id_application IN ({$root2})");
-	$pdo->query("DELETE r FROM career_application_requirements r WHERE r.id_application IN ({$root}) OR r.id_application IN ({$root2})");
-	$pdo->query("DELETE p FROM career_application_profile_snapshots p WHERE p.id_application IN ({$root}) OR p.id_application IN ({$root2})");
-	// MySQL melarang DELETE target yang mereferensi tabel yang sama di
-	// FROM-subquery — tulis ulang sebagai JOIN eksplisit.
-	$r = $pdo->query("DELETE a FROM career_applications a
-	                  JOIN (SELECT c.id_candidate FROM career_candidates c WHERE c.full_name = 'Kandidat Smoke6B') kx ON kx.id_candidate = a.id_candidate
-	                  LEFT JOIN career_job_postings px ON px.id_job_posting = a.id_job_posting
-	                  WHERE px.id_job_posting IS NULL OR px.title NOT LIKE '[DUMMY TEST6B]%'");
-	if ($r === false) { echo "SMOKE6B CLEANUP ERR apps: {$pdo->error}
-"; }
-	$r = $pdo->query("DELETE a FROM career_applications a JOIN career_job_postings p ON p.id_job_posting = a.id_job_posting
-	                  WHERE p.title LIKE '[DUMMY TEST6B]%' OR p.description IN ('post smoke6b jadwal','post smoke6b filter')");
-	if ($r === false) { echo "SMOKE6B CLEANUP ERR apps2: {$pdo->error}
-"; }
-	$pdo->query("DELETE FROM career_job_posting_requirements WHERE id_job_posting IN
-	             (SELECT id_job_posting FROM career_job_postings WHERE title LIKE '[DUMMY TEST6B]%')");
-	$r = $pdo->query("DELETE FROM career_job_postings WHERE title LIKE '[DUMMY TEST6B]%' OR description IN ('post smoke6b jadwal','post smoke6b filter')");
-	if ($r === false) { echo "SMOKE6B CLEANUP ERR postings: {$pdo->error}
-"; }
-	$pdo->query("DELETE FROM career_candidates WHERE full_name = 'Kandidat Smoke6B'");
-	$pdo->query("DELETE FROM aauth_user_to_group WHERE user_id IN ({$ADMIN_ID}, {$NOID})");
-	$pdo->query("DELETE FROM aauth_login_attempts WHERE timestamp > DATE_SUB(NOW(), INTERVAL 1 DAY)");
-	$pdo->query("DELETE FROM aauth_users WHERE id IN ({$ADMIN_ID}, {$NOID})");
+	             (SELECT id_application_stage FROM career_application_stages WHERE id_application IN ({$apps}) UNION SELECT 0)");
+	$pdo->query("DELETE FROM career_application_stages WHERE id_application IN ({$apps})");
+	$pdo->query("DELETE FROM career_application_documents WHERE id_application IN ({$apps})");
+	$pdo->query("DELETE FROM career_application_requirements WHERE id_application IN ({$apps})");
+	$pdo->query("DELETE FROM career_application_profile_snapshots WHERE id_application IN ({$apps})");
+	$pdo->query("DELETE FROM career_applications WHERE id_application IN ({$apps})");
+	$pdo->query("DELETE FROM career_job_posting_requirements WHERE id_job_posting IN ({$posts})");
+	$pdo->query("DELETE FROM career_job_postings WHERE id_job_posting IN ({$posts})");
+	$pdo->query("DELETE FROM career_candidates WHERE id_candidate IN ({$cands})");
+	$pdo->query("DELETE FROM aauth_user_to_group WHERE user_id IN ({$users})");
+	if ((int) $GID_C > 0) {
+		/* grup uji admin view-only: hapus bersama permnya;
+		   nama grup diverifikasi supaya id yang tak sengaja sama tak ikut terhapus */
+		$gclean = (int) $GID_C;
+		$gnama = $pdo->query("SELECT name FROM aauth_groups WHERE id = {$gclean}")->fetch_assoc();
+		if (is_array($gnama) && strpos((string) $gnama['name'], 'Smoke6B ViewOnly') === 0) {
+			$pdo->query("DELETE FROM aauth_perm_to_group WHERE group_id = {$gclean}");
+			$pdo->query("DELETE FROM aauth_groups WHERE id = {$gclean}");
+		}
+	}
+	/* #22: login_attempts HANYA baris jendela run ini + 127.0.0.1 (IP fixture)
+	   — bukan DELETE global seluruh tabel */
+	$t0 = (string) $RUN_T0;
+	$pdo->query("DELETE FROM aauth_login_attempts WHERE timestamp >= '" . $pdo->real_escape_string($t0) . "' AND ip_address = '127.0.0.1'");
+	$pdo->query("DELETE FROM aauth_users WHERE id IN ({$users})");
+
+	/* #22: bereskan berkas uji smoke6b sendiri */
+	foreach ((array) @glob(__DIR__ . '/../../application/storage/career/smoke6b-*.pdf') as $f) { @unlink($f); }
 });
-}
 
 /* ---------- 2. login + cookie ---------- */
 function post_login($fields) {
@@ -152,6 +172,8 @@ $NM = '[DUMMY TEST6B] Guru Kelas SD';
 $pdo->query("INSERT INTO career_job_postings (title, description, opening_date, closing_date, education_level, is_published, created_by)
              VALUES ('{$NM}', 'post smoke6b', '2026-01-01', '2026-12-31', 'S1', 1, {$ADMIN_ID})");
 $IDP = (int) $pdo->query("SELECT id_job_posting FROM career_job_postings WHERE title = '{$NM}' ORDER BY id_job_posting DESC LIMIT 1")->fetch_assoc()['id_job_posting'];
+#22 6B.2: id fixture TERCATAT — cleanup pakai id, bukan match nama
+$G_POSTS = array($IDP);
 $pdo->query("INSERT INTO career_job_posting_requirements (id_job_posting, requirement_name, requirement_type, input_type, allowed_formats, max_file_size_kb, display_order)
              VALUES ({$IDP}, 'Ijazah', 'required', 'document', 'PDF, JPG', 5120, 1)");
 $pdo->query("INSERT INTO career_job_posting_requirements (id_job_posting, requirement_name, requirement_type, input_type, allowed_formats, max_file_size_kb, display_order)
@@ -159,14 +181,16 @@ $pdo->query("INSERT INTO career_job_posting_requirements (id_job_posting, requir
 $REQ1 = (int) $pdo->query("SELECT id_job_posting_requirement FROM career_job_posting_requirements WHERE id_job_posting = {$IDP} AND display_order = 1")->fetch_assoc()['id_job_posting_requirement'];
 $REQ2 = (int) $pdo->query("SELECT id_job_posting_requirement FROM career_job_posting_requirements WHERE id_job_posting = {$IDP} AND display_order = 2")->fetch_assoc()['id_job_posting_requirement'];
 
-$EMAIL_KAN = 'smoke6b-kandidat-{$STAMP}@example.test';
+$EMAIL_KAN = 'smoke6b-kandidat-' . $STAMP . '@example.test';
 $pdo->query("INSERT INTO career_candidates (email, password_hash, full_name, is_active, token_version)
              VALUES ('{$EMAIL_KAN}', '" . password_hash('SandiLama123', PASSWORD_BCRYPT) . "', 'Kandidat Smoke6B', 1, 1)");
 $KANID = (int) $pdo->query("SELECT id_candidate FROM career_candidates WHERE full_name = 'Kandidat Smoke6B' ORDER BY id_candidate DESC LIMIT 1")->fetch_assoc()['id_candidate'];
+$G_CANDS = array($KANID);
 
 $pdo->query("INSERT INTO career_applications (id_candidate, id_job_posting, status, current_stage_id, created_at)
              VALUES ({$KANID}, {$IDP}, 'submitted', 1, NOW())");
 $APP = (int) $pdo->query("SELECT id_application FROM career_applications WHERE id_candidate = {$KANID} ORDER BY id_application DESC LIMIT 1")->fetch_assoc()['id_application'];
+$G_APPS = array($APP);
 
 $snap = json_encode(array('items' => array(), 'profile' => array(), 'candidate' => array('full_name' => 'Kandidat Smoke6B', 'email' => '')));
 $pdo->query("INSERT INTO career_application_profile_snapshots (id_application, profile_json, snapshot_at)
@@ -227,6 +251,12 @@ check('reset password via GET ditolak', '403', $c);
 list($c, , ) = post_admin('/administrator/career_kandidat/reset_password/' . $KANID, array('password_baru' => 'SandiBaru999'));
 check('reset password tanpa CSRF 403', '403', $c);
 $HASH_OLD = $pdo->query("SELECT password_hash FROM career_candidates WHERE id_candidate = {$KANID}")->fetch_assoc()['password_hash'];
+/* 6B.2: rantai reset — login dgn sandi lama dulu, pegang token lama */
+list($c, , $jraw) = http_json6b('POST', $BASE . '/apicareer/Auth/login', array('email' => $EMAIL_KAN, 'password' => 'SandiLama123'), null);
+$jlogin_oldu = json_ok($jraw);
+$TOK_OLD = ($jlogin_oldu && isset($jlogin_oldu['data']['token'])) ? (string) $jlogin_oldu['data']['token'] : '';
+check('login kandidat dgn sandi lama 200', 1, ($TOK_OLD !== '' ? 1 : 0));
+$VER_OLD = (int) $pdo->query("SELECT token_version FROM career_candidates WHERE id_candidate = {$KANID}")->fetch_assoc()['token_version'];
 /* #2 6B.1: sandi BARU dibangkitkan SERVER (bukan dari Input) —
    smoke men-verifikasi dari data.password respons. */
 list($c, , $jraw) = post_admin('/administrator/career_kandidat/reset_password/' . $KANID, array(
@@ -241,6 +271,14 @@ check('password_hash berubah di DB', 1, ($HASH_NEW !== $HASH_OLD && $SANDI_BARU 
 check('audit reset_password ada', 1, ((int) $pdo->query("SELECT COUNT(*) n FROM career_audit_logs WHERE action='reset_password_kandidat' AND object_id={$KANID}")->fetch_assoc()['n'] === 1) ? 1 : 0);
 check('audit reset TIDAK menyimpan sandi', 0,
 	(strpos((string) $pdo->query("SELECT detail_json FROM career_audit_logs WHERE action='reset_password_kandidat' AND object_id={$KANID} LIMIT 1")->fetch_assoc()['detail_json'], $SANDI_BARU) !== false) ? 1 : 0);
+/* 6B.2: sandi lama GAGAL login; token lama 401; token_version naik tepat 1 */
+list($c, , $jraw) = http_json6b('POST', $BASE . '/apicareer/Auth/login', array('email' => $EMAIL_KAN, 'password' => 'SandiLama123'), null);
+$jgagal = json_ok($jraw);
+check('login dgn sandi lama DITOLAK', 1, ($jgagal !== null && empty($jgagal['success'])) ? 1 : 0);
+list($c, , $jraw) = http_json6b('GET', $BASE . '/apicareer/Auth/me', null, $TOK_OLD);
+check('token lama setelah reset 401', '401', $c);
+$VER_NEW = (int) $pdo->query("SELECT token_version FROM career_candidates WHERE id_candidate = {$KANID}")->fetch_assoc()['token_version'];
+check('token_version naik tepat 1', 1, ($VER_NEW === $VER_OLD + 1) ? 1 : 0);
 
 /* ---------- 6. verifikasi persyaratan (career_pelamar/verifikasi) ---------- */
 list($c, ) = post_admin('/administrator/career_pelamar/verifikasi/' . $AR1, array(
@@ -291,15 +329,10 @@ list($c, , $jraw) = post_admin('/administrator/career_pelamar/verifikasi/' . $AR
 $j = json_ok($jraw);
 check('verifikasi rejected 200', 1, ($j !== null && $j['success']) ? 1 : 0);
 
-/* rejected ulang pada status sama → 422 */
+/* rejected ulang pada status sama → 409 (6B.2: kode 409, bukan 422) */
 list($c, , $jraw) = post_admin('/administrator/career_pelamar/verifikasi/' . $AR2, array(
 	'career_csrf' => $CSRF_P, 'keputusan' => 'rejected', 'pesan_kandidat' => 'Jawaban tidak sesuai.'));
-check('verifikasi rejected ulang 422', '422', $c);
-
-/* rejected ulang pada status sama → 422 */
-list($c, , $jraw) = post_admin('/administrator/career_pelamar/verifikasi/' . $AR2, array(
-	'career_csrf' => $CSRF_P, 'keputusan' => 'rejected', 'pesan_kandidat' => 'Jawaban tidak sesuai.'));
-check('verifikasi rejected ulang 422', '422', $c);
+check('verifikasi rejected ulang 409', '409', $c);
 
 /* check audit verifikasi */
 check('audit verifikasi ada >=2', 1, (((int) $pdo->query("SELECT COUNT(*) n FROM career_audit_logs WHERE action='verifikasi_persyaratan' AND actor_id={$ADMIN_ID}")->fetch_assoc()['n']) >= 2) ? 1 : 0);
@@ -351,6 +384,12 @@ list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
 	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 2, 'keputusan_baru' => 'passed', 'alasan' => ''));
 check('koreksi tanpa alasan 422', '422', $c);
 list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 1, 'keputusan_baru' => 'passed', 'alasan' => str_repeat('x', 501)));
+check('koreksi alasan 501 karakter 422', '422', $c);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 1, 'keputusan_baru' => 'passed', 'alasan' => 'Alasan 😀 uji'));
+check('koreksi alasan emoji 422', '422', $c);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
 	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 2, 'keputusan_baru' => 'salah', 'alasan' => 'x'));
 check('koreksi nilai tidak sah 422', '422', $c);
 /* koreksi berganti status ke passed + alasan */
@@ -380,61 +419,76 @@ check('lamaran masih in_process sebelum terima', 'in_process',
 
 list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
 	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 1, 'keputusan_baru' => 'failed', 'alasan' => 'Tes koreksi akhir.'));
+/* no-op koreksi (keputusan sama dgn sekarang) → 409 */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 1, 'keputusan_baru' => 'failed', 'alasan' => 'Ulang sama.'));
+check('koreksi no-op (keputusan sama) 409', '409', $c);
 check('koreksi failing (tahap 1) → tahap lain reset pending', 1, ((int) $pdo->query("SELECT COUNT(*) n FROM career_application_stages WHERE id_application={$APP} AND status IN ('passed','failed') AND id_stage <> {$STG1}")->fetch_assoc()['n'] === 0) ? 1 : 0);
 
-/* pulihkan kembali: tahap 1..5 semua passed lagi (untuk test terima) */
-$pdo->query("UPDATE career_application_stages SET status='passed', decided_at=NOW()
-             WHERE id_application={$APP} AND id_stage IN ({$STG1}, {$STG2}, {$STG3}, {$stg[3][0]}, {$STG5})");
-$pdo->query("UPDATE career_applications SET status='in_process', current_stage_id=NULL WHERE id_application={$APP}");
+/* #14 6B.2: TIDAK memulihkan status lamaran $APP lewat SQL langsung —
+   buat fixture baru kandidat K2 + lamaran APP5 (lima tahap sudah lulus)
+   khusus menguji jalur 'terima' 200. */
+$EMAIL_K2 = 'smoke6b-k2-' . $STAMP . '@example.test';
+$pdo->query("INSERT INTO career_candidates (email, password_hash, full_name, is_active, token_version)
+             VALUES ('{$EMAIL_K2}', '" . password_hash('SandiLama123', PASSWORD_BCRYPT) . "', 'Kandidat Smoke6B', 1, 1)");
+$K2 = (int) $pdo->insert_id;
+$G_CANDS[] = $K2;
+$pdo->query("INSERT INTO career_applications (id_candidate, id_job_posting, status, current_stage_id, created_at)
+             VALUES ({$K2}, {$IDP}, 'submitted', 1, NOW())");
+$APP5 = (int) $pdo->insert_id;
+$G_APPS[] = $APP5;
+foreach ($stg as $row) {
+	$pdo->query("INSERT INTO career_application_stages (id_application, id_stage, status)
+	             VALUES ({$APP5}, {$row[0]}, 'passed')");
+}
 
 /* terima sebelum lengkap? bukan — tahap sudah semua passed. Terima valid: */
-list($c, , $jraw) = post_admin('/administrator/career_pelamar/terima', array('id_application' => $APP));
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/terima', array('id_application' => $APP5));
 check('terima tanpa CSRF 403', '403', $c);
 list($c, , $jraw) = post_admin('/administrator/career_pelamar/terima', array(
 	'career_csrf' => $CSRF_P, 'id_application' => 999999));
 check('terima lamaran tidak ada 404', '404', $c);
 list($c, , $jraw) = post_admin('/administrator/career_pelamar/terima', array(
-	'career_csrf' => $CSRF_P, 'id_application' => $APP));
+	'career_csrf' => $CSRF_P, 'id_application' => $APP5));
 $j = json_ok($jraw);
 check('terima 200 (semua tahap lulus)', 1, ($j !== null && $j['success']) ? 1 : 0);
 check('lamaran status accepted', 'accepted',
-	$pdo->query("SELECT status FROM career_applications WHERE id_application = {$APP}")->fetch_assoc()['status']);
-check('audit status_akhir_diterima ada', 1, ((int) $pdo->query("SELECT COUNT(*) n FROM career_audit_logs WHERE action='status_akhir_diterima' AND object_id={$APP}")->fetch_assoc()['n'] === 1) ? 1 : 0);
+	$pdo->query("SELECT status FROM career_applications WHERE id_application = {$APP5}")->fetch_assoc()['status']);
+check('audit status_akhir_diterima ada', 1, ((int) $pdo->query("SELECT COUNT(*) n FROM career_audit_logs WHERE action='status_akhir_diterima' AND object_id={$APP5}")->fetch_assoc()['n'] === 1) ? 1 : 0);
 /* keputusan pada lamaran accepted → 409 */
 list($c, , $jraw) = post_admin('/administrator/career_pelamar/keputusan', array(
-	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 1, 'keputusan' => 'passed'));
+	'career_csrf' => $CSRF_P, 'id_application' => $APP5, 'n' => 1, 'keputusan' => 'passed'));
 check('keputusan pada lamaran accepted 409', '409', $c);
 /* koreksi pada lamaran accepted sesuai D16.5: boleh membatalkan status
    akhir → 200, lamaran kembali terkonsistensi (stage1 failed → lamaran
    not_accepted, tahap 2..5 kembali pending) */
 list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
-	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 1, 'keputusan_baru' => 'failed', 'alasan' => 'Ulang koreksi.'));
+	'career_csrf' => $CSRF_P, 'id_application' => $APP5, 'n' => 1, 'keputusan_baru' => 'failed', 'alasan' => 'Ulang koreksi.'));
 check('koreksi pada lamaran accepted → batalkan status akhir 200', '200', $c);
 check('koreksi batalkan accepted → tahap2..5 pending', 1,
-	((int) $pdo->query("SELECT COUNT(*) n FROM career_application_stages WHERE id_application={$APP} AND status IN ('passed','failed') AND id_stage <> {$STG1}")->fetch_assoc()['n'] === 0) ? 1 : 0);
+	((int) $pdo->query("SELECT COUNT(*) n FROM career_application_stages WHERE id_application={$APP5} AND status IN ('passed','failed') AND id_stage <> {$STG1}")->fetch_assoc()['n'] === 0) ? 1 : 0);
 check('koreksi batalkan accepted → lamaran not_accepted', 'not_accepted',
-	$pdo->query("SELECT status FROM career_applications WHERE id_application = {$APP}")->fetch_assoc()['status'] ?? '');
-/* pulihkan: tahap 1..5 passed lagi + in_process supaya blok berikutnya
-   (terima-ulang) tetap menguji jalur yang benar */
-$pdo->query("UPDATE career_application_stages SET status='passed', decided_at=NOW() WHERE id_application={$APP} AND id_stage IN ({$STG1}, {$STG2}, {$STG3}, {$stg[3][0]}, {$STG5})");
-$pdo->query("UPDATE career_applications SET status='in_process', current_stage_id=NULL WHERE id_application={$APP}");
-list($c, , $jraw) = post_admin('/administrator/career_pelamar/terima', array('career_csrf' => $CSRF_P, 'id_application' => $APP));
+	$pdo->query("SELECT status FROM career_applications WHERE id_application = {$APP5}")->fetch_assoc()['status'] ?? '');
+/* 6B.2: TIDAK ADA pemulihan status via SQL langsung — lamaran $APP
+   tetap not_accepted pasca-koreksi; terima ulang pada lamaran yang
+   bukan submitted/in_process HARUS ditolak 409 (#9 review 6B.1). */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/terima', array('career_csrf' => $CSRF_P, 'id_application' => $APP5));
 $j = json_ok($jraw);
-check('terima ulang 200 (idempoten pada accepted)', 1, ($j !== null && $j['success']) ? 1 : 0);
-check('lamaran tetap accepted setelah terima ulang', 'accepted',
-	$pdo->query("SELECT status FROM career_applications WHERE id_application = {$APP}")->fetch_assoc()['status']);
+check('terima ulang pada lamaran not_accepted 409', '409', $c);
+check('lamaran tetap not_accepted setelah terima ditolak', 'not_accepted',
+	$pdo->query("SELECT status FROM career_applications WHERE id_application = {$APP5}")->fetch_assoc()['status']);
 
 /* ---------- 10. jadwal & nilai (career_pelamar/jadwal + nilai) — lamaran#2 ---------- */
-$pdo->query("INSERT INTO career_applications (id_candidate, id_job_posting, status, current_stage_id, created_at)
-             VALUES ({$KANID}, {$IDP}, 'submitted', 1, NOW())");
 /* lamaran#2 untuk uji jadwal/nilai: kandidat (satu lamaran per lowongan),
    job_posting lain nutup far-future agar tetap 'submitted' */
 $pdo->query("INSERT INTO career_job_postings (title, description, opening_date, closing_date, education_level, is_published, created_by)
              VALUES ('{$NM}', 'post smoke6b jadwal', '2026-01-01', '2030-12-31', 'S1', 1, {$ADMIN_ID})");
 $IDP2 = (int) $pdo->query("SELECT id_job_posting FROM career_job_postings WHERE description = 'post smoke6b jadwal' ORDER BY id_job_posting DESC LIMIT 1")->fetch_assoc()['id_job_posting'];
+$G_POSTS[] = $IDP2;
 $pdo->query("INSERT INTO career_applications (id_candidate, id_job_posting, status, current_stage_id, created_at)
              VALUES ({$KANID}, {$IDP2}, 'submitted', 1, NOW())");
 $APP2 = (int) $pdo->query("SELECT id_application FROM career_applications WHERE id_candidate={$KANID} AND id_job_posting={$IDP2} ORDER BY id_application DESC LIMIT 1")->fetch_assoc()['id_application'];
+$G_APPS[] = $APP2;
 foreach ($stg as $row) {
 	$pdo->query("INSERT INTO career_application_stages (id_application, id_stage, status)
 	             VALUES ({$APP2}, {$row[0]}, 'pending')");
@@ -511,6 +565,15 @@ $j = json_ok($jraw);
 check('jadwal hapus 200', 1, ($j !== null && $j['success']) ? 1 : 0);
 check('jadwal hilang di DB', 0, (int) $pdo->query("SELECT COUNT(*) n FROM career_selection_schedules WHERE id_application_stage={$STAGE2_2}")->fetch_assoc()['n']);
 
+/* 6B.2: emoji 4-byte ditolak di field teks jadwal & nilai */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGE2_2, 'aksi' => 'simpan',
+	'schedule_datetime' => '2026-05-10 09:00', 'channel' => 'Online', 'note' => 'Catatan 😀'));
+check('jadwal note emoji 422', '422', $c);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/nilai', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGE1_2, 'score' => '80', 'rubric_note' => 'Nilai 😀'));
+check('nilai rubric_note emoji 422', '422', $c);
+
 /* ---------- 11. nilai & catatan internal (D13) ---------- */
 list($c, ) = post_admin('/administrator/career_pelamar/nilai', array(
 	'id_application_stage' => $STAGE1_2, 'score' => '75'), $COOKIE_NO);
@@ -542,6 +605,57 @@ check('audit simpan_nilai ada', 1, ((int) $pdo->query("SELECT COUNT(*) n FROM ca
 $val_audit = (string) $pdo->query("SELECT detail_json FROM career_audit_logs WHERE action='simpan_nilai_tahap' AND actor_id={$ADMIN_ID} ORDER BY id_audit_log DESC LIMIT 1")->fetch_assoc()['detail_json'];
 check('audit nilai tidak plaintext rubric', 0, (strpos($val_audit, 'psikotes menyusul') !== false) ? 1 : 0);
 
+/* ---------- 11.5 6B.2: jadwal diputuskan terkunci + koreksi un-publish ---------- */
+$STAGE3_2 = (int) $pdo->query("SELECT id_application_stage FROM career_application_stages WHERE id_application={$APP2} AND id_stage={$STG3}")->fetch_assoc()['id_application_stage'];
+/* jadwal tahap3 dibuat + dipublikasi (tahap2 belum? tahap2 masih pending —
+   D16.2 menuntut tahap2 lulus dulu: luluskan lewat keputusan) */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGE2_2, 'aksi' => 'simpan',
+	'schedule_datetime' => '2026-05-12 09:00', 'channel' => 'Online', 'note' => 'Tes tahap2'));
+check('jadwal tahap2 (lagi) 200', '200', $c);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGE2_2, 'aksi' => 'publikasi'));
+check('jadwal tahap2 publikasi 200', '200', $c);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/keputusan', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APP2, 'n' => 2, 'keputusan' => 'passed'));
+check('keputusan tahap2 lulus (walau masih scheduled) 200', '200', $c);
+/* batal/hapus pada tahap yang SUDAH diputuskan → 409 + data identik */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGE2_2, 'aksi' => 'batal'));
+check('batal jadwal pada tahap diputuskan 409', '409', $c);
+$jd = $pdo->query("SELECT schedule_datetime, channel, note, is_published FROM career_selection_schedules WHERE id_application_stage={$STAGE2_2}")->fetch_assoc();
+check('batal 409 → jadwal tetap ada & terpublikasi', 1, (is_array($jd) && (int) $jd['is_published'] === 1 && (string) $jd['schedule_datetime'] === '2026-05-12 09:00:00') ? 1 : 0);
+check('batal 409 → tahap tetap passed', 'passed', $pdo->query("SELECT status FROM career_application_stages WHERE id_application_stage={$STAGE2_2}")->fetch_assoc()['status']);
+
+/* jadwal tahap3 + publikasi, lalu koreksi tahap3 → tahap3 un-publish &
+   tahap berikutnya kembali pending (D16.5/D16.2) */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGE3_2, 'aksi' => 'simpan',
+	'schedule_datetime' => '2026-05-13 09:00', 'channel' => 'Offline', 'note' => 'Tes tahap3'));
+check('jadwal tahap3 simpan 200', '200', $c);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGE3_2, 'aksi' => 'publikasi'));
+check('jadwal tahap3 publikasi 200', '200', $c);
+check('tahap3 scheduled', 'scheduled', $pdo->query("SELECT status FROM career_application_stages WHERE id_application_stage={$STAGE3_2}")->fetch_assoc()['status']);
+/* koreksi pada tahap yang MASIH scheduled → 409; data identik */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APP2, 'n' => 3, 'keputusan_baru' => 'pending', 'alasan' => 'Jadwal salah admin - koreksi.'));
+check('koreksi pada tahap scheduled ditolak 409', '409', $c);
+check('koreksi 409 → jadwal tahap3 tetap terpublikasi', 1, (int) $pdo->query("SELECT is_published FROM career_selection_schedules WHERE id_application_stage={$STAGE3_2}")->fetch_assoc()['is_published']);
+check('koreksi 409 → tahap3 tetap scheduled', 'scheduled', $pdo->query("SELECT status FROM career_application_stages WHERE id_application_stage={$STAGE3_2}")->fetch_assoc()['status']);
+/* un-publish jadwal lewat koreksi tahap2 yang SUDAH diputuskan */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APP2, 'n' => 2, 'keputusan_baru' => 'pending', 'alasan' => 'Koreksi sesuai D16.5.'));
+check('koreksi tahap2 ke pending 200', '200', $c);
+check('koreksi tahap2 → jadwal tahap3 un-published', 0, (int) $pdo->query("SELECT is_published FROM career_selection_schedules WHERE id_application_stage={$STAGE3_2}")->fetch_assoc()['is_published']);
+check('koreksi tahap2 → tahap3 pending', 'pending', $pdo->query("SELECT status FROM career_application_stages WHERE id_application_stage={$STAGE3_2}")->fetch_assoc()['status']);
+check('koreksi tahap2 → tahap4 tetap pending', 'pending', $pdo->query("SELECT status FROM career_application_stages WHERE id_application={$APP2} AND id_stage={$stg[3][0]}")->fetch_assoc()['status']);
+/* tahap2 gagal (via keputusan pada tahap pending) → lamaran not_accepted */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/keputusan', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APP2, 'n' => 2, 'keputusan' => 'failed'));
+check('keputusan tahap2 failed 200', '200', $c);
+check('tahap2 failed → lamaran not_accepted', 'not_accepted', $pdo->query("SELECT status FROM career_applications WHERE id_application={$APP2}")->fetch_assoc()['status']);
+
 /* ---------- 12. pelamar list tetap baca + perlu_verifikasi ---------- */
 /* $APP pada titik ini accepted, APP2 sudah in_process (D16.3 setelah
    keputusan tahap 1) → buat lamaran#3 yang masih mentah submitted untuk uji
@@ -549,17 +663,17 @@ check('audit nilai tidak plaintext rubric', 0, (strpos($val_audit, 'psikotes men
 $pdo->query("INSERT INTO career_job_postings (title, description, opening_date, closing_date, education_level, is_published, created_by)
              VALUES ('{$NM} Filter', 'post smoke6b filter', '2026-01-01', '2030-12-31', 'S1', 1, {$ADMIN_ID})");
 $IDP3 = (int) $pdo->query("SELECT id_job_posting FROM career_job_postings WHERE description = 'post smoke6b filter' ORDER BY id_job_posting DESC LIMIT 1")->fetch_assoc()['id_job_posting'];
+$G_POSTS[] = $IDP3;
 $pdo->query("INSERT INTO career_job_posting_requirements (id_job_posting, requirement_name, requirement_type, input_type, allowed_formats, max_file_size_kb, display_order)
              VALUES ({$IDP3}, 'Ijazah Filter', 'required', 'document', 'PDF', 5120, 1)");
 $IJZ3 = (int) $pdo->query("SELECT id_job_posting_requirement FROM career_job_posting_requirements WHERE id_job_posting={$IDP3} LIMIT 1")->fetch_assoc()['id_job_posting_requirement'];
 $pdo->query("INSERT INTO career_applications (id_candidate, id_job_posting, status, current_stage_id, created_at)
              VALUES ({$KANID}, {$IDP3}, 'submitted', 1, NOW())");
 $APP3 = (int) $pdo->query("SELECT id_application FROM career_applications WHERE id_candidate={$KANID} AND id_job_posting={$IDP3} ORDER BY id_application DESC LIMIT 1")->fetch_assoc()['id_application'];
+$G_APPS[] = $APP3;
 $pdo->query("INSERT INTO career_application_requirements (id_application, id_job_posting_requirement, status)
              VALUES ({$APP3}, {$IJZ3}, 'pending_review')");
 list($c, , $rawbody) = http('GET', $GLOBALS['BASE'] . '/administrator/career_pelamar?status=submitted&id_job_posting=' . $GLOBALS['IDP3'], array(), null, $COOKIE);
-if (getenv('S6B_TRACE') === '1') { echo "TRACE pelamarlist c=$c len=" . strlen($rawbody) . "
-"; }
 check('pelamar list filter status submitted → kandidat smoke6b', 1, (strpos($rawbody, 'Kandidat Smoke6B') !== false) ? 1 : 0);
 list($c, , $rawbody) = http('GET', $BASE . '/administrator/career_pelamar/view/' . $APP, array(), null, $COOKIE);
 check('pelamar view tahap detail 200', '200', $c);
@@ -567,12 +681,39 @@ $stripped2 = preg_replace('#<(script|style)[\s\S]*?</(script|style)>#i', '', $ra
 check('pelamar view TIDAK ada note_internal/score mentah', 0,
 	((strpos($stripped2, 'psikotes menyusul') !== false) || preg_match('/\b75\.00\b/', $stripped2)) ? 1 : 0);
 
+/* ---------- 12.5 6B.2 HIGH-1: pencarian kandidat tahan SQLi ---------- */
+$SQLI_SET = array(
+	"' OR 1=1 -- ",
+	"' UNION SELECT pass,pass FROM aauth_users -- ",
+	"%' OR '1'='1\\",
+	'50%_off',
+);
+foreach ($SQLI_SET as $si => $qs) {
+	$url = $BASE . '/administrator/career_kandidat?q=' . rawurlencode($qs);
+	list($c, , $rawq) = http('GET', $url, array(), null, $COOKIE);
+	$bad = (preg_match('/(Fatal error|Warning\(|Notice:|Undefined (index|variable|property)|A Database Error Occurred|syntax error|SQLSTATE)/i', $rawq)) ? 1 : 0;
+	check('SQLi q#' . ($si + 1) . ' 200 bersih', '200:0', $c . ':' . $bad);
+}
+
 /* ---------- 13. render halaman bersih notice ---------- */
 foreach (array('career_kandidat') as $path) {
 	list($c, , $rawbody) = http('GET', $BASE . '/administrator/' . $path, array(), null, $COOKIE);
 	$bad = (preg_match('/(Fatal error|Warning\(|Notice:|Undefined (index|variable|property))/i', $rawbody)) ? 1 : 0;
 	check('render ' . $path . ' 200 bersih', '200:0', $c . ':' . $bad);
 }
+
+/* ---------- 13.5 6B.2: admin TANPA score_view TIDAK melihat skor ---------- */
+list($c, $headc, ) = post_login(array('username' => $EMAIL_C, 'password' => $PASS_A));
+preg_match_all('/Set-Cookie:\s*([^;]+)=([^;]*)/i', $headc, $mmc);
+$sidc = null;
+foreach ($mmc[1] as $i => $nmc) { if (trim(strtolower($nmc)) === 'jacos_session') $sidc = rawurldecode($mmc[2][$i]); }
+check('login admin view-only 200', 'ya', ($sidc !== null) ? 'ya' : 'tidak');
+$COOKIE_C = 'jacos_session=' . rawurlencode((string) $sidc);
+list($c, , $rawbody) = http('GET', $BASE . '/administrator/career_pelamar/view/' . $APP, array(), null, $COOKIE_C);
+check('view pelamar utk view-only 200', '200', $c);
+$strippedc = preg_replace('#<(script|style)[\s\S]*?</(script|style)>#i', '', (string) $rawbody);
+check('view-only TANPA string skor 75.00', 0, (preg_match('/\b75\.00\b/', $strippedc)) ? 1 : 0);
+check('view-only TANPA isi rubric internal', 0, (strpos($strippedc, 'psikotes menyusul') !== false) ? 1 : 0);
 
 /* ====================================================================
    14. Ekstensi 6B.1 (#14 review): GET-mutasi tolak, anonim 403, API
@@ -649,9 +790,11 @@ check('notifikasi API TIDAK berisi skor/internal', 0,
 $pdo->query("INSERT INTO career_job_postings (title, description, is_published, opening_date, closing_date, created_at, updated_at)
              VALUES ('[DUMMY TEST6B] Draft Guru', 'x', 0, '2025-01-01', '2030-12-31', NOW(), NOW())");
 $IDP4 = (int) $pdo->insert_id;
+$G_POSTS[] = $IDP4;
 $pdo->query("INSERT INTO career_applications (id_candidate, id_job_posting, status)
              VALUES ({$KANID}, {$IDP4}, 'draft')");
 $APP4 = (int) $pdo->insert_id;
+$G_APPS[] = $APP4;
 $STG4 = 0;
 $res_st = $pdo->query("SELECT id_stage FROM career_stages WHERE is_active = 1 ORDER BY stage_order ASC");
 while ($st4 = $res_st->fetch_assoc()) {

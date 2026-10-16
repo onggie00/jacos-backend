@@ -43,9 +43,17 @@
 
                   <?php // tanda izin disiapkan controller (bisa_verifikasi/bisa_keputusan/bisa_jadwal/bisa_nilai) ?>
 
+                  <?php
+                     // #1 6B.2: tombol keputusan nonaktif sesuai D16 -
+                     // draft/withdrawn tidak bisa; terima butuh 5 tahap passed.
+                     $status_akhir = in_array($app->status, array('draft', 'withdrawn'), TRUE);
+                     $tahap_lulus_semua = TRUE;
+                     foreach ($tahapan as $t) { if ($t->status !== 'passed') { $tahap_lulus_semua = FALSE; break; } }
+                  ?>
                   <?php if ($bisa_keputusan): ?>
                   <div style="padding:4px 8px">
-                     <button type="button" class="btn btn-success career-terima" data-id="<?= (int) $app->id_application; ?>">
+                     <button type="button" class="btn btn-success career-terima" data-id="<?= (int) $app->id_application; ?>"
+                        <?= ($status_akhir || ! $tahap_lulus_semua) ? 'disabled title="Semua 5 tahap harus lulus dulu (D16)"' : ''; ?>>
                         <i class="fa fa-check-square-o"></i> Status akhir: Diterima
                      </button>
                      <span class="help-block small" style="display:inline">Syarat: kelima tahap sudah lulus (D16). Aksi tercatat di audit log.</span>
@@ -109,18 +117,49 @@
                               </td>
                               <td style="font-size:12px">
                                  <?php if ($bisa_keputusan): ?>
+                                    <?php
+                                       // D16.2: tahap boleh diputuskan hanya bila tahap
+                                       // sebelumnya lulus; draft/withdrawn terkunci.
+                                       $prev_lulus = TRUE;
+                                       foreach ($tahapan as $tp_) {
+                                          if ((int) $tp_->stage_order >= (int) $t->stage_order) { break; }
+                                          if ($tp_->status !== 'passed') { $prev_lulus = FALSE; }
+                                       }
+                                       $boleh_keputusan = $prev_lulus && ! $status_akhir;
+                                    ?>
                                     <?php if (in_array($t->status, array('pending', 'scheduled'), TRUE)): ?>
-                                       <button type="button" class="btn btn-flat btn-xs btn-success career-keputusan" data-n="<?= (int) $t->stage_order; ?>" data-keputusan="passed">Lulus</button>
-                                       <button type="button" class="btn btn-flat btn-xs btn-danger career-keputusan" data-n="<?= (int) $t->stage_order; ?>" data-keputusan="failed">Tidak lulus</button>
+                                       <button type="button" class="btn btn-flat btn-xs btn-success career-keputusan" data-n="<?= (int) $t->stage_order; ?>" data-keputusan="passed" <?= $boleh_keputusan ? '' : 'disabled title="Tahap sebelumnya belum lulus (D16.2)"'; ?>>Lulus</button>
+                                       <button type="button" class="btn btn-flat btn-xs btn-danger career-keputusan" data-n="<?= (int) $t->stage_order; ?>" data-keputusan="failed" <?= $boleh_keputusan ? '' : 'disabled title="Tahap sebelumnya belum lulus (D16.2)"'; ?>>Tidak lulus</button>
                                     <?php else: ?>
-                                       <button type="button" class="btn btn-flat btn-xs btn-warning career-koreksi" data-n="<?= (int) $t->stage_order; ?>">Koreksi</button>
+                                       <button type="button" class="btn btn-flat btn-xs btn-warning career-koreksi" data-n="<?= (int) $t->stage_order; ?>" <?= $status_akhir ? 'disabled title="Lamaran draft/withdrawn"' : ''; ?>>Koreksi</button>
                                     <?php endif; ?>
                                  <?php endif; ?>
-                                 <?php if ($bisa_nilai): ?>
+                                 <?php
+                                    // #1 6B.2: nilai saat ini TAMPIL bagi pemegang
+                                    // career_pelamar_score_view (D13 internal);
+                                    // form ubah hanya bila career_pelamar_score_edit.
+                                    $nilai_now = NULL;
+                                    if ($bisa_score_view) {
+                                       foreach ($nilai_rekap as $nr_) {
+                                          if ((int) $nr_->id_application_stage === (int) $t->id_application_stage) { $nilai_now = $nr_; break; }
+                                       }
+                                    }
+                                 ?>
+                                 <?php if ($bisa_score_view): ?>
+                                    <div class="small" style="margin-top:4px">
+                                       <?php if ($nilai_now): ?>
+                                          <span class="label bg-purple">Skor: <?= html_escape(number_format((float) $nilai_now->score, 2)); ?></span>
+                                          <?php if ($nilai_now->rubric_note): ?><br><small class="text-muted"><?= html_escape($nilai_now->rubric_note); ?></small><?php endif; ?>
+                                       <?php else: ?>
+                                          <span class="text-muted">Belum dinilai</span>
+                                       <?php endif; ?>
+                                    </div>
+                                 <?php endif; ?>
+                                 <?php if ($bisa_score_edit): ?>
                                     <form class="career-nilai-form" style="margin-top:4px" onsubmit="return false">
                                        <input type="number" class="career-nilai-skor" placeholder="Skor 0–100" min="0" max="100" step="0.01"
-                                              style="width:110px" value="">
-                                       <input type="text" class="career-nilai-catatan" placeholder="Catatan internal" style="width:160px">
+                                              style="width:110px" value="<?= $nilai_now !== NULL ? html_escape(number_format((float) $nilai_now->score, 2, '.', '')) : ''; ?>">
+                                       <input type="text" class="career-nilai-catatan" placeholder="Catatan internal" style="width:160px" value="<?= $nilai_now !== NULL && $nilai_now->rubric_note ? html_escape($nilai_now->rubric_note) : ''; ?>">
                                        <button type="button" class="btn btn-flat btn-xs btn-default career-nilai" data-sid="<?= (int) $t->id_application_stage; ?>">Simpan nilai</button>
                                     </form>
                                  <?php endif; ?>
@@ -132,6 +171,23 @@
                      <p class="text-muted small">
                         D16.2: tahap dapat dijadwalkan hanya setelah tahap sebelumnya lulus; tahap yang sudah diputuskan hanya bisa dibukakan lewat koreksi. D16.5: koreksi batalkan status akhir.
                      </p>
+                  </div>
+
+                  <!-- modal konfirmasi generik (tema) — menggantikan confirm() -->
+                  <div class="modal fade" id="modal-ok" tabindex="-1" role="dialog" aria-hidden="true">
+                     <div class="modal-dialog modal-sm" role="document">
+                        <div class="modal-content">
+                           <div class="modal-header">
+                              <button type="button" class="close" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+                              <h4 class="modal-title">Konfirmasi</h4>
+                           </div>
+                           <div class="modal-body"><p id="modal-ok-teks" class="small"></p></div>
+                           <div class="modal-footer">
+                              <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                              <button type="button" class="btn btn-primary" id="modal-ok-ya">Ya, lanjutkan</button>
+                           </div>
+                        </div>
+                     </div>
                   </div>
 
                   <!-- modal koreksi keputusan (D16.5) -->
@@ -153,6 +209,9 @@
                                  <select id="koreksi-keputusan" class="form-control">
                                     <option value="passed">Lulus</option>
                                     <option value="failed">Tidak lulus</option>
+                                    <?php if (! $status_akhir): // D16.5: kembalikan tahap ke menunggu hanya bila lamaran masih proses ?>
+                                    <option value="pending">Kembalikan ke menunggu (tahap setelahnya ikut)</option>
+                                    <?php endif; ?>
                                  </select>
                               </div>
                               <div class="form-group">
@@ -191,6 +250,10 @@
                               <div class="form-group">
                                  <label for="verifikasi-pesan">Pesan ke kandidat (maks 500)</label>
                                  <textarea id="verifikasi-pesan" class="form-control" rows="3"></textarea>
+                              </div>
+                              <div class="form-group">
+                                 <label for="verifikasi-catatan">Catatan internal (review_note, maks 500 — TIDAK dikirim ke kandidat)</label>
+                                 <textarea id="verifikasi-catatan" class="form-control" rows="2"></textarea>
                               </div>
                            </div>
                            <div class="modal-footer">
@@ -364,31 +427,46 @@
          $('#verifikasi-req').text($(this).data('nama') + ' — status: ' + $(this).data('status'));
          $('#verifikasi-keputusan').val('verified');
          $('#verifikasi-pesan').val('');
+         $('#verifikasi-catatan').val('');
          $('#modal-verifikasi').modal('show');
       });
       $('#verifikasi-kirim').on('click', function () {
          pusatKeputusan($(this), '<?= site_url('administrator/career_pelamar/verifikasi/'); ?>' + $('#verifikasi-rid').val(), {
             keputusan: $('#verifikasi-keputusan').val(),
-            pesan_kandidat: $('#verifikasi-pesan').val()
+            pesan_kandidat: $('#verifikasi-pesan').val(),
+            review_note: $('#verifikasi-catatan').val()
          });
       });
+      // dialog konfirmasi tema (menggantikan confirm() utk keputusan/terima)
+      function tanyaModal(teks, lalu) {
+         $('#modal-ok-teks').text(teks);
+         $('#modal-ok').modal('show');
+         $('#modal-ok-ya').off('click').on('click', function () {
+            $('#modal-ok').modal('hide');
+            lalu();
+         });
+      }
       // keputusan tahap
       $('.career-keputusan').on('click', function () {
-         if (confirm('Kunci keputusan tahap ini? (tercatat di audit log)')) {
-               pusatKeputusan($(this), '<?= site_url('administrator/career_pelamar/keputusan'); ?>', {
-                  id_application: <?= (int) $app->id_application; ?>,
-                  n: $(this).data('n'),
-                  keputusan: $(this).data('keputusan')
-               });
-         }
+         var $b = $(this);
+         if ($b.prop('disabled')) { return; }
+         tanyaModal('Kunci keputusan tahap ini? (tercatat di audit log)', function () {
+            pusatKeputusan($b, '<?= site_url('administrator/career_pelamar/keputusan'); ?>', {
+               id_application: <?= (int) $app->id_application; ?>,
+               n: $b.data('n'),
+               keputusan: $b.data('keputusan')
+            });
+         });
       });
       // status akhir diterima
       $('.career-terima').on('click', function () {
-         if (confirm('Jadikan status akhir Diterima? (semua tahap harus lulus)')) {
-               pusatKeputusan($(this), '<?= site_url('administrator/career_pelamar/terima'); ?>', {
-                  id_application: <?= (int) $app->id_application; ?>
-               });
-         }
+         var $b = $(this);
+         if ($b.prop('disabled')) { return; }
+         tanyaModal('Jadikan status akhir Diterima? (semua tahap harus lulus)', function () {
+            pusatKeputusan($b, '<?= site_url('administrator/career_pelamar/terima'); ?>', {
+               id_application: <?= (int) $app->id_application; ?>
+            });
+         });
       });
       // koreksi keputusan (D16.5)
       $('.career-koreksi').on('click', function () {

@@ -35,7 +35,7 @@
                         <select name="status" class="form-control">
                            <option value="">Semua status</option>
                            <?php $sts = array('perlu_verifikasi'=>'Perlu verifikasi','draft'=>'Draf','submitted'=>'Terkirim','in_process'=>'Dalam Proses','accepted'=>'Diterima','not_accepted'=>'Tidak Diterima','withdrawn'=>'Dibatalkan'); foreach ($sts as $k => $v): ?>
-                              <option value="<?= $k; ?>" <?= $status === $k ? 'selected' : ''; ?>><?= $v; ?></option>
+                              <option value="<?= $k; ?>" <?= $status_pilihan === $k ? 'selected' : ''; ?>><?= $v; ?></option>
                            <?php endforeach; ?>
                         </select>
                      </div>

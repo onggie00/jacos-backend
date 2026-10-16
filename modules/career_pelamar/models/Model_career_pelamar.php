@@ -85,11 +85,12 @@ class Model_career_pelamar extends MY_Model {
         }
         if (isset($filter['q']) && $filter['q'] !== '') {
             // LOW #21: tanpa scurity() (double-escape); like() sudah
-            // di-escape oleh CI, wildcard dibungkus escape_like_str.
-            $q = $this->db->escape_like_str(career_q($filter['q']));
+            // #17 6B.2: like() CI me-escape nilai + wildcard (ESCAPE '!'),
+            // tanpa escape_like_str ganda.
+            $q = career_q($filter['q']);
             $this->db->group_start();
-            $this->db->like('c.full_name', $q, 'both', FALSE);
-            $this->db->or_like('c.email', $q, 'both', FALSE);
+            $this->db->like('c.full_name', $q, 'both');
+            $this->db->or_like('c.email', $q, 'both');
             $this->db->group_end();
         }
     }
@@ -237,7 +238,8 @@ public function set_verifikasi($id_application_requirement, $baris_req, $app, $k
         return array(FALSE, '422|Keputusan verifikasi tidak sah.');
     }
     if ($baris_req->requirement_status === $keputusan_baru) {
-        return array(FALSE, '422|Persyaratan sudah berstatus ' . $keputusan_baru . '.');
+        // #18 6B.2: status sama = konflik -> 409.
+        return array(FALSE, '409|Persyaratan sudah berstatus ' . $keputusan_baru . '.');
     }
     if ($baris_req->requirement_status === 'not_uploaded') {
         return array(FALSE, '422|Persyaratan belum diunggah/diisi kandidat — tidak dapat diverifikasi.');
@@ -509,6 +511,11 @@ public function jadwal_hapus($id_application_stage)
     if ((int) $row->is_published === 1) {
         return array(FALSE, '409|Jadwal sudah dipublikasikan — batalkan publikasi dulu.');
     }
+    // HIGH-2: tahap yang sudah diputuskan tidak boleh dihapus jadwalnya.
+    $app_st = $this->stage_untuk_jadwal($id_application_stage);
+    if ($app_st !== NULL && in_array($app_st->status, array('passed', 'failed'), TRUE)) {
+        return array(FALSE, '409|Tahap sudah diputuskan — jadwal tidak dapat dihapus.');
+    }
     $this->db->where('id_selection_schedule', (int) $row->id_selection_schedule)->delete('career_selection_schedules');
     return array(TRUE, 'Jadwal dihapus.');
 }
@@ -554,14 +561,23 @@ public function jadwal_publikasi($id_application_stage, $publikasi)
         return array(TRUE, 'Jadwal dipublikasikan.');
     }
 
-    // Batal publikasi: TIDAK terkunci D16.2 (#5) — admin selalu dapat
-    // menarik jadwal; tahap kembali pending + scheduled_at NULL.
+    // Batal publikasi: hanya menyentuh tahap berstatus 'scheduled'
+    // (HIGH-2 6B.2). Tahap yang SUDAH diputuskan (passed/failed) TIDAK
+    // disentuh; lamaran final (accepted/not_accepted) ditolak kecuali
+    // tahapnya memang masih scheduled.
+    if (in_array($app_st->status, array('passed', 'failed'), TRUE)) {
+        return array(FALSE, '409|Tahap sudah diputuskan — publikasi jadwal tidak dapat dibatalkan.');
+    }
+    if (in_array($app_st->app_status, array('accepted', 'not_accepted'), TRUE)) {
+        return array(FALSE, '409|Lamaran sudah diputuskan akhirnya — batal publikasi tidak dapat dilakukan.');
+    }
     $sudah = ((int) $row->is_published === 1);
     $this->db->where('id_selection_schedule', (int) $row->id_selection_schedule)
         ->update('career_selection_schedules', array('is_published' => 0));
     $this->db->set('status', 'pending')
         ->set('scheduled_at', NULL)
         ->where('id_application_stage', (int) $id_application_stage)
+        ->where('status', 'scheduled')
         ->update('career_application_stages');
     if ($sudah) {
         // D18: notifikasi singkat netral saat publikasi dicabut (#8c).
@@ -585,7 +601,7 @@ public function nilai_lamaran($id_application)
 {
     return $this->db->query(
         "SELECT e.id_evaluation_score, e.id_application_stage, e.evaluator_id,
-                e.score, e.rubric_note, e.updated_at, st.stage_order, s.name AS stage_name
+                e.score, e.rubric_note, e.updated_at, st.stage_order, st.name AS stage_name
          FROM career_evaluation_scores e
          JOIN career_application_stages s ON s.id_application_stage = e.id_application_stage
          JOIN career_stages st ON st.id_stage = s.id_stage

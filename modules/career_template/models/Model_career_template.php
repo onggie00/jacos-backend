@@ -29,7 +29,7 @@ class Model_career_template extends MY_Model {
     {
         $this->db->from($this->table_name);
         if ($q !== NULL && $q !== '') {
-            $this->db->like('name', $this->db->escape_like_str(career_q($q)), 'both', FALSE);
+            $this->db->like('name', career_q($q), 'both');
         }
         if ($status === 'active') {
             $this->db->where('is_active', 1);
@@ -48,7 +48,7 @@ class Model_career_template extends MY_Model {
     {
         $this->db->from($this->table_name);
         if ($q !== NULL && $q !== '') {
-            $this->db->like('name', $this->db->escape_like_str(career_q($q)), 'both', FALSE);
+            $this->db->like('name', career_q($q), 'both');
         }
         if ($status === 'active') {
             $this->db->where('is_active', 1);

@@ -29,30 +29,32 @@ class Model_career_kandidat extends CI_Model
 				  WHERE a.id_candidate = c.id_candidate) AS jumlah_lamaran
 			 FROM career_candidates c
 			 LEFT JOIN career_candidate_profiles p ON p.id_candidate = c.id_candidate
-			 $where
+			 {$where['sql']}
 			 ORDER BY c.id_candidate DESC
-			 LIMIT $limit OFFSET $offset"
+			 LIMIT $limit OFFSET $offset",
+			$where['bind']
 		)->result();
 	}
 
 	public function daftar_count($filter = array())
 	{
 		$where = $this->_where_filter($filter);
-		$row = $this->db->query("SELECT COUNT(*) AS n FROM career_candidates c $where")->row();
+		$row = $this->db->query("SELECT COUNT(*) AS n FROM career_candidates c {$where['sql']}", $where['bind'])->row();
 		return $row ? (int) $row->n : 0;
 	}
 
 	private function _where_filter($filter)
 	{
-		$w = array('1=1');
+		$sql  = '';
+		$bind = array();
 		if (! empty($filter['q'])) {
-			// Pencarian via subquery raw: LEAST escape manual agar _/% tetap
-			// literal (CI like() dengan ESCAPE default membuat kueri rumit
-			// di subquery string; nilai tetap ter-bind lewat placeholder).
-			$q = str_replace(array('\\', '%', '_'), array('\\\\', '\\%', '\\_'), (string) $filter['q']);
-			$w[] = "(c.full_name LIKE '%{$q}%' OR c.email LIKE '%{$q}%')";
+			// nilai ter-bind via placeholder; escape_like_str utk _/% (HIGH-1);
+			$q = $this->db->escape_like_str((string) $filter['q']);
+			$bind[] = '%'.$q.'%';
+			$sql = " WHERE (c.full_name LIKE ? OR c.email LIKE ?)";
+			$bind[] = $bind[0];
 		}
-		return empty($w) ? '' : ' WHERE ' . implode(' AND ', $w);
+		return array('sql' => $sql, 'bind' => $bind);
 	}
 
 	/** Hemat: kandidat yang belum pernah lamar tetap muncul (P3). */
@@ -96,7 +98,7 @@ class Model_career_kandidat extends CI_Model
 		$hash    = password_hash($sandi, PASSWORD_BCRYPT);
 		$k	= (string) $kandidat->email;
 
-		$this->db->trans_start();
+		$this->db->trans_begin();
 		$this->db->where('id_candidate', $id_candidate)
 			->set('password_hash', $hash)
 			->set('token_version', 'token_version + 1', FALSE)
@@ -109,10 +111,11 @@ class Model_career_kandidat extends CI_Model
 			->where('attempt_type', 'login')
 			->where('succeeded', 0)
 			->delete('career_login_attempts');
-		$this->db->trans_complete();
 		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
 			return array(FALSE, '500|Gagal menyimpan password baru.');
 		}
+		$this->db->trans_commit();
 		return array(TRUE, array('password' => $sandi));
 	}
 }

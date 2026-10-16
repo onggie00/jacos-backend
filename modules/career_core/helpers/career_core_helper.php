@@ -241,162 +241,6 @@ if ( ! function_exists('career_panjang')) {
 }
 
 // --------------------------------------------------------------------
-// Teks aman (utf8 3-byte + mbstring)
-// --------------------------------------------------------------------
-
-if ( ! function_exists('career_teks_aman')) {
-    /**
-     * Buang karakter Unicode 4-byte (emoji dsb — tidak lolos tabel utf8
-     * 3-byte; tanpa ini INSERT gagal dan transaksi menggulung).
-     */
-    function career_teks_aman($teks)
-    {
-        return preg_replace('/[\x{10000}-\x{10FFFF}]/u', '', (string) $teks);
-    }
-}
-
-if ( ! function_exists('career_ada_emoji')) {
-    /** TRUE bila $teks berisi karakter 4-byte (utk tolak 422). */
-    function career_ada_emoji($teks)
-    {
-        return preg_match('/[\x{10000}-\x{10FFFF}]/u', (string) $teks) === 1;
-    }
-}
-
-if ( ! function_exists('career_potong')) {
-    /** Potong berdasar JUMLAH KARAKTER (mb_substr), bukan byte. */
-    function career_potong($teks, $n)
-    {
-        return mb_substr((string) $teks, 0, (int) $n, 'UTF-8');
-    }
-}
-
-if ( ! function_exists('career_panjang')) {
-    /** Panjang dalam JUMLAH KARAKTER (mb_strlen), bukan byte. */
-    function career_panjang($teks)
-    {
-        return mb_strlen((string) $teks, 'UTF-8');
-    }
-}
-
-// --------------------------------------------------------------------
-// Teks aman (utf8 3-byte + mbstring)
-// --------------------------------------------------------------------
-
-if ( ! function_exists('career_teks_aman')) {
-    /**
-     * Buang karakter Unicode 4-byte (emoji dsb — tidak lolos tabel utf8
-     * 3-byte; tanpa ini INSERT gagal dan transaksi menggulung).
-     */
-    function career_teks_aman($teks)
-    {
-        return preg_replace('/[\x{10000}-\x{10FFFF}]/u', '', (string) $teks);
-    }
-}
-
-if ( ! function_exists('career_ada_emoji')) {
-    /** TRUE bila $teks berisi karakter 4-byte (utk tolak 422). */
-    function career_ada_emoji($teks)
-    {
-        return preg_match('/[\x{10000}-\x{10FFFF}]/u', (string) $teks) === 1;
-    }
-}
-
-if ( ! function_exists('career_potong')) {
-    /** Potong berdasar JUMLAH KARAKTER (mb_substr), bukan byte. */
-    function career_potong($teks, $n)
-    {
-        return mb_substr((string) $teks, 0, (int) $n, 'UTF-8');
-    }
-}
-
-if ( ! function_exists('career_panjang')) {
-    /** Panjang dalam JUMLAH KARAKTER (mb_strlen), bukan byte. */
-    function career_panjang($teks)
-    {
-        return mb_strlen((string) $teks, 'UTF-8');
-    }
-}
-
-// --------------------------------------------------------------------
-// Teks aman (utf8 3-byte + mbstring)
-// --------------------------------------------------------------------
-
-if ( ! function_exists('career_teks_aman')) {
-    /**
-     * Buang karakter Unicode 4-byte (emoji dsb — tidak lolos tabel utf8
-     * 3-byte; tanpa ini INSERT gagal dan transaksi menggulung).
-     */
-    function career_teks_aman($teks)
-    {
-        return preg_replace('/[\x{10000}-\x{10FFFF}]/u', '', (string) $teks);
-    }
-}
-
-if ( ! function_exists('career_ada_emoji')) {
-    /** TRUE bila $teks berisi karakter 4-byte (utk tolak 422). */
-    function career_ada_emoji($teks)
-    {
-        return preg_match('/[\x{10000}-\x{10FFFF}]/u', (string) $teks) === 1;
-    }
-}
-
-if ( ! function_exists('career_potong')) {
-    /** Potong berdasar JUMLAH KARAKTER (mb_substr), bukan byte. */
-    function career_potong($teks, $n)
-    {
-        return mb_substr((string) $teks, 0, (int) $n, 'UTF-8');
-    }
-}
-
-if ( ! function_exists('career_panjang')) {
-    /** Panjang dalam JUMLAH KARAKTER (mb_strlen), bukan byte. */
-    function career_panjang($teks)
-    {
-        return mb_strlen((string) $teks, 'UTF-8');
-    }
-}
-
-// --------------------------------------------------------------------
-// Teks aman (utf8 3-byte + mbstring)
-// --------------------------------------------------------------------
-
-if ( ! function_exists('career_teks_aman')) {
-    /**
-     * Buang karakter Unicode 4-byte (emoji dsb — tidak lolos tabel utf8
-     * 3-byte; tanpa ini INSERT gagal dan transaksi menggulung).
-     */
-    function career_teks_aman($teks)
-    {
-        return preg_replace('/[\x{10000}-\x{10FFFF}]/u', '', (string) $teks);
-    }
-}
-
-if ( ! function_exists('career_ada_emoji')) {
-    /** TRUE bila $teks berisi karakter 4-byte (utk tolak 422). */
-    function career_ada_emoji($teks)
-    {
-        return preg_match('/[\x{10000}-\x{10FFFF}]/u', (string) $teks) === 1;
-    }
-}
-
-if ( ! function_exists('career_potong')) {
-    /** Potong berdasar JUMLAH KARAKTER (mb_substr), bukan byte. */
-    function career_potong($teks, $n)
-    {
-        return mb_substr((string) $teks, 0, (int) $n, 'UTF-8');
-    }
-}
-
-if ( ! function_exists('career_panjang')) {
-    /** Panjang dalam JUMLAH KARAKTER (mb_strlen), bukan byte. */
-    function career_panjang($teks)
-    {
-        return mb_strlen((string) $teks, 'UTF-8');
-    }
-}
-
-// --------------------------------------------------------------------
 // Notifikasi in-app bersama (D18 — tanpa email, D2)
 // --------------------------------------------------------------------
 
@@ -485,46 +329,19 @@ if ( ! function_exists('career_lamaran_status_autokoreksi')) {
         $ci =& get_instance();
         $curr_stage = NULL;
         $no_ada_failed = FALSE;
+
+        // D16.1 guard: status lamaran draft/withdrawn TIDAK PERNAH diubah
+        // secara otomatis (koreksi/keputusan menolaknya sejak awal).
+        if ( ! in_array($status_sekarang,
+                array('submitted', 'in_process', 'accepted', 'not_accepted'), TRUE)) {
+            return TRUE;
+        }
+
         foreach ($tahapan as $t) {
             if ($t->status === 'failed') { $no_ada_failed = TRUE; break; }
         }
         foreach ($tahapan as $t) {
             if ($t->status !== 'passed') { $curr_stage = (int) $t->id_stage; break; }
-        }
-
-        // D16.1 guard: status lamaran draft/withdrawn TIDAK PERNAH diubah
-        // secara otomatis (koreksi/keputusan menolaknya sejak awal).
-        if ( ! in_array($status_sekarang,
-                array('submitted', 'in_process', 'accepted', 'not_accepted'), TRUE)) {
-            return TRUE;
-        }
-
-        // D16.1 guard: status lamaran draft/withdrawn TIDAK PERNAH diubah
-        // secara otomatis (koreksi/keputusan menolaknya sejak awal).
-        if ( ! in_array($status_sekarang,
-                array('submitted', 'in_process', 'accepted', 'not_accepted'), TRUE)) {
-            return TRUE;
-        }
-
-        // D16.1 guard: status lamaran draft/withdrawn TIDAK PERNAH diubah
-        // secara otomatis (koreksi/keputusan menolaknya sejak awal).
-        if ( ! in_array($status_sekarang,
-                array('submitted', 'in_process', 'accepted', 'not_accepted'), TRUE)) {
-            return TRUE;
-        }
-
-        // D16.1 guard: status lamaran draft/withdrawn TIDAK PERNAH diubah
-        // secara otomatis (koreksi/keputusan menolaknya sejak awal).
-        if ( ! in_array($status_sekarang,
-                array('submitted', 'in_process', 'accepted', 'not_accepted'), TRUE)) {
-            return TRUE;
-        }
-
-        // D16.1 guard: status lamaran draft/withdrawn TIDAK PERNAH diubah
-        // secara otomatis (koreksi/keputusan menolaknya sejak awal).
-        if ( ! in_array($status_sekarang,
-                array('submitted', 'in_process', 'accepted', 'not_accepted'), TRUE)) {
-            return TRUE;
         }
 
         $up = array('current_stage_id' => $curr_stage);
