@@ -108,8 +108,9 @@ $ git branch -vv (baris yang relevan)
 $ git ls-remote --heads origin feature/career-admin-6b (output asli)
 ca47b8835b679a3ef0cf161bd0e51958e6dad86d	refs/heads/feature/career-admin-6b
 
-$ git status --short | wc -l : SEBELUM commit fase = 312; SETELAH commit fase = 301
-  (selisih 11 = file-file saya yang di-commit; sisanya file milik pengembang lain — tidak disentuh)
+$ git status --short | wc -l : SEBELUM commit fase = 312; SETELAH commit kode = 301;
+  SETELAH commit laporan ini = 300 (file laporan baru jadi ter-track). Sisa = file milik
+  pengembang lain — TIDAK disentuh (angka bergeser mengikuti aktivitas mereka sendiri).
 
 $ git diff --name-only 0b4302da..HEAD
 database/fix_audit_score_6b2.sql
