@@ -33,6 +33,11 @@ class Career_pelamar extends Admin
 			'q'              => career_q($this->input->get('q')),
 		);
 		$offset = max(0, (int) $offset);
+		if ($filter['status'] === 'perlu_verifikasi') {
+			// 6B #11: pintasan status → tandai perlu_verifikasi.
+			$filter['perlu_verifikasi'] = 1;
+			$filter['status'] = '';
+		}
 
 		$this->data['q']              = $filter['q'];
 		$this->data['status']         = $filter['status'];
@@ -43,8 +48,11 @@ class Career_pelamar extends Admin
 		$this->data['lowongans']      = $this->db->select('id_job_posting, title')
 			->order_by('id_job_posting', 'DESC')
 			->get('career_job_postings')->result();
+		// Ringkasan hitung per status (satu query) utk kartu tl.
 		$this->data['pelamars']       = $this->model_career_pelamar->daftar($filter, $this->limit_page, $offset);
 		$this->data['pelamar_counts'] = $this->model_career_pelamar->daftar_count($filter);
+
+		$this->data['ringkasan'] = $this->model_career_pelamar->ringkasan_status();
 
 		$config = [
 			'base_url'    => 'administrator/career_pelamar/index/',
@@ -68,6 +76,12 @@ class Career_pelamar extends Admin
 			show_error('Lamaran tidak ditemukan.', 404);
 		}
 
+		// #1: tanda izin aksi 6B untuk view ($this di view = Loader, bukan
+		// controller — jadi is_allowed() dinilai di sini).
+		$this->data['bisa_verifikasi'] = $this->is_allowed('career_pelamar_verify', false);
+		$this->data['bisa_keputusan']  = $this->is_allowed('career_pelamar_decide', false);
+		$this->data['bisa_jadwal']     = $this->is_allowed('career_pelamar_schedule', false);
+		$this->data['bisa_nilai']      = $this->is_allowed('career_pelamar_score_edit', false);
 		$this->data['app']         = $app;
 		$this->data['snapshot']    = $this->model_career_pelamar->snapshot($id_application);
 		$this->data['persyaratan'] = $this->model_career_pelamar->persyaratan($id_application);
@@ -181,47 +195,56 @@ class Career_pelamar extends Admin
 		$keputusan = career_q($this->input->post('keputusan'));
 		$pesan_k   = career_q($this->input->post('pesan_kandidat'));
 		$catatan   = career_q($this->input->post('review_note'));
-		if (strlen($pesan_k) > 500) {
+		if (career_panjang($pesan_k) > 500) {
 			$this->_jawab(422, false, 'Pesan untuk kandidat maksimal 500 karakter.');
+			return;
+		}
+		if (career_ada_emoji($pesan_k) || career_ada_emoji($catatan)) {
+			$this->_jawab(422, false, 'Teks mengandung karakter unicode 4-byte yang tidak didukung.');
+			return;
+		}
+
+		// #6 6B.1: id_application diturunkan lewat query ringan DI LUAR
+		// transaksi; dalam transaksi kunci_lamaran PERTAMA, baru baca ulang
+		// requirement & status lamaran (anti-TOCTOU).
+		$pra = $this->model_career_pelamar->verifikasi_req($idr);
+		if ($pra === null) {
+			$this->_jawab(404, false, 'Persyaratan tidak ditemukan.');
 			return;
 		}
 
 		$this->db->trans_start();
+		$app = $this->model_career_pelamar->kunci_lamaran((int) $pra->id_application);
+		if ($app === null) {
+			$this->db->trans_complete();
+			$this->_jawab(404, false, 'Lamaran tidak ditemukan.');
+			return;
+		}
+		if (! in_array($app->status, array('submitted', 'in_process'), TRUE)) {
+			$this->db->trans_complete();
+			$this->_jawab(409, false, 'Verifikasi hanya untuk lamaran submitted/in_process.');
+			return;
+		}
 		$baris = $this->model_career_pelamar->verifikasi_req($idr);
 		if ($baris === null) {
 			$this->db->trans_complete();
 			$this->_jawab(404, false, 'Persyaratan tidak ditemukan.');
 			return;
 		}
-		$st_app = $this->model_career_pelamar->app_status_dari_req($idr);
-		if ($st_app === null) {
-			$this->db->trans_complete();
-			$this->_jawab(404, false, 'Lamaran asal persyaratan tidak ditemukan.');
-			return;
-		}
-		if (! in_array($st_app->app_status, array('submitted', 'in_process'), TRUE)) {
-			$this->db->trans_complete();
-			$this->_jawab(409, false, 'Verifikasi hanya untuk lamaran submitted/in_process.');
-			return;
-		}
-		$app = $this->model_career_pelamar->kunci_lamaran((int) $st_app->id_application);
-		if ($app === null) {
-			$this->db->trans_complete();
-			$this->_jawab(404, false, 'Lamaran tidak ditemukan.');
-			return;
-		}
 		list($ok, $pesan) = $this->model_career_pelamar->set_verifikasi(
 			$idr, $baris, $app, $keputusan, $pesan_k, $catatan);
 		$this->db->trans_complete();
-		if ($this->db->trans_status() === FALSE) { $this->_jawab(500, false, 'Gagal transaksi verifikasi.'); return; }
+		if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi verifikasi.'); return; }
 		if (! $ok) {
 			list($kode, $teks) = $this->_galat_model($pesan);
 			$this->_jawab($kode, false, $teks);
 			return;
 		}
 		// Audit SETELAH commit — tanpa isi pesan kandidat (PII minim).
-		career_audit('verifikasi_persyaratan', 'career_application_requirement', $idr, array(
-			'id_application' => (int) $app->id_application,
+		// #9: object_type career_application agar muncul di linimasa audit
+		// lamaran; rid persyaratan dicatat sebagai konteks.
+		career_audit('verifikasi_persyaratan', 'career_application', (int) $app->id_application, array(
+			'id_application_requirement' => $idr,
 			'before' => (string) $baris->requirement_status,
 			'after'  => $keputusan,
 		));
@@ -258,7 +281,7 @@ class Career_pelamar extends Admin
 		$before = (string) $app->status;
 		$after  = $app_baru ? (string) $app_baru->status : $before;
 		$this->db->trans_complete();
-		if ($this->db->trans_status() === FALSE) { $this->_jawab(500, false, 'Gagal transaksi keputusan.'); return; }
+		if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi keputusan.'); return; }
 		if (! $ok) {
 			list($kode, $teks) = $this->_galat_model($pesan);
 			$this->_jawab($kode, false, $teks);
@@ -285,30 +308,54 @@ class Career_pelamar extends Admin
 		$n      = (int) $this->input->post('n');
 		$oke    = career_q($this->input->post('keputusan_baru'));
 		$alasan = career_q($this->input->post('alasan'));
+		if ($n < 1 || $n > 5) {
+			$this->_jawab(404, false, 'Tahap tidak ditemukan.');
+			return;
+		}
 		if (! in_array($oke, array('passed', 'failed', 'pending'), TRUE)) {
 			$this->_jawab(422, false, 'Keputusan baru harus passed/failed/pending.');
+			return;
+		}
+		if (career_panjang($alasan) === 0) {
+			$this->_jawab(422, false, 'Alasan koreksi wajib diisi (maksimal 500 karakter).');
+			return;
+		}
+		if (career_panjang($alasan) > 500) {
+			$this->_jawab(422, false, 'Alasan koreksi maksimal 500 karakter.');
+			return;
+		}
+		if (career_ada_emoji($alasan)) {
+			$this->_jawab(422, false, 'Teks mengandung karakter unicode 4-byte yang tidak didukung.');
 			return;
 		}
 
 		$this->db->trans_start();
 		$app = $this->model_career_pelamar->kunci_lamaran($id_app);
 		if ($app === null) { $this->db->trans_complete(); $this->_jawab(404, false, 'Lamaran tidak ditemukan.'); return; }
+		$before_app = (string) $app->status;
+		$tahap_ada  = career_stages_rekap($id_app);
+		$before_tahap = (isset($tahap_ada[$n - 1]) && $tahap_ada[$n - 1] !== null)
+			? (string) $tahap_ada[$n - 1]->status : '';
 		list($ok, $pesan) = $this->model_career_pelamar->koreksi_tahap($id_app, $n, $oke, $alasan);
 		$app_baru = $this->model_career_pelamar->find_lamaran($id_app);
 		$after = $app_baru ? (string) $app_baru->status : (string) $app->status;
 		$this->db->trans_complete();
-		if ($this->db->trans_status() === FALSE) { $this->_jawab(500, false, 'Gagal transaksi koreksi.'); return; }
+		if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi koreksi.'); return; }
 		if (! $ok) {
 			list($kode, $teks) = $this->_galat_model($pesan);
 			$this->_jawab($kode, false, $teks);
 			return;
 		}
+		// D16.5: akuntabilitas koreksi — BUKAN data D13 (bukan skor/
+		// rubrik): alasan koreksi tersimpan penuh (maks 500) di
+		// detail_json + status tahap & lamaran sebelum/sesudah.
 		career_audit('koreksi_keputusan_tahap', 'career_application', $id_app, array(
-			'tahap' => (int) $n,
-			'after' => $oke . ' (lamaran: ' . $after . ')',
-			// D16.5: alasan tidak pernah plaintext di audit log
-			// (sensitif) — cukup panjang; detail via riwayat lamaran.
-			'alasan_len' => strlen($alasan),
+			'tahap'        => (int) $n,
+			'before_tahap' => $before_tahap,
+			'after_tahap'  => $oke,
+			'before_app'   => $before_app,
+			'after_app'    => $after,
+			'alasan'       => $alasan,
 		));
 		$this->_jawab(200, true, $pesan, array('app_status' => $after));
 	}
@@ -335,7 +382,7 @@ class Career_pelamar extends Admin
 		$before = (string) $app->status;
 		list($ok, $pesan) = $this->model_career_pelamar->terima_akhir($id_app);
 		$this->db->trans_complete();
-		if ($this->db->trans_status() === FALSE) { $this->_jawab(500, false, 'Gagal transaksi.'); return; }
+		if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi.'); return; }
 		if (! $ok) {
 			list($kode, $teks) = $this->_galat_model($pesan);
 			$this->_jawab($kode, false, $teks);
@@ -365,51 +412,16 @@ class Career_pelamar extends Admin
 		}
 		$st = $this->model_career_pelamar->stage_untuk_jadwal($ids);
 		if ($st === null) { $this->_jawab(404, false, 'Tahap tidak ditemukan.'); return; }
-		if (! in_array($st->app_status, array('submitted', 'in_process'), TRUE)) {
-			$this->_jawab(409, false, 'Jadwal hanya untuk lamaran submitted/in_process.');
-			return;
-		}
+		// BENTUK input divalidasi di luar transaksi; SEMUA validasi
+		// status/urutan dilakukan DI DALAM transaksi SETELAH lock (#7).
 		$urut_tahap = (int) $st->stage_order;
-		// D16.2: seluruh tahap sebelumnya harus passed sebelum tahap
-		// ini boleh dijadwalkan; tahap yang sudah diputuskan terkunci.
-		$tahapan = $this->model_career_pelamar->tahapan($st->id_application);
-		foreach ($tahapan as $t) {
-			$urut = (int) $t->stage_order;
-			if ($urut < $urut_tahap && $t->status !== 'passed') {
-				$this->_jawab(409, false, 'Tahap ' . $urut . ' belum lulus — jadwal tahap ini belum boleh diset (D16.2).');
-				return;
-			}
-		}
-		if (in_array($st->status, array('passed', 'failed'), TRUE)) {
-			$this->_jawab(409, false, 'Tahap sudah diputuskan — jadwal tidak dapat diubah.');
-			return;
-		}
-
-		if ($aksi === 'hapus') {
-			$this->db->trans_start();
-			$app = $this->model_career_pelamar->kunci_lamaran($st->id_application);
-			list($ok, $pesan) = $this->model_career_pelamar->jadwal_hapus($ids);
-			$this->db->trans_complete();
-			if ($this->db->trans_status() === FALSE) { $this->_jawab(500, false, 'Gagal transaksi jadwal.'); return; }
-			if (! $ok) {
-				list($kode, $teks) = $this->_galat_model($pesan);
-				$this->_jawab($kode, false, $teks);
-				return;
-			}
-			career_audit('hapus_jadwal_tahap', 'career_application', (int) $st->id_application, array('stage_order' => $urut_tahap));
-			$this->_jawab(200, true, $pesan);
-			return;
-		}
-
 		$tanggal  = career_q($this->input->post('schedule_datetime'));
 		$kanal    = career_q($this->input->post('channel'));
 		$catatann = career_q($this->input->post('note'));
-		// Tanggal hanya divalidasi utk aksi 'simpan'; publikasi/batal/hapus
-		// memakai jadwal yang sudah tersimpan.
 		$tiga = null;
 		if ($aksi === 'simpan') {
-			if (strlen($kanal) > 200) { $this->_jawab(422, false, 'Kanal maksimal 200 karakter.'); return; }
-			if (strlen($catatann) > 500) { $this->_jawab(422, false, 'Catatan maksimal 500 karakter.'); return; }
+			if (career_panjang($kanal) > 200) { $this->_jawab(422, false, 'Kanal maksimal 200 karakter.'); return; }
+			if (career_panjang($catatann) > 500) { $this->_jawab(422, false, 'Catatan maksimal 500 karakter.'); return; }
 			$tgl = DateTime::createFromFormat('Y-m-d H:i', $tanggal);
 			if ($tgl === false || $tgl->format('Y-m-d H:i') !== $tanggal) {
 				$this->_jawab(422, false, 'Tanggal tidak sah (format Y-m-d H:i).');
@@ -419,9 +431,79 @@ class Career_pelamar extends Admin
 		}
 
 		$this->db->trans_start();
-		$app = $this->model_career_pelamar->kunci_lamaran($st->id_application);
+		$app = $this->model_career_pelamar->kunci_lamaran((int) $st->id_application);
+		if ($app === null) {
+			$this->db->trans_complete();
+			$this->_jawab(404, false, 'Lamaran tidak ditemukan.');
+			return;
+		}
+
+		if ($aksi === 'batal') {
+			// Pencabutan publikasi TIDAK terkunci D16.2 (#5): admin selalu
+			// dapat menarik jadwal pada lamaran yang masih bisa diproses
+			// maupun yang baru dikoreksi.
+			if (! in_array($app->status,
+					array('submitted', 'in_process', 'not_accepted', 'accepted'), TRUE)) {
+				$this->db->trans_complete();
+				$this->_jawab(409, false, 'Lamaran tidak dalam keadaan yang bisa diproses.');
+				return;
+			}
+			$st = $this->model_career_pelamar->stage_untuk_jadwal($ids);
+			if ($st === null) { $this->db->trans_complete(); $this->_jawab(404, false, 'Tahap tidak ditemukan.'); return; }
+			list($ok, $pesan) = $this->model_career_pelamar->jadwal_publikasi($ids, 0);
+			$this->db->trans_complete();
+			if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi.'); return; }
+			if (! $ok) {
+				list($kode, $teks) = $this->_galat_model($pesan);
+				$this->_jawab($kode, false, $teks);
+				return;
+			}
+			career_audit('batal_publikasi_jadwal', 'career_application', (int) $app->id_application, array('stage_order' => $urut_tahap));
+			$this->_jawab(200, true, $pesan);
+			return;
+		}
+
+		// simpan/publikasi/hapus: lamaran harus submitted/in_process.
+		if (! in_array($app->status, array('submitted', 'in_process'), TRUE)) {
+			$this->db->trans_complete();
+			$this->_jawab(409, false, 'Jadwal hanya untuk lamaran submitted/in_process.');
+			return;
+		}
+		$st = $this->model_career_pelamar->stage_untuk_jadwal($ids);
+		if ($st === null) { $this->db->trans_complete(); $this->_jawab(404, false, 'Tahap tidak ditemukan.'); return; }
+		// D16.2: seluruh tahap sebelumnya harus passed sebelum tahap
+		// ini boleh dijadwalkan; tahap yang sudah diputuskan terkunci.
+		$tahapan = $this->model_career_pelamar->tahapan($st->id_application);
+		foreach ($tahapan as $t) {
+			$urut = (int) $t->stage_order;
+			if ($urut < $urut_tahap && $t->status !== 'passed') {
+				$this->db->trans_complete();
+				$this->_jawab(409, false, 'Tahap ' . $urut . ' belum lulus — jadwal tahap ini belum boleh diset (D16.2).');
+				return;
+			}
+		}
+		if (in_array($st->status, array('passed', 'failed'), TRUE)) {
+			$this->db->trans_complete();
+			$this->_jawab(409, false, 'Tahap sudah diputuskan — jadwal tidak dapat diubah.');
+			return;
+		}
+
+		if ($aksi === 'hapus') {
+			list($ok, $pesan) = $this->model_career_pelamar->jadwal_hapus($ids);
+			$this->db->trans_complete();
+			if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi jadwal.'); return; }
+			if (! $ok) {
+				list($kode, $teks) = $this->_galat_model($pesan);
+				$this->_jawab($kode, false, $teks);
+				return;
+			}
+			career_audit('hapus_jadwal_tahap', 'career_application', (int) $app->id_application, array('stage_order' => $urut_tahap));
+			$this->_jawab(200, true, $pesan);
+			return;
+		}
+
 		if ($aksi === 'simpan') {
-			$ok_simpan = $this->model_career_pelamar->jadwal_simpan($ids, array(
+			list($ok, $hasil_simpan) = $this->model_career_pelamar->jadwal_simpan($ids, array(
 				'schedule_datetime' => $tiga,
 				'channel' => $kanal === '' ? null : $kanal,
 				'note'    => $catatann === '' ? null : $catatann,
@@ -429,40 +511,29 @@ class Career_pelamar extends Admin
 				'created_by'   => (int) $this->session->userdata('id'),
 			));
 			$this->db->trans_complete();
-			if ($this->db->trans_status() === FALSE) { $this->_jawab(500, false, 'Gagal transaksi jadwal.'); return; }
-			if ($ok_simpan < 1) {
-				$this->_jawab(409, false, 'Jadwal sudah dipublikasikan — batalkan publikasi dulu.');
+			if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi jadwal.'); return; }
+			if (! $ok) {
+				list($kode, $teks) = $this->_galat_model($hasil_simpan);
+				$this->_jawab($kode, false, $teks);
 				return;
 			}
-			career_audit('simpan_jadwal_tahap', 'career_application', (int) $st->id_application,
+			career_audit('simpan_jadwal_tahap', 'career_application', (int) $app->id_application,
 				array('stage_order' => $urut_tahap, 'jadwal' => $tiga));
 			$this->_jawab(200, true, 'Jadwal disimpan (belum dipublikasikan).');
 			return;
 		}
-		if ($aksi === 'publikasi') {
-			list($ok, $pesan) = $this->model_career_pelamar->jadwal_publikasi($ids, 1);
-			$this->db->trans_complete();
-			if ($this->db->trans_status() === FALSE) { $this->_jawab(500, false, 'Gagal transaksi publikasi.'); return; }
-			if (! $ok) {
-				list($kode, $teks) = $this->_galat_model($pesan);
-				$this->_jawab($kode, false, $teks);
-				return;
-			}
-			career_audit('publikasi_jadwal_tahap', 'career_application', (int) $st->id_application,
-				array('stage_order' => $urut_tahap));
-			$this->_jawab(200, true, $pesan);
-			return;
-		}
-		// aksi=batal
-		list($ok, $pesan) = $this->model_career_pelamar->jadwal_publikasi($ids, 0);
+
+		// aksi=publikasi
+		list($ok, $pesan) = $this->model_career_pelamar->jadwal_publikasi($ids, 1);
 		$this->db->trans_complete();
-		if ($this->db->trans_status() === FALSE) { $this->_jawab(500, false, 'Gagal transaksi.'); return; }
+		if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi publikasi.'); return; }
 		if (! $ok) {
 			list($kode, $teks) = $this->_galat_model($pesan);
 			$this->_jawab($kode, false, $teks);
 			return;
 		}
-		career_audit('batal_publikasi_jadwal', 'career_application', (int) $st->id_application, array('stage_order' => $urut_tahap));
+		career_audit('publikasi_jadwal_tahap', 'career_application', (int) $app->id_application,
+			array('stage_order' => $urut_tahap));
 		$this->_jawab(200, true, $pesan);
 	}
 
@@ -479,30 +550,43 @@ class Career_pelamar extends Admin
 		$ids   = (int) $this->input->post('id_application_stage');
 		$skor  = career_q($this->input->post('score'));
 		$catatann = career_q($this->input->post('rubric_note'));
-		if (strlen($catatann) > 2000) {
+		if (career_panjang($catatann) > 2000) {
 			$this->_jawab(422, false, 'Catatan rubrik maksimal 2000 karakter.');
+			return;
+		}
+		if (career_ada_emoji($catatann)) {
+			$this->_jawab(422, false, 'Teks mengandung karakter unicode 4-byte yang tidak didukung.');
 			return;
 		}
 		$st = $this->model_career_pelamar->stage_untuk_jadwal($ids);
 		if ($st === null) { $this->_jawab(404, false, 'Tahap tidak ditemukan.'); return; }
 
 		$this->db->trans_start();
-		$app = $this->model_career_pelamar->kunci_lamaran($st->id_application);
+		$app = $this->model_career_pelamar->kunci_lamaran((int) $st->id_application);
 		if ($app === null) { $this->db->trans_complete(); $this->_jawab(404, false, 'Lamaran tidak ditemukan.'); return; }
+		// #16: nilai hanya untuk lamaran yang sudah diajukan; dicek
+		// SETELAH lock (anti-TOCTOU).
+		if (! in_array($app->status,
+				array('submitted', 'in_process', 'accepted', 'not_accepted'), TRUE)) {
+			$this->db->trans_complete();
+			$this->_jawab(409, false, 'Nilai hanya untuk lamaran yang sudah diajukan (bukan draft/withdrawn).');
+			return;
+		}
 		list($ok, $pesan) = $this->model_career_pelamar->nilai_simpan($ids, $skor, $catatann);
 		$this->db->trans_complete();
-		if ($this->db->trans_status() === FALSE) { $this->_jawab(500, false, 'Gagal transaksi nilai.'); return; }
+		if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi nilai.'); return; }
 		if (! $ok) {
 			list($kode, $teks) = $this->_galat_model($pesan);
 			$this->_jawab($kode, false, $teks);
 			return;
 		}
-		// Audit tanpa isi rubric (D13 sensitif) — skor numerik & panjang
-		// catatan saja; detail penilaian tersimpan di kolom, bukan audit.
+		// #4: TANPA angka skor & tanpa isi catatan di audit (D13 sensitif,
+		// audiens audit lebih luas daripada pemegang score_view) — cukup
+		// "nilai diubah" + tahap + panjang catatan.
 		career_audit('simpan_nilai_tahap', 'career_application', (int) $st->id_application, array(
-			'stage_order' => $urut_tahap = (int) $st->stage_order,
-			'score'       => round((float) $skor, 2),
-			'rubric_len'  => strlen($catatann),
+			'stage_order' => (int) $st->stage_order,
+			'nilai'       => 'diubah',
+			'rubric_len'  => career_panjang($catatann),
 		));
 		$this->_jawab(200, true, $pesan);
 	}

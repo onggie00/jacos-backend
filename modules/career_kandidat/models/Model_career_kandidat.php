@@ -1,13 +1,19 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Fase 6B — Kandidat Karier: daftar akun kandidat baca + reset password D2.
- * Baca = perm career_kandidat_list (004); reset = perm
- * career_candidate_reset_password (005). Kandidat password hash disimpan
- * dengan PASSWORD_BCRYPT (pola sama dengan apicareer Auth::register).
+ * Fase 6B/6B.1 — Kandidat Karier: daftar akun kandidat baca + reset password D2.
+ * Reset (6B.1): password DIBUAT server (random, >=12, tanpa karakter ambigu),
+ * bcrypt PASSWORD_BCRYPT (pola apicareer Auth::register), token_version +1
+ * dalam update yang sama (JWT/API lama mati: klaim ver != token_version),
+ * failed_login_count & percobaan login gagal milik email kandidat itu
+ * direset. Password baru dikembalikan SEKALI di respons controller;
+ * tidak disimpan di audit/log/flash.
  */
 class Model_career_kandidat extends CI_Model
 {
+	/** Alfabet tanpa karakter mudah tertukar (0/O, 1/l/I). */
+	const ALFABET_SANDI = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
 	public function __construct() { parent::__construct(); }
 
 	/** Daftar kandidat untuk admin: email, nama, lamaran count + lamaran aktif. */
@@ -40,8 +46,11 @@ class Model_career_kandidat extends CI_Model
 	{
 		$w = array('1=1');
 		if (! empty($filter['q'])) {
-			$q = $this->db->escape_like_str((string) $filter['q']);
-			$w[] = "(c.full_name LIKE '%$q%' ESCAPE '!' OR c.email LIKE '%$q%' ESCAPE '!')";
+			// Pencarian via subquery raw: LEAST escape manual agar _/% tetap
+			// literal (CI like() dengan ESCAPE default membuat kueri rumit
+			// di subquery string; nilai tetap ter-bind lewat placeholder).
+			$q = str_replace(array('\\', '%', '_'), array('\\\\', '\\%', '\\_'), (string) $filter['q']);
+			$w[] = "(c.full_name LIKE '%{$q}%' OR c.email LIKE '%{$q}%')";
 		}
 		return empty($w) ? '' : ' WHERE ' . implode(' AND ', $w);
 	}
@@ -54,30 +63,56 @@ class Model_career_kandidat extends CI_Model
 	}
 
 	/**
-	 * Reset password D2: hash PASSWORD_BCRYPT di sisi backend, simpan.
-	 * TIDAK mengembalikan sandi dalam respons (null); TANPA email.
-	 * return array(bool, pesan 'kode|teks').
+	 * Password acak server-side (6B.1): panjang 14, alfabet tanpa karakter
+	 * ambigu, random_int per-posisi (CSPRNG).
 	 */
-	public function reset_password($id_candidate, $sandi)
+	public function sandi_acak($panjang = 14)
 	{
-		if ($sandi === '' || strlen($sandi) < 8) {
-			return array(FALSE, '422|Password minimal 8 karakter.');
+		$panjang = max(12, (int) $panjang);
+		$n = strlen(self::ALFABET_SANDI);
+		$s = '';
+		for ($i = 0; $i < $panjang; $i++) {
+			$s .= self::ALFABET_SANDI[random_int(0, $n - 1)];
 		}
+		return $s;
+	}
+
+	/**
+	 * Reset password D2: buat password server, hash PASSWORD_BCRYPT,
+	 * token_version+1 DALAM UPDATE YANG SAMA (sesi/API lama mati),
+	 * reset hitungan gagal login kandidat + baris attempt 'login'
+	 * milik email kandidat itu saja (career_login_attempts).
+	 * return array(bool, payload) — payload password plaintext SEKALI di
+	 * sini; controller yang mengeluarkannya ke respons (tidak di-audit/log).
+	 */
+	public function reset_password($id_candidate)
+	{
 		$kandidat = $this->cari($id_candidate);
 		if (!$kandidat) {
 			return array(FALSE, '404|Kandidat tidak ditemukan.');
 		}
-		$hash = password_hash($sandi, PASSWORD_BCRYPT);
+
+		$sandi   = $this->sandi_acak(14);
+		$hash    = password_hash($sandi, PASSWORD_BCRYPT);
+		$k	= (string) $kandidat->email;
+
 		$this->db->trans_start();
 		$this->db->where('id_candidate', $id_candidate)
-			->update('career_candidates', array(
-				'password_hash' => $hash,
-				'updated_at'    => date('Y-m-d H:i:s'),
-			));
+			->set('password_hash', $hash)
+			->set('token_version', 'token_version + 1', FALSE)
+			->set('failed_login_count', 0)
+			->set('updated_at', date('Y-m-d H:i:s'))
+			->update('career_candidates');
+		// (6B.1) hapus percobaan login GAGAL milik EMAIL kandidat ini saja —
+		// bukan baris pengguna lain; jendela rate-limit login langsung beres.
+		$this->db->where('email', $k)
+			->where('attempt_type', 'login')
+			->where('succeeded', 0)
+			->delete('career_login_attempts');
 		$this->db->trans_complete();
 		if ($this->db->trans_status() === FALSE) {
 			return array(FALSE, '500|Gagal menyimpan password baru.');
 		}
-		return array(TRUE, 'Password kandidat direset.');
+		return array(TRUE, array('password' => $sandi));
 	}
 }

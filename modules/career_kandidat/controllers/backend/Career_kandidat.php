@@ -55,12 +55,12 @@ class Career_kandidat extends Admin
 	 */
 
 	/**
-	 * Reset password (D2): POST administrator/career_kandidat/reset_password/<id_candidate>
-	 * param: password_baru (admin tulis / generate, <200). Lalu:
-	 * - hash dihitung DI SINI dgn pola yang sama dengan SIPD? CI3? Ya
-	 *   password_hash PHP asli (kandidat bukan user aauth bermasalah —
-	 *   akun kandidat & hash dipegang minimal di career_candidates).
-	 * - SET token_version berkurang? Lain file (diluar 6B).
+	 * Reset password (D2, 6B.1): POST administrator/career_kandidat/
+	 * reset_password/<id_candidate>. Password dibuat server (acak >=12,
+	 * tanpa karakter ambigu), bcrypt, token_version+1 → sesi/API lama
+	 * langsung mati; percobaan login gagal email itu direset.
+	 * Password baru DIKEMBALIKAN SEKALI di respons (kunci 'password');
+	 * tidak disimpan di audit/flash/log. TANPA email (keputusan D2).
 	 */
 	public function reset_password($id_candidate = NULL)
 	{
@@ -75,19 +75,21 @@ class Career_kandidat extends Admin
 		}
 
 		$id = (int) $id_candidate;
-		$sandi = career_q($this->input->post('password_baru'));
 		if ($id < 1) return $this->_json_deny('Kandidat tidak ditemukan.', 404);
-		if (strlen($sandi) > 200) return $this->_json_deny('Password maksimal 200 karakter.', 422);
 
-		list($ok, $pesan) = $this->model_career_kandidat->reset_password($id, $sandi);
+		list($ok, $buah) = $this->model_career_kandidat->reset_password($id);
 		if (!$ok) {
-			list($kode, $teks) = $this->_pecah($pesan);
+			list($kode, $teks) = $this->_pecah($buah);
 			return $this->_json_deny($teks, $kode);
 		}
 
 		// Audit: tanpa menyimpan sandi apa pun (bukan plaintext, bukan hash).
 		career_audit('reset_password_kandidat', 'career_candidates', $id);
-		return $this->_json_done('Password kandidat direset. Bagikan password baru lewat saluran administrasi (BUKAN email — keputusan D2). Wajib sarankan kandidat ganti password di profil.');
+		return $this->_json_done(
+			'Sandi baru dibuat server. Catat dan bagikan lewat saluran administrasi '
+			.'(BUKAN email — keputusan D2); sarankan kandidat ganti sandi setelah masuk.',
+			array('password' => (string) $buah['password'])
+		);
 	}
 
 	private function _pecah($pesan)
@@ -97,11 +99,13 @@ class Career_kandidat extends Admin
 		return array($kode, isset($pisah[1]) ? $pisah[1] : $pesan);
 	}
 
-	private function _json_done($pesan)
+	private function _json_done($pesan, $data = array())
 	{
+		$badan = array('success' => true, 'message' => (string) $pesan);
+		if (! empty($data)) { $badan['data'] = $data; }
 		$this->output->set_status_header(200);
 		$this->output->set_content_type('application/json');
-		$this->output->set_output(json_encode(array('success' => true, 'message' => (string) $pesan)));
+		$this->output->set_output(json_encode($badan));
 	}
 
 	private function _json_deny($pesan = 'Forbidden', $kode = 403)

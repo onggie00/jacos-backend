@@ -35,6 +35,8 @@ function http($method, $url, $headers = array(), $body = null, $cookie = null) {
 }
 
 $pass = 0; $fail = 0;
+function career_sandi_kuatsu($s) { return strlen($s) >= 8 && preg_match('/[A-Za-z]/', $s) === 1; }
+
 function check($nama, $harap, $terima) {
 	global $pass, $fail;
 	if (getenv('S6B_TRACE') === '1') { echo "TRACE check '$nama' harap=" . var_export($harap, true) . " terima=" . var_export($terima, true) . "
@@ -157,8 +159,9 @@ $pdo->query("INSERT INTO career_job_posting_requirements (id_job_posting, requir
 $REQ1 = (int) $pdo->query("SELECT id_job_posting_requirement FROM career_job_posting_requirements WHERE id_job_posting = {$IDP} AND display_order = 1")->fetch_assoc()['id_job_posting_requirement'];
 $REQ2 = (int) $pdo->query("SELECT id_job_posting_requirement FROM career_job_posting_requirements WHERE id_job_posting = {$IDP} AND display_order = 2")->fetch_assoc()['id_job_posting_requirement'];
 
+$EMAIL_KAN = 'smoke6b-kandidat-{$STAMP}@example.test';
 $pdo->query("INSERT INTO career_candidates (email, password_hash, full_name, is_active, token_version)
-             VALUES ('smoke6b-kandidat-{$STAMP}@example.test', '" . password_hash('SandiLama123', PASSWORD_BCRYPT) . "', 'Kandidat Smoke6B', 1, 1)");
+             VALUES ('{$EMAIL_KAN}', '" . password_hash('SandiLama123', PASSWORD_BCRYPT) . "', 'Kandidat Smoke6B', 1, 1)");
 $KANID = (int) $pdo->query("SELECT id_candidate FROM career_candidates WHERE full_name = 'Kandidat Smoke6B' ORDER BY id_candidate DESC LIMIT 1")->fetch_assoc()['id_candidate'];
 
 $pdo->query("INSERT INTO career_applications (id_candidate, id_job_posting, status, current_stage_id, created_at)
@@ -224,17 +227,20 @@ check('reset password via GET ditolak', '403', $c);
 list($c, , ) = post_admin('/administrator/career_kandidat/reset_password/' . $KANID, array('password_baru' => 'SandiBaru999'));
 check('reset password tanpa CSRF 403', '403', $c);
 $HASH_OLD = $pdo->query("SELECT password_hash FROM career_candidates WHERE id_candidate = {$KANID}")->fetch_assoc()['password_hash'];
+/* #2 6B.1: sandi BARU dibangkitkan SERVER (bukan dari Input) —
+   smoke men-verifikasi dari data.password respons. */
 list($c, , $jraw) = post_admin('/administrator/career_kandidat/reset_password/' . $KANID, array(
 	'career_csrf' => csrf_get('/administrator/career_kandidat'),
-	'password_baru' => 'SandiBaru999',
 ));
 $j = json_ok($jraw);
 check('reset password 200 success', 1, ($j !== null && isset($j['success']) && $j['success']) ? 1 : 0);
+$SANDI_BARU = isset($j['data']['password']) ? (string) $j['data']['password'] : '';
+check('reset password kembalikan sandi server-generate', 1, (career_sandi_kuatsu($SANDI_BARU) ? 1 : 0));
 $HASH_NEW = $pdo->query("SELECT password_hash FROM career_candidates WHERE id_candidate = {$KANID}")->fetch_assoc()['password_hash'];
-check('password_hash berubah di DB', 1, ($HASH_NEW !== $HASH_OLD && password_verify('SandiBaru999', $HASH_NEW)) ? 1 : 0);
+check('password_hash berubah di DB', 1, ($HASH_NEW !== $HASH_OLD && $SANDI_BARU !== '' && password_verify($SANDI_BARU, $HASH_NEW)) ? 1 : 0);
 check('audit reset_password ada', 1, ((int) $pdo->query("SELECT COUNT(*) n FROM career_audit_logs WHERE action='reset_password_kandidat' AND object_id={$KANID}")->fetch_assoc()['n'] === 1) ? 1 : 0);
 check('audit reset TIDAK menyimpan sandi', 0,
-	(strpos((string) $pdo->query("SELECT detail_json FROM career_audit_logs WHERE action='reset_password_kandidat' AND object_id={$KANID} LIMIT 1")->fetch_assoc()['detail_json'], 'SandiBaru') !== false) ? 1 : 0);
+	(strpos((string) $pdo->query("SELECT detail_json FROM career_audit_logs WHERE action='reset_password_kandidat' AND object_id={$KANID} LIMIT 1")->fetch_assoc()['detail_json'], $SANDI_BARU) !== false) ? 1 : 0);
 
 /* ---------- 6. verifikasi persyaratan (career_pelamar/verifikasi) ---------- */
 list($c, ) = post_admin('/administrator/career_pelamar/verifikasi/' . $AR1, array(
@@ -356,8 +362,12 @@ check('tahap2 jadi passed (koreksi)', 'passed', $pdo->query("SELECT status FROM 
 check('lamaran status balik in_process', 'in_process',
 	$pdo->query("SELECT status FROM career_applications WHERE id_application = {$APP}")->fetch_assoc()['status']);
 $kr = $pdo->query("SELECT detail_json FROM career_audit_logs WHERE action='koreksi_keputusan_tahap' AND object_id={$APP} ORDER BY id_audit_log DESC LIMIT 1")->fetch_assoc()['detail_json'];
-check('audit koreksi tidak plaintext alasan', 0, (strpos((string) $kr, 'salah pilih') !== false) ? 1 : 0);
-check('audit koreksi ada alasan_len', 1, (strpos((string) $kr, 'alasan_len') !== false) ? 1 : 0);
+/* #3 review 6B.1: alasan koreksi WAJIB tersimpan penuh (bukan alasan_len)
+   supaya audit dapat dipertanggungjawabkan; ini bukan data D13. */
+check('audit koreksi simpan alasan penuh', 1,
+	(strpos((string) $kr, 'Admin salah pilih - betulan jadi passed.') !== false) ? 1 : 0);
+check('audit koreksi simpan before/after tahap & lamaran', 1,
+	(strpos((string) $kr, 'before_tahap') !== false && strpos((string) $kr, 'after_app') !== false) ? 1 : 0);
 
 /* ---------- 9. lulus 1..5 semua → termasuk terima (D16.4) ---------- */
 foreach (array(3 => $STG3, 4 => $stg[3][0], 5 => $STG5) as $n => $sid_) {
@@ -563,6 +573,111 @@ foreach (array('career_kandidat') as $path) {
 	$bad = (preg_match('/(Fatal error|Warning\(|Notice:|Undefined (index|variable|property))/i', $rawbody)) ? 1 : 0;
 	check('render ' . $path . ' 200 bersih', '200:0', $c . ':' . $bad);
 }
+
+/* ====================================================================
+   14. Ekstensi 6B.1 (#14 review): GET-mutasi tolak, anonim 403, API
+   kandidat tak bocor (D13), jadwal publik muncul, draft 409.
+   ==================================================================== */
+
+/* helper JSON (endpoint apicareer kandidat) */
+function http_json6b($method, $url, $body, $token = null) {
+	$headers = array();
+	$payload = null;
+	if ($body !== null) {
+		$headers[] = 'Content-Type: application/json';
+		$payload = json_encode($body);
+	}
+	if ($token !== null) { $headers[] = 'Authorization: Bearer ' . $token; }
+	if (count($headers) === 0) { $headers[] = 'Accept: application/json'; }
+	return http($method, $url, $headers, $payload);
+}
+
+/* 14a. GET-mutasi semua endpoint tulis ditolak 403 */
+foreach (array(
+	'/administrator/career_pelamar/verifikasi/' . $AR3,
+	'/administrator/career_pelamar/keputusan',
+	'/administrator/career_pelamar/koreksi',
+	'/administrator/career_pelamar/terima',
+	'/administrator/career_pelamar/jadwal',
+	'/administrator/career_pelamar/nilai',
+) as $getpath) {
+	list($gc,) = http('GET', $BASE . $getpath, array(), null, $COOKIE);
+	check('GET-mutasi ditolak 403 — ' . substr($getpath, -25), '403', $gc);
+}
+
+/* 14b. anonim POST (tanpa cookie) -> 403 */
+foreach (array(
+	array('/administrator/career_pelamar/verifikasi/' . $AR3, array('keputusan' => 'verified')),
+	array('/administrator/career_pelamar/keputusan', array('id_application' => $APP, 'n' => 1, 'keputusan' => 'passed')),
+	array('/administrator/career_pelamar/koreksi', array('id_application' => $APP, 'n' => 1, 'keputusan_baru' => 'pending', 'alasan' => 'x')),
+	array('/administrator/career_pelamar/nilai', array('id_application_stage' => $STG5, 'score' => '70')),
+	array('/administrator/career_kandidat/reset_password/' . $KANID, array()),
+) as $anon) {
+	list($tc, $thead,) = http('POST', $BASE . $anon[0],
+		array('Content-Type: application/x-www-form-urlencoded'), http_build_query($anon[1]), null);
+	check('anonim POST 403 — ' . substr($anon[0], -25), '403', $tc);
+}
+
+/* 14c. API kandidat tidak bocor (D13): review_note/score/rubric_note
+   tidak pernah ada; jadwal terpublikasi muncul di tahap. Token pakai
+   login asli dengan sandi hasil reset (server-generate). */
+list($c, , $jraw) = http_json6b('POST', $BASE . '/apicareer/Auth/login',
+	array('email' => $EMAIL_KAN, 'password' => $SANDI_BARU), null);
+$jlogin = json_decode((string) $jraw, true);
+$TOK = ($jlogin && isset($jlogin['data']['token'])) ? $jlogin['data']['token'] : '';
+check('login kandidat pasca-reset (sandi server-generate)', 1, ($TOK !== '' ? 1 : 0));
+
+list($c, , $jraw) = http_json6b('GET', $BASE . '/apicareer/Lamaran/detail/' . $APP, null, $TOK);
+$stripped3 = str_replace('\\u00a0', ' ', (string) $jraw);
+check('detail API kandidat 200', '200', $c);
+check('detail API TIDAK berisi review_note internal', 0, (strpos($stripped3, 'internal: scan') !== false) ? 1 : 0);
+check('detail API TIDAK berisi rubric/note_internal key', 0, (preg_match('/"(rubric_note|note_internal)"\s*:/', $stripped3) === 1) ? 1 : 0);
+check('detail API TIDAK berisi konten sensitif', 0,
+	((strpos($stripped3, 'psikotes menyusul') !== false) || (strpos($stripped3, '75.00') !== false)) ? 1 : 0);
+/* pengulang non-regresi: tahapan kandidat punya jadwal = schedule objek */
+check('jadwal terpublikasi ada di detail (D18; bentuk apa adanya)', 1,
+	(preg_match('/(schedule|"schedule")[^}]{0,400}/', $stripped3) === 1 && (strpos($stripped3, 'schedule') !== false)) ? 1 : 0);
+
+list($c, , $jraw) = http_json6b('GET', $BASE . '/apicareer/Lamaran/index', null, $TOK);
+check('index API TIDAK berisi skor/internal', 0,
+	(preg_match('/"(score|note_internal|rubric_note)"\s*:/', (string) $jraw) === 1) ? 1 : 0);
+list($c, , $jraw) = http_json6b('GET', $BASE . '/apicareer/Notifikasi/index', null, $TOK);
+check('notifikasi API TIDAK berisi skor/internal', 0,
+	((strpos((string) $jraw, 'psikotes menyusul') !== false) || (strpos((string) $jraw, '75.00') !== false)) ? 1 : 0);
+
+/* 14d. draft ditolak 409 (keputusan/koreksi/nilai/jadwal) */
+$pdo->query("INSERT INTO career_job_postings (title, description, is_published, opening_date, closing_date, created_at, updated_at)
+             VALUES ('[DUMMY TEST6B] Draft Guru', 'x', 0, '2025-01-01', '2030-12-31', NOW(), NOW())");
+$IDP4 = (int) $pdo->insert_id;
+$pdo->query("INSERT INTO career_applications (id_candidate, id_job_posting, status)
+             VALUES ({$KANID}, {$IDP4}, 'draft')");
+$APP4 = (int) $pdo->insert_id;
+$STG4 = 0;
+$res_st = $pdo->query("SELECT id_stage FROM career_stages WHERE is_active = 1 ORDER BY stage_order ASC");
+while ($st4 = $res_st->fetch_assoc()) {
+	$pdo->query("INSERT INTO career_application_stages (id_application, id_stage, status)
+	             VALUES ({$APP4}, " . (int) $st4['id_stage'] . ", 'pending')");
+	$STG4 = (int) $pdo->insert_id;
+}
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/keputusan', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APP4, 'n' => 1, 'keputusan' => 'passed'));
+check('keputusan pada draft 409', '409', $c);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APP4, 'n' => 1, 'keputusan_baru' => 'pending', 'alasan' => 'uji'));
+check('koreksi pada draft 409', '409', $c);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/nilai', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STG4, 'score' => '70'));
+check('nilai pada draft 409', '409', $c);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STG4, 'aksi' => 'simpan',
+	'schedule_datetime' => '2027-01-01 09:00'));
+check('jadwal simpan pada draft 409', '409', $c);
+
+/* 14e. daftar pelamar: opsi Perlu verifikasi + ringkasan status */
+list($c, , $rawbody) = http('GET', $BASE . '/administrator/career_pelamar', array(), null, $COOKIE);
+check('opsi filter Perlu verifikasi tersedia', 1, (strpos($rawbody, 'Perlu verifikasi') !== false) ? 1 : 0);
+$stripped4 = preg_replace('#<(script|style)[\s\S]*?</(script|style)>#i', '', $rawbody);
+check('ringkasan status tampil', 1, (strpos($stripped4, 'Tidak Diterima') !== false) ? 1 : 0);
 
 echo "Ringkasan smoke6b: PASS=$pass FAIL=$fail\n";
 exit($fail === 0 ? 0 : 1);

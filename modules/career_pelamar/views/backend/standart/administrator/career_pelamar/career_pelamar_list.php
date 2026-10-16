@@ -34,7 +34,7 @@
                      <div class="form-group" style="margin-right:6px">
                         <select name="status" class="form-control">
                            <option value="">Semua status</option>
-                           <?php $sts = array('draft'=>'Draf','submitted'=>'Terkirim','in_process'=>'Dalam Proses','accepted'=>'Diterima','not_accepted'=>'Tidak Diterima','withdrawn'=>'Dibatalkan'); foreach ($sts as $k => $v): ?>
+                           <?php $sts = array('perlu_verifikasi'=>'Perlu verifikasi','draft'=>'Draf','submitted'=>'Terkirim','in_process'=>'Dalam Proses','accepted'=>'Diterima','not_accepted'=>'Tidak Diterima','withdrawn'=>'Dibatalkan'); foreach ($sts as $k => $v): ?>
                               <option value="<?= $k; ?>" <?= $status === $k ? 'selected' : ''; ?>><?= $v; ?></option>
                            <?php endforeach; ?>
                         </select>
@@ -55,6 +55,12 @@
                   </form>
 
                   <div class="table-responsive">
+                  <!-- ringkasan hitung per status (satu query) -->
+                  <div style="padding:6px 4px">
+                     <?php foreach ($ringkasan as $k_ => $c_): ?>
+                        <span class="label label-default" style="font-size:95%"><?= $k_; ?>: <?= (int) $c_; ?></span>
+                     <?php endforeach; ?>
+                  </div>
                   <table class="table table-bordered table-striped dataTable">
                      <thead>
                         <tr>
