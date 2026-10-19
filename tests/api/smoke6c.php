@@ -621,5 +621,17 @@ list($c, , , ) = upload_dok(api_url('Lamaran_dokumen/upload'), array('id_applica
 check('F4b kuota versi habis 409', '409', $c);
 unlink($fk);
 
+/* F2 guard race-level fixture: status berubah dlm antara (verified) →
+   affected_rows 0 di dalam trans → 409, NOL versi baru */
+q("UPDATE career_application_requirements SET status='verified', reviewed_by = 1, reviewed_at = NOW() WHERE id_application_requirement = {$AR_D}");
+$nrace1 = (int) q("SELECT COUNT(*) n FROM career_application_documents WHERE id_application_requirement = {$AR_D}")->fetch_assoc()['n'];
+$frr = __DIR__ . '/tmp_smoke6c_' . $STAMP . '_race.pdf';
+file_put_contents($frr, "%PDF-1.4\n% uji balapan status\n");
+list($c, , , ) = upload_dok(api_url('Lamaran_dokumen/upload'), array('id_application_requirement' => $AR_D), $TOKEN1B, 'document', $frr);
+check('F2 status berubah di antara (verified) 409', '409', $c);
+$nrace2 = (int) q("SELECT COUNT(*) n FROM career_application_documents WHERE id_application_requirement = {$AR_D}")->fetch_assoc()['n'];
+check('F2: NOL versi baru setelah penolakan balapan', $nrace1, $nrace2);
+unlink($frr);
+
 echo "-----\nRingkasan smoke6c: PASS={$pass} FAIL={$fail}\n";
 exit($fail === 0 ? 0 : 1);
