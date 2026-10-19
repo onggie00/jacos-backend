@@ -53,7 +53,7 @@
                   <?php if ($bisa_keputusan): ?>
                   <div style="padding:4px 8px">
                      <button type="button" class="btn btn-success career-terima" data-id="<?= (int) $app->id_application; ?>"
-                        <?= ($status_akhir || ! $tahap_lulus_semua) ? 'disabled title="Semua 5 tahap harus lulus dulu (D16)"' : ''; ?>>
+                        <?= ($status_akhir || $app->status === 'accepted' || ! $tahap_lulus_semua) ? 'disabled title="Semua 5 tahap harus lulus dulu & belum diterima (D16)"' : ''; ?>>
                         <i class="fa fa-check-square-o"></i> Status akhir: Diterima
                      </button>
                      <span class="help-block small" style="display:inline">Syarat: kelima tahap sudah lulus (D16). Aksi tercatat di audit log.</span>
@@ -102,10 +102,10 @@
                                        <input type="datetime-local" class="form-control career-jadwal-tanggal"
                                               value="<?= $t->schedule_datetime ? html_escape(str_replace(' ', 'T', substr($t->schedule_datetime, 0, 16))) : ''; ?>">
                                     </div>
-                                    <input type="text" class="form-control career-jadwal-kanal" placeholder="Kanal audiensi / link (maks 200)"
+                                    <input type="text" class="form-control career-jadwal-kanal" placeholder="Kanal audiensi / link (maks 200)" maxlength="200"
                                            value="<?= $t->channel ? html_escape($t->channel) : ''; ?>"
                                            style="margin-bottom:3px">
-                                    <input type="text" class="form-control career-jadwal-catatan" placeholder="Catatan (maks 500)"
+                                    <input type="text" class="form-control career-jadwal-catatan" placeholder="Catatan (maks 500)" maxlength="500"
                                            value="<?= $t->note ? html_escape($t->note) : ''; ?>"
                                            style="margin-bottom:3px">
                                     <button type="button" class="btn btn-flat btn-xs btn-primary career-jadwal" data-sid="<?= (int) $t->id_application_stage; ?>" data-aksi="simpan">Simpan</button>
@@ -159,7 +159,7 @@
                                     <form class="career-nilai-form" style="margin-top:4px" onsubmit="return false">
                                        <input type="number" class="career-nilai-skor" placeholder="Skor 0–100" min="0" max="100" step="0.01"
                                               style="width:110px" value="<?= $nilai_now !== NULL ? html_escape(number_format((float) $nilai_now->score, 2, '.', '')) : ''; ?>">
-                                       <input type="text" class="career-nilai-catatan" placeholder="Catatan internal" style="width:160px" value="<?= $nilai_now !== NULL && $nilai_now->rubric_note ? html_escape($nilai_now->rubric_note) : ''; ?>">
+                                       <input type="text" class="career-nilai-catatan" placeholder="Catatan internal" maxlength="2000" style="width:160px" value="<?= $nilai_now !== NULL && $nilai_now->rubric_note ? html_escape($nilai_now->rubric_note) : ''; ?>">
                                        <button type="button" class="btn btn-flat btn-xs btn-default career-nilai" data-sid="<?= (int) $t->id_application_stage; ?>">Simpan nilai</button>
                                     </form>
                                  <?php endif; ?>
@@ -216,7 +216,7 @@
                               </div>
                               <div class="form-group">
                                  <label>Alasan koreksi (wajib, maks 500)</label>
-                                 <textarea id="koreksi-alasan" class="form-control" rows="3"></textarea>
+                                 <textarea id="koreksi-alasan" class="form-control" rows="3" maxlength="500"></textarea>
                               </div>
                            </div>
                            <div class="modal-footer">
@@ -249,11 +249,11 @@
                               </div>
                               <div class="form-group">
                                  <label for="verifikasi-pesan">Pesan ke kandidat (maks 500)</label>
-                                 <textarea id="verifikasi-pesan" class="form-control" rows="3"></textarea>
+                                 <textarea id="verifikasi-pesan" class="form-control" rows="3" maxlength="500"></textarea>
                               </div>
                               <div class="form-group">
                                  <label for="verifikasi-catatan">Catatan internal (review_note, maks 500 — TIDAK dikirim ke kandidat)</label>
-                                 <textarea id="verifikasi-catatan" class="form-control" rows="2"></textarea>
+                                 <textarea id="verifikasi-catatan" class="form-control" rows="2" maxlength="500"></textarea>
                               </div>
                            </div>
                            <div class="modal-footer">
@@ -392,7 +392,7 @@
                               <td><?= html_escape($a->actor_type); ?></td>
                               <td><span class="label label-default"><?= html_escape($a->action); ?></span></td>
                               <td><?= html_escape($a->object_type); ?></td>
-                              <td><code class="small"><?= html_escape($a->detail_json); ?></code></td>
+                              <td><code class="small"><?php if ($bisa_score_view || $a->action !== 'simpan_nilai_tahap') { echo html_escape((string) ($a->detail_json ?? '')); } else { echo html_escape('(detail tersembunyi — butuh izen score_view)'); } ?></code></td>
                            </tr>
                         <?php endforeach; ?>
                         </tbody>

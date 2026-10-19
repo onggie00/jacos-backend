@@ -159,10 +159,17 @@ class Model_career_pelamar extends MY_Model {
     }
 
     /** Timeline audit yang menyentuh lamaran (object app + doc/req turunannya). */
-    public function audit_lamaran($id_application, $limit = 20, $offset = 0)
+    public function audit_lamaran($id_application, $limit = 20, $offset = 0, $lihat_skor = FALSE)
     {
+        // M2 6B.3: baris audit nilai ber-skor hanya detail lengkap bagi
+        // pemegang career_pelamar_score_view; user lain melihat baris
+        // TANPA detail (kolom non-sensitif lain tetap tampil).
+        $sel = $lihat_skor ? 'detail_json' :
+            "IF(action = 'simpan_nilai_tahap', NULL, detail_json) AS detail_json";
         return $this->db->query(
-            "SELECT * FROM career_audit_logs
+            "SELECT id_audit_log, actor_type, actor_id, action, object_type, object_id,
+                    {$sel}, ip_address, created_at, updated_at
+             FROM career_audit_logs
              WHERE (object_type = 'career_application' AND object_id = ?)
                 OR (object_type = 'career_application_document' AND object_id IN
                     (SELECT id_application_document FROM career_application_documents
@@ -562,16 +569,18 @@ public function jadwal_publikasi($id_application_stage, $publikasi)
     }
 
     // Batal publikasi: hanya menyentuh tahap berstatus 'scheduled'
-    // (HIGH-2 6B.2). Tahap yang SUDAH diputuskan (passed/failed) TIDAK
-    // disentuh; lamaran final (accepted/not_accepted) ditolak kecuali
-    // tahapnya memang masih scheduled.
+    // (HIGH-2 6B.2 + H1 6B.3: SEMUA guard SEBELUM tulisan sehingga 409
+    // TIDAK meninggalkan baris yang berubah).
     if (in_array($app_st->status, array('passed', 'failed'), TRUE)) {
         return array(FALSE, '409|Tahap sudah diputuskan — publikasi jadwal tidak dapat dibatalkan.');
     }
     if (in_array($app_st->app_status, array('accepted', 'not_accepted'), TRUE)) {
         return array(FALSE, '409|Lamaran sudah diputuskan akhirnya — batal publikasi tidak dapat dilakukan.');
     }
-    $sudah = ((int) $row->is_published === 1);
+    if ((int) $row->is_published !== 1) {
+        // 409 TANPA menulis apa pun (H1 6B.3).
+        return array(FALSE, '409|Jadwal memang belum dipublikasikan.');
+    }
     $this->db->where('id_selection_schedule', (int) $row->id_selection_schedule)
         ->update('career_selection_schedules', array('is_published' => 0));
     $this->db->set('status', 'pending')
@@ -579,14 +588,11 @@ public function jadwal_publikasi($id_application_stage, $publikasi)
         ->where('id_application_stage', (int) $id_application_stage)
         ->where('status', 'scheduled')
         ->update('career_application_stages');
-    if ($sudah) {
-        // D18: notifikasi singkat netral saat publikasi dicabut (#8c).
-        career_notify($app_st->id_candidate, 'stage_schedule_cancelled',
-            'Jadwal tahap ' . $app_st->stage_order . ' diperbarui',
-            'Jadwal tahap "' . $app_st->name . '" untuk sementara ditarik. Informasi jadwal terbaru menyusul di riwayat lamaran.');
-        return array(TRUE, 'Publikasi jadwal dibatalkan.');
-    }
-    return array(FALSE, '409|Jadwal memang belum dipublikasikan.');
+    // D18: notifikasi singkat netral saat publikasi dicabut (#8c).
+    career_notify($app_st->id_candidate, 'stage_schedule_cancelled',
+        'Jadwal tahap ' . $app_st->stage_order . ' diperbarui',
+        'Jadwal tahap "' . $app_st->name . '" untuk sementara ditarik. Informasi jadwal terbaru menyusul di riwayat lamaran.');
+    return array(TRUE, 'Publikasi jadwal dibatalkan.');
 }
 
 // --------------------------------------------------------------------

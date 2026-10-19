@@ -94,7 +94,7 @@ class Career_pelamar extends Admin
 		$this->data['snapshot']    = $this->model_career_pelamar->snapshot($id_application);
 		$this->data['persyaratan'] = $this->model_career_pelamar->persyaratan($id_application);
 		$this->data['tahapan']     = $this->model_career_pelamar->tahapan($id_application);
-		$this->data['audits']      = $this->model_career_pelamar->audit_lamaran($id_application, 30, 0);
+		$this->data['audits']      = $this->model_career_pelamar->audit_lamaran($id_application, 30, 0, $this->data['bisa_score_view']);
 		$this->data['notifikasis'] = $this->model_career_pelamar->notifikasi($app->id_candidate);
 
 		$this->template->title('Detail Pelamar');
@@ -432,7 +432,6 @@ class Career_pelamar extends Admin
 		if ($st === null) { $this->_jawab(404, false, 'Tahap tidak ditemukan.'); return; }
 		// BENTUK input divalidasi di luar transaksi; SEMUA validasi
 		// status/urutan dilakukan DI DALAM transaksi SETELAH lock (#7).
-		$urut_tahap = (int) $st->stage_order;
 		$tanggal  = career_q($this->input->post('schedule_datetime'));
 		$kanal    = career_q($this->input->post('channel'));
 		$catatann = career_q($this->input->post('note'));
@@ -449,6 +448,9 @@ class Career_pelamar extends Admin
 			$tiga = $tgl->format('Y-m-d H:i:s');
 		}
 
+		// Pola transaksi manual (H1 6B.3): begin → kerja → gagal:
+		// rollback + respons (TANPA trans_complete dulu); sukses:
+		// trans_complete() + cek trans_status() baru audit/respons.
 		$this->db->trans_begin();
 		$app = $this->model_career_pelamar->kunci_lamaran((int) $st->id_application);
 		if ($app === null) {
@@ -457,112 +459,95 @@ class Career_pelamar extends Admin
 			return;
 		}
 
-		if ($aksi === 'batal') {
-			// Pencabutan publikasi TIDAK terkunci D16.2 (#5): admin selalu
-			// dapat menarik jadwal pada lamaran yang masih bisa diproses
-			// maupun yang baru dikoreksi.
-			if (! in_array($app->status,
-					array('submitted', 'in_process', 'not_accepted', 'accepted'), TRUE)) {
-				$this->db->trans_complete();
-				$this->_jawab(409, false, 'Lamaran tidak dalam keadaan yang bisa diproses.');
-				return;
-			}
-			$st = $this->model_career_pelamar->stage_untuk_jadwal($ids);
-			if ($st === null) { $this->db->trans_rollback(); $this->_jawab(404, false, 'Tahap tidak ditemukan.'); return; }
-			list($ok, $pesan) = $this->model_career_pelamar->jadwal_publikasi($ids, 0);
-			$this->db->trans_complete();
-			if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi.'); return; }
-			if (! $ok) {
-				list($kode, $teks) = $this->_galat_model($pesan);
-				$this->_jawab($kode, false, $teks);
-				return;
-			}
-			career_audit('batal_publikasi_jadwal', 'career_application', (int) $app->id_application, array('stage_order' => $urut_tahap));
-			$this->_jawab(200, true, $pesan);
-			return;
-		}
-
-		// simpan/publikasi/hapus: lamaran harus submitted/in_process.
-		if (! in_array($app->status, array('submitted', 'in_process'), TRUE)) {
-			$this->db->trans_rollback();
-			$this->_jawab(409, false, 'Jadwal hanya untuk lamaran submitted/in_process.');
-			return;
-		}
+		// Baca ulang tahap DI DALAM transaksi (konsisten dgn lock).
 		$st = $this->model_career_pelamar->stage_untuk_jadwal($ids);
-		if ($st === null) { $this->db->trans_rollback(); $this->_jawab(404, false, 'Tahap tidak ditemukan.'); return; }
-		// D16.2: seluruh tahap sebelumnya harus passed sebelum tahap
-		// ini boleh dijadwalkan; tahap yang sudah diputuskan terkunci.
-		$tahapan = $this->model_career_pelamar->tahapan($st->id_application);
-		foreach ($tahapan as $t) {
-			$urut = (int) $t->stage_order;
-			if ($urut < $urut_tahap && $t->status !== 'passed') {
-				$this->db->trans_complete();
-				$this->_jawab(409, false, 'Tahap ' . $urut . ' belum lulus — jadwal tahap ini belum boleh diset (D16.2).');
-				return;
-			}
-		}
-		if (in_array($st->status, array('passed', 'failed'), TRUE)) {
+		if ($st === null) {
 			$this->db->trans_rollback();
-			$this->_jawab(409, false, 'Tahap sudah diputuskan — jadwal tidak dapat diubah.');
+			$this->_jawab(404, false, 'Tahap tidak ditemukan.');
 			return;
 		}
 
-		if ($aksi === 'hapus') {
-			list($ok, $pesan) = $this->model_career_pelamar->jadwal_hapus($ids);
-			$this->db->trans_complete();
-			if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi jadwal.'); return; }
-			if (! $ok) {
-				list($kode, $teks) = $this->_galat_model($pesan);
-				$this->_jawab($kode, false, $teks);
+		if ($aksi !== 'batal') {
+			// simpan/publikasi/hapus: lamaran harus submitted/in_process.
+			if (! in_array($app->status, array('submitted', 'in_process'), TRUE)) {
+				$this->db->trans_rollback();
+				$this->_jawab(409, false, 'Jadwal hanya untuk lamaran submitted/in_process.');
 				return;
 			}
-			career_audit('hapus_jadwal_tahap', 'career_application', (int) $app->id_application, array('stage_order' => $urut_tahap));
-			$this->_jawab(200, true, $pesan);
-			return;
+			// D16.2: seluruh tahap sebelumnya harus passed sebelum tahap
+			// ini boleh dijadwalkan; tahap yang sudah diputuskan terkunci.
+			$tahapan = $this->model_career_pelamar->tahapan($st->id_application);
+			foreach ($tahapan as $t) {
+				$urut = (int) $t->stage_order;
+				if ($urut < (int) $st->stage_order && $t->status !== 'passed') {
+					$this->db->trans_rollback();
+					$this->_jawab(409, false, 'Tahap ' . $urut . ' belum lulus — jadwal tahap ini belum boleh diset (D16.2).');
+					return;
+				}
+			}
+			if (in_array($st->status, array('passed', 'failed'), TRUE)) {
+				$this->db->trans_rollback();
+				$this->_jawab(409, false, 'Tahap sudah diputuskan — jadwal tidak dapat diubah.');
+				return;
+			}
 		}
+		// batal: pencabutan TIDAK terkunci D16.2 — guard tahap diputuskan,
+		// lamaran final & belum-dipublikasikan ditangani model SEBELUM
+		// tulisan (409 tanpa mengubah baris apa pun).
 
-		if ($aksi === 'simpan') {
+		$hasil_model = null;
+		$audit_aksi  = '';
+		if ($aksi === 'hapus') {
+			$hasil_model = $this->model_career_pelamar->jadwal_hapus($ids);
+			$audit_aksi  = 'hapus_jadwal_tahap';
+		} elseif ($aksi === 'simpan') {
 			// #8a: aksi jadwal PERTAMA (simpan) pada lamaran submitted
-			// juga mengesankan in_process (D16.3) — dalam transaksi sama.
+			// mengesankan in_process (D16.3) — dalam transaksi yang sama,
+			// ikut ter-rollback bila jadwal_simpan gagal.
 			if ($app->status === 'submitted') {
 				career_lamaran_status_autokoreksi((int) $app->id_application,
 					career_stages_rekap((int) $app->id_application), 'submitted');
 			}
-			list($ok, $hasil_simpan) = $this->model_career_pelamar->jadwal_simpan($ids, array(
+			$hasil_model = $this->model_career_pelamar->jadwal_simpan($ids, array(
 				'schedule_datetime' => $tiga,
-				'channel' => $kanal === '' ? null : $kanal,
-				'note'    => $catatann === '' ? null : $catatann,
+				'channel' => (trim((string) $kanal) === '' ? null : $kanal),
+				'note'    => (trim((string) $catatann) === '' ? null : $catatann),
 				'is_published' => 0,
 				'created_by'   => (int) $this->session->userdata('id'),
 			));
-			$this->db->trans_complete();
-			if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi jadwal.'); return; }
-			if (! $ok) {
-				list($kode, $teks) = $this->_galat_model($hasil_simpan);
-				$this->_jawab($kode, false, $teks);
-				return;
-			}
-			career_audit('simpan_jadwal_tahap', 'career_application', (int) $app->id_application,
-				array('stage_order' => $urut_tahap, 'jadwal' => $tiga));
-			$this->_jawab(200, true, 'Jadwal disimpan (belum dipublikasikan).');
-			return;
+			$audit_aksi  = 'simpan_jadwal_tahap';
+		} elseif ($aksi === 'publikasi') {
+			$hasil_model = $this->model_career_pelamar->jadwal_publikasi($ids, 1);
+			$audit_aksi  = 'publikasi_jadwal_tahap';
+		} else { // batal
+			$hasil_model = $this->model_career_pelamar->jadwal_publikasi($ids, 0);
+			$audit_aksi  = 'batal_publikasi_jadwal';
 		}
-
-		// aksi=publikasi
-		list($ok, $pesan) = $this->model_career_pelamar->jadwal_publikasi($ids, 1);
-				if (! $ok) {
+		if (! is_array($hasil_model) || empty($hasil_model[0])) {
+			// Gagal model → rollback TANPA trans_complete (H1 6B.3).
 			$this->db->trans_rollback();
+			$pesan = is_array($hasil_model) ? (string) $hasil_model[1] : 'Gagal transaksi jadwal.';
 			list($kode, $teks) = $this->_galat_model($pesan);
 			$this->_jawab($kode, false, $teks);
 			return;
 		}
+		$pesan_model = (string) $hasil_model[1];
 		$this->db->trans_complete();
-		if ($this->db->trans_status() === FALSE) { $this->db->trans_rollback(); $this->_jawab(500, false, 'Gagal transaksi.'); return; }
-		career_audit('publikasi_jadwal_tahap', 'career_application', (int) $app->id_application,
-			array('stage_order' => $urut_tahap));
-		$this->_jawab(200, true, $pesan);
+		if ($this->db->trans_status() === FALSE) {
+			$this->db->trans_rollback();
+			$this->_jawab(500, false, 'Gagal transaksi jadwal.');
+			return;
+		}
+		career_audit($audit_aksi, 'career_application', (int) $app->id_application,
+			$aksi === 'simpan'
+				? array('stage_order' => (int) $st->stage_order, 'jadwal' => $tiga)
+				: array('stage_order' => (int) $st->stage_order));
+		if ($aksi === 'simpan') {
+			$this->_jawab(200, true, 'Jadwal disimpan (belum dipublikasikan).');
+			return;
+		}
+		$this->_jawab(200, true, $pesan_model);
 	}
-
 	/**
 	 * Nilai & catatan internal (D13): POST administrator/career_pelamar/nilai
 	 * param: id_application_stage, score (0-100), rubric_note (<=2000).

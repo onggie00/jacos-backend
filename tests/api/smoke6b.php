@@ -379,6 +379,94 @@ list($c, , $jraw) = post_admin('/administrator/career_pelamar/keputusan', array(
 	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 2, 'keputusan' => 'passed'));
 check('keputusan tahap sudah diputuskan 409', '409', $c);
 
+/* ---------- 7e. 6B.3 #8a: simpan jadwal PERTAMA pada lamaran submitted → in_process ---------- */
+$pdo->query("INSERT INTO career_job_postings (title, description, opening_date, closing_date, education_level, is_published, created_by)
+             VALUES ('{$NM}', 'post smoke6b 8a', '2026-01-01', '2030-12-31', 'S1', 1, {$ADMIN_ID})");
+$IDPA = (int) $pdo->insert_id;
+$G_POSTS[] = $IDPA;
+$pdo->query("INSERT INTO career_applications (id_candidate, id_job_posting, status, current_stage_id, created_at)
+             VALUES ({$KANID}, {$IDPA}, 'submitted', 1, NOW())");
+$APPA = (int) $pdo->insert_id;
+$G_APPS[] = $APPA;
+$STAGES_A = array();
+foreach ($stg as $row) {
+	$pdo->query("INSERT INTO career_application_stages (id_application, id_stage, status)
+	             VALUES ({$APPA}, {$row[0]}, 'pending')");
+	$STAGES_A[] = (int) $pdo->insert_id;
+}
+$STAGEA1 = $STAGES_A[0];
+$STAGEA2 = $STAGES_A[1];
+
+/* NEGATIF: simpan tahap2 tanpa tahap1 lulus → 409 D16.2 + rollback penuh
+   (lamaran TETAP submitted dan TIDAK ada baris jadwal baru) */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGEA2, 'aksi' => 'simpan',
+	'schedule_datetime' => '2026-06-01 09:00', 'channel' => 'Online'));
+check('8a negatif: simpan tahap2 sebelum tahap1 409 (D16.2)', '409', $c);
+check('8a negatif: rollback — lamaran masih submitted', 'submitted',
+	$pdo->query("SELECT status FROM career_applications WHERE id_application={$APPA}")->fetch_assoc()['status']);
+check('8a negatif: rollback — TIDAK ada baris jadwal baru', 0,
+	((int) $pdo->query("SELECT COUNT(*) n FROM career_selection_schedules WHERE id_application_stage={$STAGEA2}")->fetch_assoc()['n']));
+
+/* POSITIF: simpan tahap1 (tidak ada tahap sebelumnya) → 200 dan status
+   lamaran submitted otomatis menjadi in_process (aksi jadwal pertama #8a) */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGEA1, 'aksi' => 'simpan',
+	'schedule_datetime' => '2026-06-01 09:00', 'channel' => 'Online', 'note' => 'uji 8a'));
+$j = json_ok($jraw);
+check('8a positif: simpan jadwal tahap1 200', 1, ($j !== null && $j['success']) ? 1 : 0);
+check('8a positif: submitted → in_process (aksi jadwal pertama)', 'in_process',
+	$pdo->query("SELECT status FROM career_applications WHERE id_application={$APPA}")->fetch_assoc()['status']);
+
+/* batal pada jadwal BELUM dipublikasikan → 409 (baris tidak berubah) */
+$QROW_A1 = "SELECT schedule_datetime, channel, is_published FROM career_selection_schedules WHERE id_application_stage={$STAGEA1}". " ORDER BY id_selection_schedule DESC LIMIT 1";
+$before_batal = $pdo->query($QROW_A1)->fetch_assoc();
+list($cb, , ) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGEA1, 'aksi' => 'batal'));
+check('batal jadwal belum dipublikasikan 409', '409', $cb);
+$after_batal = $pdo->query($QROW_A1)->fetch_assoc();
+check('batal 409 — baris jadwal identik', 1,
+	(is_array($before_batal) && is_array($after_batal) && $before_batal == $after_batal) ? 1 : 0);
+
+/* hapus pada tahap SUDAH DIPUTUSKAN → 409 + baris & status tidak berubah */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/keputusan', array(
+	'career_csrf' => $CSRF_P, 'id_application' => $APPA, 'n' => 1, 'keputusan' => 'passed'));
+$j = json_ok($jraw);
+check('tahap1 APPA lulus utk uji hapus', 1, ($j !== null && $j['success']) ? 1 : 0);
+$before_hapus = $pdo->query($QROW_A1)->fetch_assoc();
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGEA1, 'aksi' => 'hapus'));
+check('hapus jadwal tahap sudah diputuskan 409', '409', $c);
+$after_hapus = $pdo->query($QROW_A1)->fetch_assoc();
+check('hapus 409 — baris jadwal identik', 1, (is_array($before_hapus) && $before_hapus == $after_hapus) ? 1 : 0);
+check('hapus 409 — status tahap tetap passed', 'passed',
+	$pdo->query("SELECT status FROM career_application_stages WHERE id_application_stage={$STAGEA1}")->fetch_assoc()['status']);
+
+/* batal pada lamaran ACCEPTED/NOT_ACCEPTED → 409 + tahap tetap scheduled */
+/* jadwal tahap2 (tahap1 sudah lulus): simpan + publikasi → status tahap scheduled */
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGEA2, 'aksi' => 'simpan',
+	'schedule_datetime' => '2026-07-02 10:00', 'channel' => 'Offline'));
+$j = json_ok($jraw);
+check('APPA tahap2 simpan untuk uji batal final', 1, ($j !== null && $j['success']) ? 1 : 0);
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGEA2, 'aksi' => 'publikasi'));
+$j = json_ok($jraw);
+check('APPA tahap2 publikasi 200', 1, ($j !== null && $j['success']) ? 1 : 0);
+check('APPA tahap2 scheduled', 'scheduled',
+	$pdo->query("SELECT status FROM career_application_stages WHERE id_application_stage={$STAGEA2}")->fetch_assoc()['status']);
+$pdo->query("UPDATE career_applications SET status = 'not_accepted' WHERE id_application = {$APPA}");
+list($c, , $jraw) = post_admin('/administrator/career_pelamar/jadwal', array(
+	'career_csrf' => $CSRF_P, 'id_application_stage' => $STAGEA2, 'aksi' => 'batal'));
+check('batal pada lamaran not_accepted 409', '409', $c);
+check('batal 409 not_accepted — tahap tetap scheduled', 'scheduled',
+	$pdo->query("SELECT status FROM career_application_stages WHERE id_application_stage={$STAGEA2}")->fetch_assoc()['status']);
+$row_final = $pdo->query("SELECT is_published FROM career_selection_schedules WHERE id_application_stage={$STAGEA2} LIMIT 1")->fetch_assoc();
+check('batal 409 not_accepted — jadwal tetap terpublikasi', 1,
+	(is_array($row_final) && (int)$row_final['is_published'] === 1) ? 1 : 0);
+/* kembalikan status proses agar konsisten utk asersi lain yang menyusul */
+$pdo->query("UPDATE career_applications SET status = 'in_process' WHERE id_application = {$APPA}");
+
 /* ---------- 8. koreksi tahap (career_pelamar/koreksi) ---------- */
 list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
 	'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => 2, 'keputusan_baru' => 'passed', 'alasan' => ''));
@@ -408,10 +496,20 @@ check('audit koreksi simpan alasan penuh', 1,
 check('audit koreksi simpan before/after tahap & lamaran', 1,
 	(strpos((string) $kr, 'before_tahap') !== false && strpos((string) $kr, 'after_app') !== false) ? 1 : 0);
 
-/* ---------- 9. lulus 1..5 semua → termasuk terima (D16.4) ---------- */
+/* ---------- 9. lulus 1..5 semua → termasuk terima (D16.4) ----------
+   6B.3 M-M5: assert per iterasi (bukan loop buta): keputusan 200 + status
+   tahap jadi passed + koreksi no-op (keputusan sama) 409 setiap tahap. */
 foreach (array(3 => $STG3, 4 => $stg[3][0], 5 => $STG5) as $n => $sid_) {
 	list($c, , $jraw) = post_admin('/administrator/career_pelamar/keputusan', array(
 		'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => $n, 'keputusan' => 'passed'));
+	$j = json_ok($jraw);
+	check('keputusan tahap ' . $n . ' 200', 1, ($j !== null && $j['success']) ? 1 : 0);
+	check('tahap ' . $n . ' status passed (per-iterasi)', 'passed',
+		$pdo->query("SELECT status FROM career_application_stages WHERE id_application={$APP} AND id_stage={$sid_}")->fetch_assoc()['status'] ?? '');
+	list($c, , $jraw) = post_admin('/administrator/career_pelamar/koreksi', array(
+		'career_csrf' => $CSRF_P, 'id_application' => $APP, 'n' => $n,
+		'keputusan_baru' => 'passed', 'alasan' => 'Uji koreksi per-iterasi tahap ' . $n . '.'));
+	check('koreksi no-op tahap ' . $n . ' 409', '409', $c);
 }
 check('tahap5 status passed', 'passed', $pdo->query("SELECT status FROM career_application_stages WHERE id_application={$APP} AND id_stage={$STG5}")->fetch_assoc()['status']);
 check('lamaran masih in_process sebelum terima', 'in_process',
@@ -695,6 +793,39 @@ foreach ($SQLI_SET as $si => $qs) {
 	check('SQLi q#' . ($si + 1) . ' 200 bersih', '200:0', $c . ':' . $bad);
 }
 
+/* 6B.3 M3/M1: (a) payload SQLi tidak memunculkan kandidat lain di luar
+   filter; (b) literal O'Brien / % / _ cocok HARFIAH (bukan wildcard).
+   Fixture baru: kandidat bernama "O'Brien 50%_off <STAMP>" (dibersihkan
+   bersama $G_CANDS). */
+$NAMA_LIT = "O'Brien 50%_off " . $STAMP;
+$EMAIL_LIT = 'smoke6b-literal-' . $STAMP . '@example.test';
+$pdo->query("INSERT INTO career_candidates (email, password_hash, full_name, is_active, token_version)
+             VALUES ('{$EMAIL_LIT}', '" . password_hash('SandiLama123', PASSWORD_BCRYPT) . "', '" . $pdo->real_escape_string($NAMA_LIT) . "', 1, 1)");
+$CID_LIT = (int) $pdo->insert_id;
+$G_CANDS[] = $CID_LIT;
+
+$URL_LIT = $BASE . '/administrator/career_kandidat?q=';
+list($c, , $rawq) = http('GET', $URL_LIT . rawurlencode("' OR 1=1 -- "), array(), null, $COOKIE);
+check('SQLi q: data DI LUAR filter tidak muncul', 0,
+	(strpos($rawq, 'Kandidat Smoke6B') !== false) ? 1 : 0);
+list($c, , $rawq) = http('GET', $URL_LIT . rawurlencode("O'Brien"), array(), null, $COOKIE);
+check("SQLi q: literal O'Brien cocok harfiah", 1,
+	(strpos($rawq, html_escape_six($NAMA_LIT)) !== false) ? 1 : 0);
+list($c, , $rawq) = http('GET', $URL_LIT . rawurlencode('50%_off'), array(), null, $COOKIE);
+check('SQLi q: literal 50%_off cocok harfiah', 1,
+	(strpos($rawq, html_escape_six($NAMA_LIT)) !== false) ? 1 : 0);
+list($c, , $rawq) = http('GET', $URL_LIT . rawurlencode('50%'), array(), null, $COOKIE);
+check('SQLi q: % TIDAK dianggap wildcard (50% cocok literal saja)', 1,
+	(strpos($rawq, html_escape_six($NAMA_LIT)) !== false) ? 1 : 0);
+list($c, , $rawq) = http('GET', $URL_LIT . rawurlencode('Kandidat'), array(), null, $COOKIE);
+check('SQLi q: pelanggaran wildcard — nama tanpa % tetap tampil', 1,
+	(strpos($rawq, 'Kandidat Smoke6B') !== false) ? 1 : 0);
+list($c, , $rawq) = http('GET', $URL_LIT . rawurlencode('Kandidat'), array(), null, $COOKIE);
+check('SQLi q: password_hash tidak bocor di daftar kandidat', 0,
+	(strpos($rawq, '$2y$') !== false) ? 1 : 0);
+
+function html_escape_six($judul) { return htmlspecialchars((string) $judul, ENT_QUOTES, 'UTF-8'); }
+
 /* ---------- 13. render halaman bersih notice ---------- */
 foreach (array('career_kandidat') as $path) {
 	list($c, , $rawbody) = http('GET', $BASE . '/administrator/' . $path, array(), null, $COOKIE);
@@ -709,11 +840,17 @@ $sidc = null;
 foreach ($mmc[1] as $i => $nmc) { if (trim(strtolower($nmc)) === 'jacos_session') $sidc = rawurldecode($mmc[2][$i]); }
 check('login admin view-only 200', 'ya', ($sidc !== null) ? 'ya' : 'tidak');
 $COOKIE_C = 'jacos_session=' . rawurlencode((string) $sidc);
-list($c, , $rawbody) = http('GET', $BASE . '/administrator/career_pelamar/view/' . $APP, array(), null, $COOKIE_C);
+list($c, , $rawbody) = http('GET', $BASE . '/administrator/career_pelamar/view/' . $APP2, array(), null, $COOKIE_C);
 check('view pelamar utk view-only 200', '200', $c);
 $strippedc = preg_replace('#<(script|style)[\s\S]*?</(script|style)>#i', '', (string) $rawbody);
-check('view-only TANPA string skor 75.00', 0, (preg_match('/\b75\.00\b/', $strippedc)) ? 1 : 0);
-check('view-only TANPA isi rubric internal', 0, (strpos($strippedc, 'psikotes menyusul') !== false) ? 1 : 0);
+check('view-only TANPA string skor 75.00 (APP2 ber-skor)', 0, (preg_match('/\b75\.00\b/', $strippedc)) ? 1 : 0);
+check('view-only TANPA isi rubric internal (APP2 ber-rubrik)', 0, (strpos($strippedc, 'psikotes menyusul') !== false) ? 1 : 0);
+/* 6B.3 M4: tes POSITIF — admin superadmin (dengan score_view) MELIHAT skor */
+list($c, , $rawbody) = http('GET', $BASE . '/administrator/career_pelamar/view/' . $APP2, array(), null, $COOKIE);
+check('superadmin view APP2 (score_view) 200', '200', $c);
+$strippedpos = preg_replace('#<(script|style)[\s\S]*?</(script|style)>#i', '', (string) $rawbody);
+check('superadmin MELIHAT skor 75.00 (APP2)', 1, (preg_match('/\b75\.00\b/', $strippedpos)) ? 1 : 0);
+check('superadmin MELIHAT rubrik internal (APP2)', 1, (strpos($strippedpos, 'psikotes menyusul') !== false) ? 1 : 0);
 
 /* ====================================================================
    14. Ekstensi 6B.1 (#14 review): GET-mutasi tolak, anonim 403, API
@@ -775,6 +912,15 @@ check('detail API TIDAK berisi review_note internal', 0, (strpos($stripped3, 'in
 check('detail API TIDAK berisi rubric/note_internal key', 0, (preg_match('/"(rubric_note|note_internal)"\s*:/', $stripped3) === 1) ? 1 : 0);
 check('detail API TIDAK berisi konten sensitif', 0,
 	((strpos($stripped3, 'psikotes menyusul') !== false) || (strpos($stripped3, '75.00') !== false)) ? 1 : 0);
+/* 6B.3 M4: detail API $APP2 (yang punya skor 75 + rubrik) TIDAK bocor */
+list($c, , $jraw) = http_json6b('GET', $BASE . '/apicareer/Lamaran/detail/' . $APP2, null, $TOK);
+$stripped_app2 = str_replace('\u00a0', ' ', (string) $jraw);
+check('detail API APP2 200', '200', $c);
+check('detail API APP2 TIDAK berisi skor 75.00', 0, (strpos($stripped_app2, '75.00') !== false) ? 1 : 0);
+check('detail API APP2 TIDAK berisi rubrik internal', 0, (strpos($stripped_app2, 'psikotes menyusul') !== false) ? 1 : 0);
+check('detail API APP2 TIDAK berisi key rubric/note_internal', 0,
+    (preg_match('/"(rubric_note|note_internal)"\s*:/', $stripped_app2) === 1) ? 1 : 0);
+
 /* pengulang non-regresi: tahapan kandidat punya jadwal = schedule objek */
 check('jadwal terpublikasi ada di detail (D18; bentuk apa adanya)', 1,
 	(preg_match('/(schedule|"schedule")[^}]{0,400}/', $stripped3) === 1 && (strpos($stripped3, 'schedule') !== false)) ? 1 : 0);

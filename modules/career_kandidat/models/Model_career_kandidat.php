@@ -21,40 +21,40 @@ class Model_career_kandidat extends CI_Model
 	{
 		$limit  = max(1, (int) $limit);
 		$offset = max(0, (int) $offset);
-		$where  = $this->_where_filter($filter);
-		return $this->db->query(
-			"SELECT c.id_candidate, c.email, c.full_name, c.is_active, c.last_login_at,
+		$this->_where_filter($filter);
+		return $this->db->select("c.id_candidate, c.email, c.full_name, c.is_active, c.last_login_at,
 				p.phone,
 				(SELECT COUNT(*) FROM career_applications a
-				  WHERE a.id_candidate = c.id_candidate) AS jumlah_lamaran
-			 FROM career_candidates c
-			 LEFT JOIN career_candidate_profiles p ON p.id_candidate = c.id_candidate
-			 {$where['sql']}
-			 ORDER BY c.id_candidate DESC
-			 LIMIT $limit OFFSET $offset",
-			$where['bind']
-		)->result();
+				  WHERE a.id_candidate = c.id_candidate) AS jumlah_lamaran")
+			->from('career_candidates c')
+			->join('career_candidate_profiles p', 'p.id_candidate = c.id_candidate', 'left')
+			->order_by('c.id_candidate', 'DESC')
+			->limit((int) $limit, (int) $offset)
+			->get()
+			->result();
 	}
 
 	public function daftar_count($filter = array())
 	{
-		$where = $this->_where_filter($filter);
-		$row = $this->db->query("SELECT COUNT(*) AS n FROM career_candidates c {$where['sql']}", $where['bind'])->row();
+		$this->_where_filter($filter);
+		$row = $this->db->select('COUNT(*) AS n')
+			->from('career_candidates c')
+			->get()
+			->row();
 		return $row ? (int) $row->n : 0;
 	}
 
 	private function _where_filter($filter)
 	{
-		$sql  = '';
-		$bind = array();
-		if (! empty($filter['q'])) {
-			// nilai ter-bind via placeholder; escape_like_str utk _/% (HIGH-1);
-			$q = $this->db->escape_like_str((string) $filter['q']);
-			$bind[] = '%'.$q.'%';
-			$sql = " WHERE (c.full_name LIKE ? OR c.email LIKE ?)";
-			$bind[] = $bind[0];
+		// M1 6B.3: Query Builder like() — escape satu lapis oleh CI
+		// (ESCAPE '!'): literal %, _, !, kutip, backslash dicari apa adanya.
+		if (isset($filter['q']) && career_q($filter['q']) !== '') {
+			$q = career_q($filter['q']);
+			$this->db->group_start();
+			$this->db->like('c.full_name', $q, 'both');
+			$this->db->or_like('c.email', $q, 'both');
+			$this->db->group_end();
 		}
-		return array('sql' => $sql, 'bind' => $bind);
 	}
 
 	/** Hemat: kandidat yang belum pernah lamar tetap muncul (P3). */
