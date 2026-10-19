@@ -55,6 +55,7 @@ abstract class Career_base extends REST_Controller {
 		'submit_post'     => array('key' => FALSE),
 		'upload_post'     => array('key' => FALSE),
 		'read_put'        => array('key' => FALSE),
+		'password_put'    => array('key' => FALSE),
 	);
 
 	public function __construct()

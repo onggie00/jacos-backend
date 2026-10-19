@@ -36,7 +36,10 @@ class Career_audit extends Admin
 		$this->data['filter']      = $filter;
 		$this->data['aksis']       = $this->model_career_audit->aksi_unik();
 		$this->data['tipe_objeks'] = $this->model_career_audit->tipe_objek_unik();
-		$this->data['audits']      = $this->model_career_audit->daftar($filter, $this->limit_page, $offset);
+		// 6C: nilai internal (D13) hanya untuk pemegang izin skor — detail
+		// audit 'simpan_nilai_tahap' disamarkan server-side di model.
+		$this->data['bisa_skor'] = (bool) $this->is_allowed('career_pelamar_score_view', false);
+		$this->data['audits']      = $this->model_career_audit->daftar($filter, $this->limit_page, $offset, $this->data['bisa_skor']);
 		$this->data['audit_count'] = $this->model_career_audit->daftar_count($filter);
 
 		$config = [

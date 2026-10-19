@@ -15,15 +15,32 @@ class Model_career_audit extends MY_Model {
         ));
     }
 
-    /** Daftar audit dengan filter + paging server-side. */
-    public function daftar($filter = array(), $limit = 20, $offset = 0)
+    /** Daftar audit dengan filter + paging server-side.
+     * 6C: detail_json aksi 'simpan_nilai_tahap' berisi nilai/rubrik internal
+     * (D13) — disamarkan server-side bila pemanggil TIDAK punya izin
+     * career_pelamar_score_view. Metadata non-sensitif (aksi/objek/aktor/ip/
+     * waktu) tetap tampil. Tidak mengandalkan CSS.
+     */
+    public function daftar($filter = array(), $limit = 20, $offset = 0, $lihat_skor = FALSE)
     {
         $this->_where_filter($filter);
         $this->db->from('career_audit_logs')
             ->order_by('created_at', 'DESC')
             ->order_by('id_audit_log', 'DESC')
             ->limit((int) $limit, (int) $offset);
-        return $this->db->get()->result();
+        $baris = $this->db->get()->result();
+        return $lihat_skor ? $baris : $this->_mask_skor($baris);
+    }
+
+    /** Samarkan detail_json baris nilai internal (D13) di sisi server. */
+    private function _mask_skor(array $baris)
+    {
+        foreach ($baris as $r) {
+            if (isset($r->action) AND $r->action === 'simpan_nilai_tahap') {
+                $r->detail_json = NULL;
+            }
+        }
+        return $baris;
     }
 
     public function daftar_count($filter = array())

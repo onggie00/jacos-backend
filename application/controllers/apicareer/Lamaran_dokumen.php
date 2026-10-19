@@ -119,13 +119,55 @@ return $this->_err('Isi file (' . $mime . ') tidak cocok dengan ekstensi .' . st
 		if ($safe_name === '' OR $safe_name === '.') $safe_name = 'dokumen.' . strtolower($ext);
 		$safe_name = substr($safe_name, 0, 200);
 
+		// 6C: keputusan alur — draft (isian) ATAU revisi (revision_requested
+		// pada lamaran submitted/in_process). Keputusan final digulang ulang
+		// DI DALAM transaksi dari baris terkunci.
+		$revisi = FALSE;
+		$alasan_gagal = '';
+		if (in_array($req->app_status, array('submitted', 'in_process'), TRUE)
+			AND $req->status === 'revision_requested')
+		{
+			$revisi = TRUE;
+		}
+		elseif ($req->app_status !== 'draft')
+		{
+			// final/withdrawn dsb — gagal cepat (keputusan juga diperiksa
+			// ulang dalam transaksi, ini hanya hemat kerja).
+			$alasan_gagal = 'Lamaran sudah terkunci (bukan draft) — tidak dapat mengunggah dokumen.';
+		}
+
 		// H2/M4: kunci lamaran + hitung versi/kuota DALAM transaksi.
 		$this->db->trans_start();
-		$locked = $this->db->query('SELECT id_application, status FROM career_applications WHERE id_application = ? AND id_candidate = ? AND status = \'draft\' FOR UPDATE', array((int) $req->id_application, (int) $this->career_candidate_id))->row();
+		$locked = $this->db->query('SELECT id_application, status FROM career_applications WHERE id_application = ? AND id_candidate = ? FOR UPDATE', array((int) $req->id_application, (int) $this->career_candidate_id))->row();
 		if ($locked === NULL)
 		{
 			$this->db->trans_complete();
-return $this->_err('Lamaran sudah terkunci (bukan draft) — tidak dapat mengunggah dokumen.', 409);
+return $this->_err('Lamaran tidak ditemukan (bukan milik kandidat ini).', 404);
+		}
+		// 6C: baca ulang status lamaran & requirement DALAM transaksi.
+		$req_now = $this->db->select('a.status AS app_status, ar.status AS req_status')
+			->from('career_application_requirements ar')
+			->join('career_applications a', 'a.id_application = ar.id_application')
+			->where('ar.id_application_requirement', $id_app_req)
+			->get()->row();
+		if ($req_now === NULL)
+		{
+			$this->db->trans_complete();
+return $this->_err('Persyaratan lamaran tidak ditemukan.', 404);
+		}
+		if ($req_now->app_status === 'draft')
+		{
+			// alur isian pertama (lama).
+		}
+		elseif (in_array($req_now->app_status, array('submitted', 'in_process'), TRUE)
+			AND $req_now->req_status === 'revision_requested')
+		{
+			$revisi = TRUE;
+		}
+		else
+		{
+			$this->db->trans_complete();
+return $this->_err($alasan_gagal !== '' ? $alasan_gagal : 'Dokumen tidak dapat diunggah (lamaran terkunci dan tidak sedang meminta revisi).', 409);
 		}
 
 		// Checksum duplikat: reupload isi sama = idempotent, TANPA versi baru.
@@ -206,11 +248,23 @@ return $this->_err('Gagal menyimpan file.', 500);
 return $this->_err('Gagal menyimpan dokumen. Coba lagi.', 500);
 		}
 
-		// Status persyaratan naik ke pending_review di MVP (verifikasi admin).
+		// Status persyaratan naik ke pending_review (verifikasi admin).
+		// 6C: jalur revisi juga membersihkan keputusan verifikasi lama —
+		// admin mengulas ulang versi terbaru SEBAGAI baris baru.
+		$data_req = array('status' => 'pending_review');
+		if ($revisi)
+		{
+			$data_req = array_merge($data_req, array(
+				'reviewed_by' => NULL,
+				'reviewed_at' => NULL,
+				'review_note' => NULL,
+			));
+		}
 		$this->db->where('id_application_requirement', $id_app_req)
-			->update('career_application_requirements', array('status' => 'pending_review'));
+			->update('career_application_requirements', $data_req);
 
-		$this->_audit('upload_dokumen', 'career_application_documents', $id_doc);
+		$this->_audit('upload_dokumen', 'career_application_documents', $id_doc,
+			array('revisi' => $revisi ? 1 : 0));
 		$this->_ok(array(
 			'id_application_document' => $id_doc,
 			'version'                 => $version,

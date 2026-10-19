@@ -90,7 +90,7 @@
                                  <?= html_escape($a->object_type); ?><?php if ((int) $a->object_id): ?> #<?= (int) $a->object_id; ?><?php endif; ?>
                               <?php endif; ?>
                            </td>
-                           <td><code class="small" style="word-break:break-all"><?= html_escape($a->detail_json); ?></code></td>
+                           <td><code class="small" style="word-break:break-all"><?php if ($a->action === 'simpan_nilai_tahap' AND ! $bisa_skor): ?>(memerlukan izin career_pelamar_score_view)<?php else: ?><?= html_escape($a->detail_json); ?><?php endif; ?></code></td>
                            <td><small><?= html_escape($a->ip_address); ?></small></td>
                         </tr>
                      <?php endforeach; ?>

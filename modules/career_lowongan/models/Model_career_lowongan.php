@@ -45,8 +45,10 @@ class Model_career_lowongan extends MY_Model {
         $where  = '';
         $params = array();
         if ($q !== NULL && $q !== '') {
-            $where .= ' AND title LIKE ? ';
-            $params[] = '%' . $this->db->escape_like_str(career_q($q)) . '%';
+            // NIT 6C: escape satu lapis — karakter wildcard di-escape agar
+            // dicocokkan HARFIAH, tanda kutip tetap diurus bind param ?.
+            $where .= " AND title LIKE ? ESCAPE '!' ";
+            $params[] = '%' . $this->_like_term($q) . '%';
         }
         // MED #11: status dihitung di SQL (LIMIT/OFFSET hrs konsisten).
         $where .= $this->_status_where($status, $params);
@@ -61,13 +63,26 @@ class Model_career_lowongan extends MY_Model {
         return $this->db->query($sql, $params)->result();
     }
 
+    /** Escape karakter wildcard LIKE dengan ESCAPE '!' (NIT 6C): % dan _
+     *  dicocokkan HARFIAH; tanda kutip dibiarkan — diurus bind param ?. */
+    private function _like_term($q)
+    {
+        $q = career_q($q);
+        return str_replace(
+            array('!', '%', '_'),
+            array('!!', '!%', '!_'),
+            $q
+        );
+    }
+
     public function lowongan_count($q = NULL, $status = NULL)
     {
         $where  = '';
         $params = array();
         if ($q !== NULL && $q !== '') {
-            $where .= ' AND title LIKE ? ';
-            $params[] = '%' . $this->db->escape_like_str(career_q($q)) . '%';
+            // NIT 6C: escape satu lapis (sama seperti lowongan_list).
+            $where .= " AND title LIKE ? ESCAPE '!' ";
+            $params[] = '%' . $this->_like_term($q) . '%';
         }
         $where .= $this->_status_where($status, $params);
         $row = $this->db->query('SELECT COUNT(*) n FROM ' . $this->table_name

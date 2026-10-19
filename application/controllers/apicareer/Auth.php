@@ -193,6 +193,71 @@ return $this->_err('Email atau password salah.', 401);
 	}
 
 	// --------------------------------------------------------------
+	// PUT apicareer/Auth/password — ganti sandi sendiri (6C #4).
+	// Body: {"password_lama","password_baru"}. Auth wajib; sandi lama
+	// wajib benar (bcrypt); baru 8-72 byte; token_version +1 tepat satu
+	// (token lama mati 401, login dengan token baru harus memakai
+	// sandi baru). Audit TANPA sandi/token. Respons no-store/no-cache.
+	// Tanpa kolom baru (pasca-reset admin memakai jalur/kolom sama).
+	// --------------------------------------------------------------
+	public function password_put()
+	{
+		$candidate = $this->_require_auth();
+		if ($candidate === NULL) return;
+
+		$lama  = $this->put('password_lama');
+		$baru  = $this->put('password_baru');
+		$lama  = is_string($lama) ? $lama : '';
+		$baru  = is_string($baru) ? $baru : '';
+		if ($lama === '' OR $baru === '')
+		{
+return $this->_err('password_lama dan password_baru wajib diisi.', 400);
+		}
+		if (strlen($baru) < 8 OR strlen($baru) > 72)
+		{
+return $this->_err('password_baru harus 8-72 karakter.', 422);
+		}
+
+		// Verifikasi sandi lama SEBELUM menulis; pesan generik (jangan
+		// bocorkan detail), token lama tetap berlaku bila gagal.
+		// hash diambili langsung dari DB (Career_base tidak melewatkan
+		// kolom sensitif pada _auth_candidate).
+		$baris = $this->db->select('password_hash')
+			->where('id_candidate', (int) $candidate->id_candidate)
+			->get('career_candidates')->row();
+		if ($baris === NULL OR ! password_verify($lama, $baris->password_hash))
+		{
+return $this->_err('Password lama salah.', 401);
+		}
+
+		$this->db->trans_start();
+		$ok = $this->db->set('password_hash', password_hash($baru, PASSWORD_BCRYPT))
+			->set('token_version', 'token_version + 1', FALSE)
+			->set('failed_login_count', 0)
+			->set('locked_until', NULL)
+			->where('id_candidate', (int) $candidate->id_candidate)
+			->update('career_candidates');
+		$this->db->trans_complete();
+		if ($ok === FALSE OR $this->db->trans_status() === FALSE)
+		{
+return $this->_err('Gagal mengubah password. Coba lagi.', 500);
+		}
+
+		// Audit TANPA isi sandi/token (bentuk panjang saja).
+		$this->_audit('ganti_password', 'career_candidates', (int) $candidate->id_candidate);
+
+		// 6C: respons tidak boleh di-cache (TIDAK ada sandi di dalamnya,
+		// tapi respons autentikasi tetap no-store memberi landasan aman).
+		$this->output->set_header('Cache-Control: no-store');
+		$this->output->set_header('Pragma: no-cache');
+
+		$this->_ok(array(
+			'id_candidate' => (int) $candidate->id_candidate,
+			'token_lama_invalid' => TRUE,
+		), 'Password berhasil diubah. Silakan masuk lagi dengan password baru.');
+	}
+
+	// --------------------------------------------------------------
 	// GET apicareer/Auth/me
 	// --------------------------------------------------------------
 	public function me_get()

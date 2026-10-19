@@ -483,7 +483,22 @@
             alasan: $('#koreksi-alasan').val()
          });
       });
-      // jadwal D16.2 (D18)
+      // jadwal D16.2 (D18) — 6C: konfirmasi & hasil memakai modal tema,
+      // BUKAN confirm()/alert().
+      function html_escape(s) {
+         return String(s).replace(/[&<>"']/g, function (c) {
+            return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c];
+         });
+      }
+      function hasilTema(ok, pesan) {
+         $('#modal-ok .modal-title').text(ok ? 'Selesai' : 'Gagal');
+         $('#modal-ok-teks').html(html_escape(pesan || ''));
+         $('#modal-ok').modal('show');
+         $('#modal-ok-ya').off('click').on('click', function () {
+            $('#modal-ok').modal('hide');
+            if (ok) { location.reload(); }
+         });
+      }
       $('.career-jadwal').on('click', function () {
          var $f    = $(this).closest('.career-jadwal-form');
          var aksi  = $(this).data('aksi');
@@ -492,19 +507,40 @@
          var catat = $f.find('.career-jadwal-catatan').val() || '';
          var body  = { id_application_stage: $(this).data('sid'), aksi: aksi,
                        schedule_datetime: tgl, channel: kanal, note: catat };
-         if (aksi === 'simpan' && ! tgl) { alert('Tanggal masih kosong.'); return; }
-         if (aksi !== 'hapus' && ! confirm('Lakukan aksi "' + aksi + '" untuk jadwal tahap ini?')) { return; }
-         $.post('<?= site_url('administrator/career_pelamar/jadwal'); ?>',
-                $.extend({ career_csrf: CSRF }, body))
-            .done(function (j) {
-               if (j && j.success) { alert(j.message || 'Tersimpan.'); location.reload(); }
-               else { alert(j && j.message ? j.message : 'Gagal.'); }
-            })
-            .fail(function (x) {
-               var j = null;
-               try { j = $.parseJSON(x.responseText); } catch (e) {}
-               alert(j && j.message ? j.message : 'Terjadi kegagalan server.');
+         var perjalanan = function () {
+            $.post('<?= site_url('administrator/career_pelamar/jadwal'); ?>',
+                   $.extend({ career_csrf: CSRF }, body))
+               .done(function (j) {
+                  hasilTema(j && j.success, j && j.message ? j.message : (j ? 'Tersimpan.' : 'Gagal.'));
+               })
+               .fail(function (x) {
+                  var j = null;
+                  try { j = $.parseJSON(x.responseText); } catch (e) {}
+                  hasilTema(false, j && j.message ? j.message : 'Terjadi kegagalan server.');
+               });
+         };
+         if (aksi === 'simpan' && ! tgl) {
+            hasilTema(false, 'Tanggal masih kosong.');
+            return;
+         }
+         if (aksi === 'hapus') {
+            // dialog tema (menggantikan confirm() langsung)
+            $('#modal-ok .modal-title').text('Hapus jadwal');
+            $('#modal-ok-teks').text('Hapus jadwal tahap ini? keputusan tahap tidak terpengaruh.');
+            $('#modal-ok').modal('show');
+            $('#modal-ok-ya').off('click').on('click', function () {
+               $('#modal-ok').modal('hide');
+               perjalanan();
             });
+            return;
+         }
+         $('#modal-ok .modal-title').text('Aksi jadwal');
+         $('#modal-ok-teks').text('Lakukan aksi "' + aksi + '" untuk jadwal tahap ini?');
+         $('#modal-ok').modal('show');
+         $('#modal-ok-ya').off('click').on('click', function () {
+            $('#modal-ok').modal('hide');
+            perjalanan();
+         });
       });
       // nilai internal (D13)
       $('.career-nilai').on('click', function () {

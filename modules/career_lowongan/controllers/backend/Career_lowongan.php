@@ -201,7 +201,9 @@ class Career_lowongan extends Admin
 			return $this->_json_deny('Minimal 1 persyaratan untuk dapat terbit.');
 		}
 		$ok = $this->model_career_lowongan->change_lowongan($id, $data);
-		$ok = $ok && $this->db->trans_complete();
+		// 6C nit: transaksi selalu ditutup (auto-rollback bila gagal).
+		$this->db->trans_complete();
+		$ok = ($ok) && $this->db->trans_status();
 
 		if (!$ok) {
 			return $this->_json_done(false, (int) $id, 'Gagal menyimpan.');
@@ -382,7 +384,10 @@ class Career_lowongan extends Admin
 		$this->db->trans_start();
 		$req['display_order'] = $this->model_career_lowongan->next_order($id_job_posting);
 		$rid = $this->model_career_lowongan->add_requirement($id_job_posting, $req);
-		$ok = $rid > 0 && $this->db->trans_complete();
+		// 6C nit: trans_complete TANPA syarat - transaksi selalu ditutup
+		// (auto-rollback bila gagal); tidak ada transaksi nyangkut.
+		$this->db->trans_complete();
+		$ok = ($rid > 0) && $this->db->trans_status();
 
 		if (!$ok) {
 			return $this->_json_deny('Gagal menambah persyaratan.');
@@ -425,7 +430,9 @@ class Career_lowongan extends Admin
 
 		$this->db->trans_start();
 		$ok = $this->model_career_lowongan->change_requirement($id_requirement, $req, $req['input_type'], $req['requirement_type']);
-		$ok = $ok && $this->db->trans_complete();
+		// 6C nit: transaksi selalu ditutup (auto-rollback bila gagal).
+		$this->db->trans_complete();
+		$ok = ($ok) && $this->db->trans_status();
 
 		if (!$ok) {
 			return $this->_json_deny('Gagal menyimpan persyaratan.');

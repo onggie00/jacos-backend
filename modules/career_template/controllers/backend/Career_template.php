@@ -156,8 +156,11 @@ class Career_template extends Admin
 		];
 
 		$this->db->trans_start();
-		$ok = $this->model_career_template->change_template($id, $save_data)
-			&& $this->db->trans_complete();
+		$ubah = $this->model_career_template->change_template($id, $save_data);
+		// 6C nit: transaksi selalu ditutup (auto-rollback bila gagal).
+		$done = $this->db->trans_complete();
+		$ok = ($ubah) && $this->db->trans_status();
+
 
 		if (!$ok) {
 			return $this->_json_done(false, (int) $id, 'Gagal menyimpan template.');
