@@ -183,7 +183,7 @@
                            </div>
                            <div class="modal-body"><p id="modal-ok-teks" class="small"></p></div>
                            <div class="modal-footer">
-                              <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                              <button type="button" class="btn btn-default" data-dismiss="modal" id="modal-ok-batal">Batal</button>
                               <button type="button" class="btn btn-primary" id="modal-ok-ya">Ya, lanjutkan</button>
                            </div>
                         </div>
@@ -439,6 +439,9 @@
       });
       // dialog konfirmasi tema (menggantikan confirm() utk keputusan/terima)
       function tanyaModal(teks, lalu) {
+         $('#modal-ok .modal-title').text('Konfirmasi'); // F10: reset judul tiap buka
+         $('#modal-ok-batal').show();
+         $('#modal-ok-ya').text('Ya, lanjutkan');
          $('#modal-ok-teks').text(teks);
          $('#modal-ok').modal('show');
          $('#modal-ok-ya').off('click').on('click', function () {
@@ -492,6 +495,8 @@
       }
       function hasilTema(ok, pesan) {
          $('#modal-ok .modal-title').text(ok ? 'Selesai' : 'Gagal');
+         $('#modal-ok-batal').hide(); // F10: dialog hasil tanpa tombol Batal
+         $('#modal-ok-ya').text('OK');
          $('#modal-ok-teks').html(html_escape(pesan || ''));
          $('#modal-ok').modal('show');
          $('#modal-ok-ya').off('click').on('click', function () {
@@ -508,6 +513,8 @@
          var body  = { id_application_stage: $(this).data('sid'), aksi: aksi,
                        schedule_datetime: tgl, channel: kanal, note: catat };
          var perjalanan = function () {
+            var $tombol = $f.find('.career-jadwal');
+            $tombol.prop('disabled', true); // F10: disable saat submit
             $.post('<?= site_url('administrator/career_pelamar/jadwal'); ?>',
                    $.extend({ career_csrf: CSRF }, body))
                .done(function (j) {
@@ -517,7 +524,8 @@
                   var j = null;
                   try { j = $.parseJSON(x.responseText); } catch (e) {}
                   hasilTema(false, j && j.message ? j.message : 'Terjadi kegagalan server.');
-               });
+               })
+               .always(function () { $tombol.prop('disabled', false); });
          };
          if (aksi === 'simpan' && ! tgl) {
             hasilTema(false, 'Tanggal masih kosong.');

@@ -177,6 +177,12 @@ return $this->_err($alasan_gagal !== '' ? $alasan_gagal : 'Dokumen tidak dapat d
 		if ($dup > 0)
 		{
 			$this->db->trans_complete();
+			// F4a (D19): saat revisi, file identik tidak membantu — wajib berbeda
+			// dari versi yang dicatat, supaya persyaratan tidak terkunci.
+			if ($revisi)
+			{
+				return $this->_err('Unggah file yang berbeda dari yang diminta revisi (file identik tidak membuat versi baru).', 422);
+			}
 			return $this->_ok(NULL, 'File identik sudah diunggah sebelumnya (tidak membuat versi baru).', 200);
 		}
 
@@ -187,7 +193,7 @@ return $this->_err($alasan_gagal !== '' ? $alasan_gagal : 'Dokumen tidak dapat d
 		if ($nver >= $max_ver)
 		{
 			$this->db->trans_complete();
-return $this->_err('Batas versi tercapai (maksimal ' . $max_ver . ' berkas untuk persyaratan ini).', 409);
+return $this->_err('Batas versi tercapai (maksimal ' . $max_ver . ' berkas untuk persyaratan ini). Silakan hubungi admin untuk penanganan manual.', 409);
 		}
 
 		// M4: kuota total per lamaran ( semua berkas semua persyaratan ).
@@ -238,30 +244,42 @@ return $this->_err('Gagal menyimpan file.', 500);
 		));
 		$id_doc = (int) $this->db->insert_id();
 
+		// F2: status persyaratan naik SEBELUM commit, DALAM transaksi, dengan
+		// guard status (race dengan keputusan admin tidak boleh menimpa
+		// verified/rejected). Jalur revisi juga membersihkan keputusan lama.
+		if ($revisi)
+		{
+			$this->db->where('id_application_requirement', $id_app_req)
+				->where('status', 'revision_requested')
+				->update('career_application_requirements', array(
+					'status'      => 'pending_review',
+					'reviewed_by' => NULL,
+					'reviewed_at' => NULL,
+					'review_note' => NULL,
+				));
+			if ($this->db->affected_rows() === 0)
+			{
+				// Dibawa kembali ke keadaan semula bersama insert versi; tanpa
+				// trans_complete setelah rollback manual.
+				$this->db->trans_rollback();
+				@unlink($dest);
+				return $this->_err('Status persyaratan berubah — sudah tidak meminta revisi. Segarkan halaman dan coba lagi.', 409);
+			}
+		}
+		else
+		{
+			$this->db->where('id_application_requirement', $id_app_req)
+				->update('career_application_requirements', array('status' => 'pending_review'));
+		}
+
 		$this->db->trans_complete();
 
 		if ($this->db->trans_status() === FALSE)
 		{
-			// M4: insert gagal setelah move → bersihkan file fisik (tanpa yatim).
 			@unlink($dest);
 			log_message('error', 'career upload gagal menyimpan metadata untuk ' . $id_app_req);
 return $this->_err('Gagal menyimpan dokumen. Coba lagi.', 500);
 		}
-
-		// Status persyaratan naik ke pending_review (verifikasi admin).
-		// 6C: jalur revisi juga membersihkan keputusan verifikasi lama —
-		// admin mengulas ulang versi terbaru SEBAGAI baris baru.
-		$data_req = array('status' => 'pending_review');
-		if ($revisi)
-		{
-			$data_req = array_merge($data_req, array(
-				'reviewed_by' => NULL,
-				'reviewed_at' => NULL,
-				'review_note' => NULL,
-			));
-		}
-		$this->db->where('id_application_requirement', $id_app_req)
-			->update('career_application_requirements', $data_req);
 
 		$this->_audit('upload_dokumen', 'career_application_documents', $id_doc,
 			array('revisi' => $revisi ? 1 : 0));

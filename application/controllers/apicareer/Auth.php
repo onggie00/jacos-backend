@@ -205,6 +205,21 @@ return $this->_err('Email atau password salah.', 401);
 		$candidate = $this->_require_auth();
 		if ($candidate === NULL) return;
 
+		// F3: endpoint ganti sandi tidak boleh di-cache — SEMUA status termasuk
+		// 4xx/5xx. Helper CI menolak header duplikat; atur di awal.
+		if ($this->output->get_header('Cache-Control') === FALSE)
+		{
+			$this->output->set_header('Cache-Control: no-store');
+			$this->output->set_header('Pragma: no-cache');
+		}
+
+		// F8: rate-limit ganti sandi memakai jalur _login_blocked (tabel
+		// career_login_attempts) — TANPA _log_attempt agar percobaan gagal di
+		// sini tidak menghitung lockout login.
+		if ($this->_login_blocked($candidate->email))
+		{
+return $this->_err('Terlalu banyak percobaan. Coba lagi nanti.', 429);
+		}
 		$lama  = $this->put('password_lama');
 		$baru  = $this->put('password_baru');
 		$lama  = is_string($lama) ? $lama : '';
@@ -215,7 +230,12 @@ return $this->_err('password_lama dan password_baru wajib diisi.', 400);
 		}
 		if (strlen($baru) < 8 OR strlen($baru) > 72)
 		{
-return $this->_err('password_baru harus 8-72 karakter.', 422);
+return $this->_err('password_baru harus 8-72 byte.', 422);
+		}
+		// F8: sandi sama persis dgn lama tidak berguna — tolak.
+		if ($lama === $baru)
+		{
+return $this->_err('Password baru tidak boleh sama dengan password lama.', 422);
 		}
 
 		// Verifikasi sandi lama SEBELUM menulis; pesan generik (jangan
@@ -227,7 +247,8 @@ return $this->_err('password_baru harus 8-72 karakter.', 422);
 			->get('career_candidates')->row();
 		if ($baris === NULL OR ! password_verify($lama, $baris->password_hash))
 		{
-return $this->_err('Password lama salah.', 401);
+			// F3: bukan 401 — token sesi valid; kesalahan sandi lama = 422.
+return $this->_err('Password lama salah.', 422);
 		}
 
 		$this->db->trans_start();
@@ -246,10 +267,7 @@ return $this->_err('Gagal mengubah password. Coba lagi.', 500);
 		// Audit TANPA isi sandi/token (bentuk panjang saja).
 		$this->_audit('ganti_password', 'career_candidates', (int) $candidate->id_candidate);
 
-		// 6C: respons tidak boleh di-cache (TIDAK ada sandi di dalamnya,
-		// tapi respons autentikasi tetap no-store memberi landasan aman).
-		$this->output->set_header('Cache-Control: no-store');
-		$this->output->set_header('Pragma: no-cache');
+		// 6C: set sudah di awal utk SEMUA respons (lihat F3).
 
 		$this->_ok(array(
 			'id_candidate' => (int) $candidate->id_candidate,
