@@ -120,7 +120,7 @@ register_shutdown_function(function () use ($pdo, $STAMP, &$G_DOCS, &$G_REQS, &$
 	foreach ($G_DOCS as $id) {
 		$r = $pdo->query('SELECT file_path FROM career_application_documents WHERE id_application_document = ' . (int) $id);
 		while ($row = $r->fetch_assoc()) {
-			@unlink('D:/myprojects/jacos/' . $row['file_path']);
+			@unlink(__DIR__ . '/../../' . ltrim((string) $row['file_path'], '/\\')); // MED-5: tanpa path absolut
 		}
 	}
 	foreach (glob(__DIR__ . '/tmp_smoke6c_*') as $f) { @unlink($f); }
@@ -131,6 +131,15 @@ register_shutdown_function(function () use ($pdo, $STAMP, &$G_DOCS, &$G_REQS, &$
 	$pdo->query('DELETE FROM career_selection_schedules WHERE id_application_stage IN (SELECT id_application_stage FROM career_application_stages WHERE id_application IN (' . $in($G_APPS) . '))');
 	$pdo->query('DELETE FROM career_notifications WHERE id_candidate IN (' . $in($G_CANDS) . ')');
 	$pdo->query('DELETE FROM career_audit_logs WHERE id_audit_log IN (' . $in($G_AUDIT) . ')');
+	// MED-5: audit hasil HTTP (id tak tercatat) — berdasarkan objek/aktor smoke
+	$pdo->query("DELETE FROM career_audit_logs WHERE object_type = 'career_application' AND object_id IN (" . $in($G_APPS) . ')');
+	$pdo->query("DELETE FROM career_audit_logs WHERE object_type = 'career_application_stage' AND object_id IN (SELECT id_application_stage FROM career_application_stages WHERE id_application IN (" . $in($G_APPS) . '))');
+	$pdo->query("DELETE FROM career_audit_logs WHERE (object_type = 'career_application_document' OR object_type = 'career_application_documents') AND object_id IN (SELECT id_application_document FROM career_application_documents WHERE id_application IN (" . $in($G_APPS) . '))');
+	$pdo->query("DELETE FROM career_audit_logs WHERE object_type = 'career_application_requirements' AND object_id IN (SELECT id_application_requirement FROM career_application_requirements WHERE id_application IN (" . $in($G_APPS) . '))');
+	$pdo->query("DELETE FROM career_audit_logs WHERE object_type = 'career_candidates' AND object_id IN (" . $in($G_CANDS) . ')');
+	foreach ($G_CANDS as $cid) {
+		$pdo->query("DELETE FROM career_audit_logs WHERE actor_type = 'candidate' AND actor_id = " . (int) $cid);
+	}
 	$pdo->query('DELETE FROM career_application_documents WHERE id_application IN (' . $in($G_APPS) . ')');
 	$pdo->query('DELETE FROM career_application_requirements WHERE id_application IN (' . $in($G_APPS) . ')');
 	$pdo->query('DELETE FROM career_application_stages WHERE id_application IN (' . $in($G_APPS) . ')');
@@ -481,6 +490,65 @@ list($c, , $rawq2) = admin_get('/administrator/career_kandidat?q=' . rawurlencod
 $htmlq2 = preg_replace('/\s+/', ' ', strip_tags((string) $rawq2));
 check('LIKE wildcard: nama lain dicocokkan literal', 'ya', (strpos($htmlq2, $NAMA_WILD) !== false) ? 'ya' : 'bukan');
 
+/* SEC 5b: MED-1 6C.2 — LIKE LOWONGAN diskriminatif.
+   Judul literal "O'Brien 50%_off" + pengganggu "OxBrien 50Zoff" dan
+   "O Brien 5Aab" yang HANYA cocok bila wildcard aktif (O%Brien / 5_%off).
+   Model lowongan_list harus meng-escape %/ _ → hasil harfiah. */
+$J_LIT   = "[DUMMY TEST6C] O'Brien 50%_off {$STAMP}";
+$J_WILD1 = "[DUMMY TEST6C] OxBrien 50Zoff {$STAMP}";
+$J_WILD2 = "[DUMMY TEST6C] O Brien 5Aab {$STAMP}";
+foreach (array($J_LIT, $J_WILD1, $J_WILD2) as $jt) {
+	q("INSERT INTO career_job_postings (title, description, opening_date, closing_date, education_level, is_published, created_by)\n             VALUES ('" . $pdo->real_escape_string($jt) . "', 'x', '2026-01-01', '2030-12-31', 'SD', 1, 1)");
+	$G_POSTS[] = (int) q("SELECT id_job_posting FROM career_job_postings WHERE title = '" . $pdo->real_escape_string($jt) . "'")->fetch_assoc()['id_job_posting'];
+}
+$LEMAILLOW = 'smoke6c-' . $STAMP . '-low@example.test';
+q("INSERT INTO aauth_users (email, pass, username, full_name, banned, avatar, top_secret) VALUES ('{$LEMAILLOW}', '" . password_hash('Lowongan6cd11', PASSWORD_BCRYPT) . "', 'smoke6c_low_{$STAMP}', 'Admin Lowongan 6C', 0, '', '')");
+$LIDLOW = (int) $pdo->insert_id;
+$G_ADMINS[] = $LIDLOW;
+q("INSERT INTO aauth_groups (name, definition) VALUES ('Smoke6C Lowongan {$STAMP}', 'fixture')");
+$GID_LOW = (int) $pdo->insert_id;
+$pllow = q("SELECT id FROM aauth_perms WHERE name = 'career_lowongan_list'")->fetch_assoc();
+if ($pllow !== NULL) {
+	q("INSERT INTO aauth_perm_to_group (perm_id, group_id) VALUES (" . (int) $pllow['id'] . ", {$GID_LOW})");
+}
+q("INSERT INTO aauth_user_to_group (user_id, group_id) VALUES ({$LIDLOW}, {$GID_LOW})");
+$cookie_low = admin_login_session($LEMAILLOW, 'Lowongan6cd11');
+check('admin lowongan login', 'ya', $cookie_low !== null ? 'ya' : 'bukan');
+
+$tapilTeks = function ($rawl) {
+	return preg_replace('/\s+/', ' ', html_entity_decode(strip_tags((string) $rawl), ENT_QUOTES));
+};
+
+list($c, , $rawl) = admin_get('/administrator/career_lowongan?q=' . rawurlencode("O'Brien"), $cookie_low);
+$hell = $tapilTeks($rawl);
+check("lowongan q=O'Brien 200", '200', $c);
+check("q=O'Brien: judul literal tampil", 'ya', (strpos($hell, $J_LIT) !== false) ? 'ya' : 'bukan');
+check("q=O'Brien: pengganggu O Brien TIDAK ikut", 'ya', (strpos($hell, $J_WILD2) === false) ? 'ya' : 'bukan');
+
+list($c, , $rawp) = admin_get('/administrator/career_lowongan?q=' . rawurlencode('50%_off'), $cookie_low);
+$hesp = $tapilTeks($rawp);
+check("q=50%_off: judul literal tampil", 'ya', (strpos($hesp, $J_LIT) !== false) ? 'ya' : 'bukan');
+check("q=50%_off: pengganggu O Brien TIDAK ikut", 'ya', (strpos($hesp, $J_WILD2) === false) ? 'ya' : 'bukan');
+
+list($c, , $rawob) = admin_get('/administrator/career_lowongan?q=' . rawurlencode('O%Brien'), $cookie_low);
+$heob = $tapilTeks($rawob);
+check("q=O%Brien: NOL hasil (pengganggu tidak memancing)", 'ya',
+	(strpos($heob, $J_LIT) === false && strpos($heob, $J_WILD1) === false) ? 'ya' : 'bukan');
+
+list($c, , $rawpct) = admin_get('/administrator/career_lowongan?q=' . rawurlencode('5_%off'), $cookie_low);
+$hepct = $tapilTeks($rawpct);
+check("q=5_%off: NOL hasil (pengganggu tidak memancing)", 'ya',
+	(strpos($hepct, $J_LIT) === false && strpos($hepct, $J_WILD2) === false) ? 'ya' : 'bukan');
+
+/* konsistensi _count vs baris list: pencarian judul lengkap → 1 */
+list($c, , $rawfull) = admin_get('/administrator/career_lowongan?q=' . rawurlencode($J_LIT), $cookie_low);
+if (preg_match('/<i class="label bg-yellow">([0-9]+) lowongan<\\/i>/i', $rawfull, $mco)) {
+	check('lowongan _count = jumlah baris list (1)', '1', (string) ((int) $mco[1]));
+} else {
+	check('lowongan label hitungan tampil', 'ada', (strpos($rawfull, 'lowongan') === false) ? 'tidak' : 'ada');
+}
+
+
 
 /* ------------- SEC 6: F5b/F5c jadwal rollback disiplin (admin) ------------- */
 
@@ -517,9 +585,6 @@ $ST2 = (int) q("SELECT id_application_stage FROM career_application_stages WHERE
 
 list($c, , $rawpage) = admin_get('/administrator/career_pelamar/view/' . $APP1, $cookie_jad);
 check('view pelamar dilihat admin jadwal', '200', $c);
-
-/* tahap-1 APP2 (submitted kandidat B) */
-$ST2 = (int) q("SELECT id_application_stage FROM career_application_stages WHERE id_application = {$APP2} ORDER BY id_application_stage ASC LIMIT 1")->fetch_assoc()['id_application_stage'];
 
 $CSRF_J = null;
 if (preg_match('/name="career_csrf"[^>]*value="([^"]+)"/', $rawpage, $mjr) OR preg_match('/value="([^"]+)"\s*name="career_csrf"/', $rawpage, $mjr)) {
@@ -589,9 +654,10 @@ q("UPDATE career_application_requirements SET status='rejected' WHERE id_applica
 list($c, , , ) = http_json('PUT', api_url('Lamaran_jawaban'), array('id_application_requirement' => $AR_T2, 'answer' => 'ubah'), $TOKEN1B);
 check('F5d jawaban saat rejected 409', '409', $c);
 
-/* app accepted & withdrawn → 409; pasca itu APP1 dipulihkan submitted */
-list($c, , , ) = http_json('PUT', api_url('Lamaran_jawaban'), array('id_application_requirement' => $AR_T, 'answer' => 'ubah'), $TOKEN1B);
-check('F5d baseline AR_T masih revision_requested 409 (B sudah final? A belum revisi)', '409', $c);
+/* app accepted & withdrawn → 409 — MED-2: requirement DIPASTIKAN
+   revision_requested dulu, sehingga 409 HANYA dari status lamaran;
+   pasca itu APP1 dipulihkan submitted */
+q("UPDATE career_application_requirements SET status='revision_requested' WHERE id_application_requirement = {$AR_T}");
 q("UPDATE career_applications SET status='accepted' WHERE id_application = {$APP1}");
 list($c, , , ) = http_json('PUT', api_url('Lamaran_jawaban'), array('id_application_requirement' => $AR_T, 'answer' => 'ubah'), $TOKEN1B);
 check('F5d jawaban saat app accepted 409', '409', $c);
@@ -599,7 +665,39 @@ q("UPDATE career_applications SET status='withdrawn' WHERE id_application = {$AP
 list($c, , , ) = http_json('PUT', api_url('Lamaran_jawaban'), array('id_application_requirement' => $AR_T, 'answer' => 'ubah'), $TOKEN1B);
 check('F5d jawaban saat app withdrawn 409', '409', $c);
 q("UPDATE career_applications SET status='submitted' WHERE id_application = {$APP1}");
-q("UPDATE career_application_requirements SET status='revision_requested' WHERE id_application_requirement = {$AR_T}");
+
+/* MED-2: dokumen saat req rejected → 409 (bukan hanya jawaban) */
+q("UPDATE career_application_requirements SET status='rejected' WHERE id_application_requirement = {$AR_D}");
+$frr2 = __DIR__ . '/tmp_smoke6c_' . $STAMP . '_rej.pdf';
+file_put_contents($frr2, "%PDF-1.4\n% med-2 rejected\n");
+list($c, , , ) = upload_dok(api_url('Lamaran_dokumen/upload'), array('id_application_requirement' => $AR_D), $TOKEN1B, 'document', $frr2);
+check('F5d dokumen saat req rejected 409', '409', $c);
+unlink($frr2);
+q("UPDATE career_application_requirements SET status='revision_requested' WHERE id_application_requirement = {$AR_D}");
+
+/* MED-2: draft positif — duplikat checksum → 200 idempoten */
+q("INSERT INTO career_job_postings (title, description, opening_date, closing_date, education_level, is_published, created_by)\n             VALUES ('[DUMMY TEST6C] Draft Dup {$STAMP}', 'x', '2026-01-01', '2030-12-31', 'SD', 1, 1)");
+$IDP_D = (int) q("SELECT id_job_posting FROM career_job_postings WHERE title = '[DUMMY TEST6C] Draft Dup {$STAMP}'")->fetch_assoc()['id_job_posting'];
+$G_POSTS[] = $IDP_D;
+q("INSERT INTO career_job_posting_requirements (id_job_posting, requirement_name, requirement_type, input_type, allowed_formats, max_file_size_kb, display_order)\n             VALUES ({$IDP_D}, 'Dokumen Draft', 'required', 'document', 'PDF', 5120, 1)");
+$REQ_DRAFT = (int) q("SELECT id_job_posting_requirement FROM career_job_posting_requirements WHERE id_job_posting = {$IDP_D} ORDER BY id_job_posting_requirement DESC LIMIT 1")->fetch_assoc()['id_job_posting_requirement'];
+q("INSERT INTO career_applications (id_candidate, id_job_posting, status, current_stage_id, created_at) VALUES ({$CAND1}, {$IDP_D}, 'draft', 1, NOW())");
+$APP_DRAFT = (int) q("SELECT id_application FROM career_applications WHERE id_candidate = {$CAND1} AND id_job_posting = {$IDP_D} ORDER BY id_application DESC LIMIT 1")->fetch_assoc()['id_application'];
+$G_APPS[] = $APP_DRAFT;
+q("INSERT INTO career_application_requirements (id_application, id_job_posting_requirement, status) VALUES ({$APP_DRAFT}, {$REQ_DRAFT}, 'not_uploaded')");
+$AR_DRAFT = (int) q("SELECT id_application_requirement FROM career_application_requirements WHERE id_application = {$APP_DRAFT} AND id_job_posting_requirement = {$REQ_DRAFT}")->fetch_assoc()['id_application_requirement'];
+$G_REQS[] = $AR_DRAFT;
+$fd = __DIR__ . '/tmp_smoke6c_' . $STAMP . '_draft.pdf';
+file_put_contents($fd, "%PDF-1.4\n% med-2 draft dup\n");
+list($c, , , ) = upload_dok(api_url('Lamaran_dokumen/upload'), array('id_application_requirement' => $AR_DRAFT), $TOKEN1B, 'document', $fd);
+check('F5d draft upload 201', '201', $c);
+list($c, $jd, , ) = upload_dok(api_url('Lamaran_dokumen/upload'), array('id_application_requirement' => $AR_DRAFT), $TOKEN1B, 'document', $fd);
+check('F5d draft duplikat 200 idempoten', '200', $c);
+check('F5d draft duplikat pesan identik', 'ya', (isset($jd['message']) && strpos($jd['message'], 'identik') !== false) ? 'ya' : 'bukan');
+$nrd = (int) q("SELECT COUNT(*) n FROM career_application_documents WHERE id_application_requirement = {$AR_DRAFT}")->fetch_assoc()['n'];
+check('F5d draft duplikat: tetap satu versi', '1', (string) $nrd);
+unlink($fd);
+
 
 /* F4a: duplikat checksum saat revisi → 422 + NOL versi baru */
 q("UPDATE career_application_requirements SET status='revision_requested' WHERE id_application_requirement = {$AR_D}");
@@ -621,16 +719,20 @@ list($c, , , ) = upload_dok(api_url('Lamaran_dokumen/upload'), array('id_applica
 check('F4b kuota versi habis 409', '409', $c);
 unlink($fk);
 
-/* F2 guard race-level fixture: status berubah dlm antara (verified) →
-   affected_rows 0 di dalam trans → 409, NOL versi baru */
+/* F2 guard-status (via re-read di dalam trans): req sudah verified →
+   upload revisi 409, NOL versi baru. CATATAN MED-3 6C.2: cabang
+   affected_rows===0 di Lamaran_dokumen tidak tertutup tes ini; 409
+   datang dari re-read. Cabang affected_rows murni defense-in-depth
+   (hanya bisa tercapai oleh koneksi lain DI ANTARA re-read & UPDATE
+   dalam satu request) — DITUNDA (lihat laporan 6C.2). */
 q("UPDATE career_application_requirements SET status='verified', reviewed_by = 1, reviewed_at = NOW() WHERE id_application_requirement = {$AR_D}");
 $nrace1 = (int) q("SELECT COUNT(*) n FROM career_application_documents WHERE id_application_requirement = {$AR_D}")->fetch_assoc()['n'];
 $frr = __DIR__ . '/tmp_smoke6c_' . $STAMP . '_race.pdf';
 file_put_contents($frr, "%PDF-1.4\n% uji balapan status\n");
 list($c, , , ) = upload_dok(api_url('Lamaran_dokumen/upload'), array('id_application_requirement' => $AR_D), $TOKEN1B, 'document', $frr);
-check('F2 status berubah di antara (verified) 409', '409', $c);
+check('F2 req sudah verified saat revisi (re-read) 409', '409', $c);
 $nrace2 = (int) q("SELECT COUNT(*) n FROM career_application_documents WHERE id_application_requirement = {$AR_D}")->fetch_assoc()['n'];
-check('F2: NOL versi baru setelah penolakan balapan', $nrace1, $nrace2);
+check('F2 re-read: NOL versi baru', $nrace1, $nrace2);
 unlink($frr);
 
 echo "-----\nRingkasan smoke6c: PASS={$pass} FAIL={$fail}\n";
