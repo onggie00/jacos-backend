@@ -438,13 +438,22 @@
          });
       });
       // dialog konfirmasi tema (menggantikan confirm() utk keputusan/terima)
-      function tanyaModal(teks, lalu) {
-         $('#modal-ok .modal-title').text('Konfirmasi'); // F10: reset judul tiap buka
-         $('#modal-ok-batal').show();
-         $('#modal-ok-ya').text('Ya, lanjutkan');
-         $('#modal-ok-teks').text(teks);
+      // 6C.2 MED-4: SEMUA jalur dialog (konfirmasi, hapus/aksi jadwal,
+      // hasil) me-reset state modal via dialogBuka(): judul, teks, label
+      // tombol, visibilitas tombol Batal, handler .off('click') —
+      // sebelumnya jalur hasil menyembunyikan Batal, dialog berikutnya
+      // terbuka tanpa Batal dan berlabel OK (regresi).
+      function dialogBuka(judul, teks, teksYa, denganBatal) {
+         $('#modal-ok .modal-title').text(judul);
+         $('#modal-ok-teks').html(html_escape(String(teks || '')));
+         $('#modal-ok-ya').text(teksYa);
+         $('#modal-ok-batal').toggle(!!denganBatal);
+         $('#modal-ok-ya').off('click');
          $('#modal-ok').modal('show');
-         $('#modal-ok-ya').off('click').on('click', function () {
+      }
+      function tanyaModal(teks, lalu) {
+         dialogBuka('Konfirmasi', teks, 'Ya, lanjutkan', true);
+         $('#modal-ok-ya').on('click', function () {
             $('#modal-ok').modal('hide');
             lalu();
          });
@@ -494,12 +503,8 @@
          });
       }
       function hasilTema(ok, pesan) {
-         $('#modal-ok .modal-title').text(ok ? 'Selesai' : 'Gagal');
-         $('#modal-ok-batal').hide(); // F10: dialog hasil tanpa tombol Batal
-         $('#modal-ok-ya').text('OK');
-         $('#modal-ok-teks').html(html_escape(pesan || ''));
-         $('#modal-ok').modal('show');
-         $('#modal-ok-ya').off('click').on('click', function () {
+         dialogBuka(ok ? 'Selesai' : 'Gagal', pesan || '', 'OK', false); // F10: hasil tanpa tombol Batal
+         $('#modal-ok-ya').on('click', function () {
             $('#modal-ok').modal('hide');
             if (ok) { location.reload(); }
          });
@@ -532,20 +537,16 @@
             return;
          }
          if (aksi === 'hapus') {
-            // dialog tema (menggantikan confirm() langsung)
-            $('#modal-ok .modal-title').text('Hapus jadwal');
-            $('#modal-ok-teks').text('Hapus jadwal tahap ini? keputusan tahap tidak terpengaruh.');
-            $('#modal-ok').modal('show');
-            $('#modal-ok-ya').off('click').on('click', function () {
+            // dialog tema (menggantikan confirm() langsung) — MED-4 jalur hapus lewat reset penuh
+            dialogBuka('Hapus jadwal', 'Hapus jadwal tahap ini? keputusan tahap tidak terpengaruh.', 'Ya, hapus', true);
+            $('#modal-ok-ya').on('click', function () {
                $('#modal-ok').modal('hide');
                perjalanan();
             });
             return;
          }
-         $('#modal-ok .modal-title').text('Aksi jadwal');
-         $('#modal-ok-teks').text('Lakukan aksi "' + aksi + '" untuk jadwal tahap ini?');
-         $('#modal-ok').modal('show');
-         $('#modal-ok-ya').off('click').on('click', function () {
+         dialogBuka('Aksi jadwal', 'Lakukan aksi "' + aksi + '" untuk jadwal tahap ini?', 'Ya, lanjutkan', true);
+         $('#modal-ok-ya').on('click', function () {
             $('#modal-ok').modal('hide');
             perjalanan();
          });

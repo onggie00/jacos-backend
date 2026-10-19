@@ -202,16 +202,14 @@ return $this->_err('Email atau password salah.', 401);
 	// --------------------------------------------------------------
 	public function password_put()
 	{
+		// 6C.2 LOW-1: sandi tidak boleh di-cache — atas SEMUA status
+		// respons jalur ini (termasuk 401 token-mati dan 4xx). Tanpa
+		// syarat: Output::get_header() selalu NULL, kondisi dulu dead code.
+		$this->output->set_header('Cache-Control: no-store');
+		$this->output->set_header('Pragma: no-cache');
+
 		$candidate = $this->_require_auth();
 		if ($candidate === NULL) return;
-
-		// F3: endpoint ganti sandi tidak boleh di-cache — SEMUA status termasuk
-		// 4xx/5xx. Helper CI menolak header duplikat; atur di awal.
-		if ($this->output->get_header('Cache-Control') === FALSE)
-		{
-			$this->output->set_header('Cache-Control: no-store');
-			$this->output->set_header('Pragma: no-cache');
-		}
 
 		// F8: rate-limit ganti sandi memakai jalur _login_blocked (tabel
 		// career_login_attempts) — TANPA _log_attempt agar percobaan gagal di
@@ -266,8 +264,6 @@ return $this->_err('Gagal mengubah password. Coba lagi.', 500);
 
 		// Audit TANPA isi sandi/token (bentuk panjang saja).
 		$this->_audit('ganti_password', 'career_candidates', (int) $candidate->id_candidate);
-
-		// 6C: set sudah di awal utk SEMUA respons (lihat F3).
 
 		$this->_ok(array(
 			'id_candidate' => (int) $candidate->id_candidate,
