@@ -34,11 +34,20 @@ class Model_career_pelamar extends MY_Model {
         return isset($map[$status]) ? $map[$status] : NULL;
     }
 
+    /** Peta kolom sort (whitelist) → ekspresi SQL. */
+    private $_order_map = array(
+        'id'       => 'a.id_application',
+        'kandidat' => 'c.full_name',
+        'lowongan' => 'p.title',
+        'status'   => 'a.status',
+        'kirim'    => 'a.submitted_at',
+    );
+
     /**
      * Daftar lamaran — filter lowongan/status/pencarian nama/email,
      * paging di SQL (server-side). join kandidat + lowongan.
      */
-    public function daftar($filter = array(), $limit = 20, $offset = 0)
+    public function daftar($filter = array(), $limit = 20, $offset = 0, $sort_col = NULL, $sort_dir = 'desc')
     {
         $this->_where_filter($filter);
         $this->db->select('a.id_application, a.status, a.submitted_at, a.id_job_posting,
@@ -46,8 +55,12 @@ class Model_career_pelamar extends MY_Model {
                            p.title AS posting_title, p.closing_date')
             ->from($this->table_name . ' a')
             ->join('career_candidates c', 'c.id_candidate = a.id_candidate', 'inner')
-            ->join('career_job_postings p', 'p.id_job_posting = a.id_job_posting', 'inner')
-            ->order_by('a.id_application DESC')
+            ->join('career_job_postings p', 'p.id_job_posting = a.id_job_posting', 'inner');
+        // Sort whitelist; fallback: terbaru dulu (id DESC).
+        if ($sort_col !== NULL && isset($this->_order_map[$sort_col])) {
+            $this->db->order_by($this->_order_map[$sort_col], $sort_dir === 'asc' ? 'ASC' : 'DESC');
+        }
+        $this->db->order_by('a.id_application', 'DESC')
             ->limit((int) $limit, (int) $offset);
         return $this->db->get()->result();
     }

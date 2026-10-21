@@ -71,13 +71,14 @@ if ( ! function_exists('labs_initials')) {
                <div class="labs-table-wrap labs-mt-3">
                   <div class="labs-table-scroll">
                      <table class="labs-table">
+<?php $sort_base = site_url('administrator/career_pelamar') . ($base_query !== '' ? '?' . $base_query : ''); ?>
                         <thead>
                            <tr>
-                              <th width="55">ID</th>
-                              <th>Kandidat</th>
-                              <th>Lowongan</th>
-                              <th width="12%">Status</th>
-                              <th width="14%">Kirim</th>
+                              <th width="55"><?= career_sort_link('No.', 'id', $sort_col, $sort_dir, $sort_base); ?></th>
+                              <th><?= career_sort_link('Kandidat', 'kandidat', $sort_col, $sort_dir, $sort_base); ?></th>
+                              <th><?= career_sort_link('Lowongan', 'lowongan', $sort_col, $sort_dir, $sort_base); ?></th>
+                              <th width="12%"><?= career_sort_link('Status', 'status', $sort_col, $sort_dir, $sort_base); ?></th>
+                              <th width="14%"><?= career_sort_link('Kirim', 'kirim', $sort_col, $sort_dir, $sort_base); ?></th>
                               <th width="70">Aksi</th>
                            </tr>
                         </thead>

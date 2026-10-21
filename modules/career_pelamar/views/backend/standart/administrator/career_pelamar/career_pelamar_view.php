@@ -68,6 +68,16 @@ if ( ! function_exists('labs_initials')) {
                   <span class="labs-badge labs-badge--default">Dibuat <?= html_escape($app->created_at); ?></span>
                   <span class="labs-badge labs-badge--default">Kirim <?= $app->submitted_at !== NULL ? html_escape($app->submitted_at) : '-'; ?></span>
                   <span class="labs-badge labs-badge--default">Lowongan tutup <?= html_escape($app->closing_date); ?></span>
+                  <?php // GURU.1: lencana/tombol konversi (tombol tampil bila izin) ?>
+                  <?php if ( ! empty($bisa_konversi) && ($app->status === 'accepted' || ! empty($link_guru))): ?>
+                     <?php if ( ! empty($link_guru)): ?>
+                        <span class="labs-badge labs-badge--solid labs-badge--secondary">Sudah jadi guru <?= html_escape($link_guru->jenjang); ?> #<?= (int) $link_guru->id_guru; ?></span>
+                     <?php else: ?>
+                        <a href="<?= site_url('administrator/career_guru/konversi/' . (int) $app->id_application); ?>" class="labs-btn labs-btn--info labs-btn--xs" title="Salin data kandidat ini menjadi data guru jenjang pilihan">
+                           <i class="fa fa-exchange"></i> Jadikan Guru
+                        </a>
+                     <?php endif; ?>
+                  <?php endif; ?>
                </div>
             </div>
             <div class="labs-card__body">

@@ -43,6 +43,18 @@ class Career_pelamar extends Admin
 
 		$this->data['q']              = $filter['q'];
 		$this->data['status']         = $filter['status'];
+
+		// Sort server-side (whitelist di model); default terbaru dulu (id DESC).
+		list($sort_col, $sort_dir) = career_sort_state(
+			array('id', 'kandidat', 'lowongan', 'status', 'kirim'), 'id', 'desc');
+		$this->data['sort_col'] = $sort_col;
+		$this->data['sort_dir'] = $sort_dir;
+		$this->data['base_query'] = http_build_query(array(
+			'q' => $filter['q'], 'status' => $filter['status'],
+			'id_job_posting' => $filter['id_job_posting'], 'stage_id' => $filter['stage_id'],
+			'perlu_verifikasi' => empty($filter['perlu_verifikasi']) ? '' : 1,
+		));
+
 		$this->data['stages']         = $this->db->where('is_active', 1)
 			->order_by('stage_order', 'ASC')->get('career_stages')->result();
 		$this->data['stage_id']       = (int) $filter['stage_id'];
@@ -51,16 +63,17 @@ class Career_pelamar extends Admin
 			->order_by('id_job_posting', 'DESC')
 			->get('career_job_postings')->result();
 		// Ringkasan hitung per status (satu query) utk kartu tl.
-		$this->data['pelamars']       = $this->model_career_pelamar->daftar($filter, $this->limit_page, $offset);
+		$this->data['pelamars']       = $this->model_career_pelamar->daftar($filter, $this->limit_page, $offset, $sort_col, $sort_dir);
 		$this->data['pelamar_counts'] = $this->model_career_pelamar->daftar_count($filter);
 
 		$this->data['ringkasan'] = $this->model_career_pelamar->ringkasan_status();
 
 		$config = [
-			'base_url'    => 'administrator/career_pelamar/index/',
-			'total_rows'  => $this->data['pelamar_counts'],
-			'per_page'    => $this->limit_page,
-			'uri_segment' => 4,
+			'base_url'           => 'administrator/career_pelamar/index/',
+			'total_rows'         => $this->data['pelamar_counts'],
+			'per_page'           => $this->limit_page,
+			'uri_segment'        => 4,
+			'reuse_query_string' => TRUE, // pertahankan ?q=&status=&sort=&dir=
 		];
 		$this->data['pagination'] = $this->pagination($config);
 
@@ -87,6 +100,7 @@ class Career_pelamar extends Admin
 		// tetap butuh score_edit.
 		$this->data['bisa_score_view']  = $this->is_allowed('career_pelamar_score_view', false);
 		$this->data['bisa_score_edit']  = $this->is_allowed('career_pelamar_score_edit', false);
+		// GURU.1 (B): izin konversi + status link guru (tombol/lencana detail).
 		$this->data['nilai_rekap']      = $this->is_allowed('career_pelamar_score_view', false)
 			? $this->model_career_pelamar->nilai_lamaran($id_application)
 			: array();
@@ -96,6 +110,10 @@ class Career_pelamar extends Admin
 		$this->data['tahapan']     = $this->model_career_pelamar->tahapan($id_application);
 		$this->data['audits']      = $this->model_career_pelamar->audit_lamaran($id_application, 30, 0, $this->data['bisa_score_view']);
 		$this->data['notifikasis'] = $this->model_career_pelamar->notifikasi($app->id_candidate);
+		// GURU.1: tombol/lencana konversi pelamar→guru.
+		$this->data['bisa_konversi'] = $this->is_allowed('career_pelamar_to_guru', false);
+		$this->data['link_guru'] = $this->db->where('id_application', $id_application)
+			->limit(1)->get('career_guru_link')->row();
 
 		$this->template->title('Detail Pelamar');
 		$this->render('backend/standart/administrator/career_pelamar/career_pelamar_view', $this->data);
