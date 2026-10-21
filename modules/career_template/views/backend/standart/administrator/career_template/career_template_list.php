@@ -1,3 +1,7 @@
+<!-- Muat bundle desain labs-ui -->
+<link rel="stylesheet" href="<?= BASE_ASSET; ?>css/labs-ui/labs-ui.css">
+<script src="<?= BASE_ASSET; ?>js/labs-ui/labs-ui-init.js"></script>
+
 <!-- Content Header (Page header) -->
 <section class="content-header">
    <h1>Master Persyaratan <small>daftar</small></h1>
@@ -10,87 +14,80 @@
 <section class="content">
    <div class="row">
       <div class="col-md-12">
-         <div class="box box-warning">
-            <div class="box-body">
-               <div class="box box-widget widget-user-2">
-                  <div class="widget-user-header">
-                     <div class="row pull-right">
-                        <?php is_allowed('career_template_add', function(){ ?>
-                        <a class="btn btn-flat btn-success btn_add_new" href="<?= site_url('administrator/career_template/add'); ?>"><i class="fa fa-plus-square-o"></i> Tambah</a>
-                        <?php }) ?>
-                     </div>
-                     <div class="widget-user-image">
-                        <img class="img-circle" src="<?= BASE_ASSET; ?>/img/list.png" alt="Daftar">
-                     </div>
-                     <h3 class="widget-user-username">Master Persyaratan</h3>
-                     <h5 class="widget-user-desc">Template persyaratan lowongan kerja <i class="label bg-yellow"><?= $template_counts; ?> item</i></h5>
-                  </div>
-
-                  <form name="form_career_template" id="form_career_template" action="<?= base_url('administrator/career_template/index'); ?>" method="GET">
-                     <div class="row">
-                        <div class="col-md-5">
-                           <input type="text" class="form-control" name="q" placeholder="Cari nama persyaratan..." value="<?= html_escape($q); ?>">
-                        </div>
-                        <div class="col-md-3">
-                           <select name="status" class="form-control">
-                              <option value="">Semua status</option>
-                              <option value="active"   <?= $status === 'active' ? 'selected' : ''; ?>>Aktif</option>
-                              <option value="inactive" <?= $status === 'inactive' ? 'selected' : ''; ?>>Nonaktif</option>
-                           </select>
-                        </div>
-                        <div class="col-md-2">
-                           <button class="btn btn-flat btn-primary" type="submit"><i class="fa fa-search"></i> Cari</button>
-                        </div>
-                        <div class="col-md-2">
-                           <a class="btn btn-flat btn-default" href="<?= site_url('administrator/career_template'); ?>">Reset</a>
-                        </div>
-                     </div>
-                  </form>
-
-                  <div class="table-responsive" style="margin-top:10px">
-                  <table class="table table-bordered table-striped dataTable">
-                     <thead>
-                        <tr>
-                           <th width="60">ID</th>
-                           <th>Nama</th>
-                           <th width="16%">Deskripsi</th>
-                           <th width="12%">Status</th>
-                           <th width="130">Dipakai</th>
-                           <th width="180">Aksi</th>
-                        </tr>
-                     </thead>
-                     <tbody id="tbody_career_template">
-                     <?php foreach ($templates as $t): ?>
-                        <tr>
-                           <td><?= (int) $t->id_requirement_template; ?></td>
-                           <td><?= html_escape($t->name); ?></td>
-                           <td><?php $this->load->helper('text'); ?><?= html_escape(character_limiter((string) $t->description, 60)); ?></td>
-                           <td>
-                              <?php if ((int) $t->is_active === 1): ?>
-                                 <span class="label label-success">Aktif</span>
-                              <?php else: ?>
-                                 <span class="label label-default">Nonaktif</span>
-                              <?php endif; ?>
-                           </td>
-                           <td><?php if ($this->model_career_template->used_by_postings($t->id_requirement_template)) { echo '<span class="label label-info">Ya</span>'; } else { echo '<span class="label label-default">Belum</span>'; } ?></td>
-                           <td>
-                              <?php is_allowed('career_template_update', function() use ($t){ ?>
-                                 <a href="<?= site_url('administrator/career_template/edit/' . $t->id_requirement_template); ?>" class="label-default"><i class="fa fa-edit"></i> Ubah</a>
-                              <?php }) ?>
-                              <?php is_allowed('career_template_delete', function() use ($t){ ?>
-                                 <a href="javascript:void(0);" data-href="<?= site_url('administrator/career_template/delete/' . $t->id_requirement_template); ?>" class="label-default remove-data"><i class="fa fa-close"></i> Hapus</a>
-                              <?php }) ?>
-                           </td>
-                        </tr>
-                     <?php endforeach; ?>
-                     <?php if ($template_counts == 0): ?>
-                        <tr><td colspan="6" class="text-center">Belum ada template.</td></tr>
-                     <?php endif; ?>
-                     </tbody>
-                  </table>
-                  </div>
-                  <div style="padding:10px"><?= $pagination; ?></div>
+         <div class="labs-card">
+            <div class="labs-card__header">
+               <div class="labs-card__title">Master Persyaratan <small>template persyaratan lowongan kerja</small></div>
+               <div class="labs-row-actions">
+                  <span class="labs-badge labs-badge--default"><?= $template_counts; ?> item</span>
+                  <?php is_allowed('career_template_add', function(){ ?>
+                  <a class="labs-btn labs-btn--success labs-btn--sm btn_add_new" href="<?= site_url('administrator/career_template/add'); ?>"><i class="fa fa-plus-square-o"></i> Tambah</a>
+                  <?php }) ?>
                </div>
+            </div>
+            <div class="labs-card__body">
+
+               <form name="form_career_template" id="form_career_template" action="<?= base_url('administrator/career_template/index'); ?>" method="GET" class="labs-filter-inline">
+                  <div class="labs-filter-inline__search">
+                     <span class="labs-filter-inline__search-icon"><i class="fa fa-search"></i></span>
+                     <input type="text" class="form-control" name="q" placeholder="Cari nama persyaratan..." value="<?= html_escape($q); ?>">
+                  </div>
+                  <select name="status" class="form-control">
+                     <option value="">Semua status</option>
+                     <option value="active"   <?= $status === 'active' ? 'selected' : ''; ?>>Aktif</option>
+                     <option value="inactive" <?= $status === 'inactive' ? 'selected' : ''; ?>>Nonaktif</option>
+                  </select>
+                  <button class="labs-btn labs-btn--primary labs-btn--sm" type="submit"><i class="fa fa-search"></i> Cari</button>
+                  <a class="labs-btn labs-btn--default labs-btn--sm" href="<?= site_url('administrator/career_template'); ?>">Reset</a>
+               </form>
+
+               <div class="labs-table-wrap">
+                  <div class="labs-table-scroll">
+                     <table class="labs-table">
+                        <thead>
+                           <tr>
+                              <th width="60">ID</th>
+                              <th>Nama</th>
+                              <th width="16%">Deskripsi</th>
+                              <th width="12%">Status</th>
+                              <th width="130">Dipakai</th>
+                              <th width="180">Aksi</th>
+                           </tr>
+                        </thead>
+                        <tbody id="tbody_career_template">
+                        <?php foreach ($templates as $t): ?>
+                           <tr>
+                              <td><?= (int) $t->id_requirement_template; ?></td>
+                              <td><?= html_escape($t->name); ?></td>
+                              <td class="labs-cell-muted"><?php $this->load->helper('text'); ?><?= html_escape(character_limiter((string) $t->description, 60)); ?></td>
+                              <td>
+                                 <?php if ((int) $t->is_active === 1): ?>
+                                    <span class="labs-badge labs-badge--success"><span class="dot"></span>Aktif</span>
+                                 <?php else: ?>
+                                    <span class="labs-badge labs-badge--default">Nonaktif</span>
+                                 <?php endif; ?>
+                              </td>
+                              <td><?php if ($this->model_career_template->used_by_postings($t->id_requirement_template)) { echo '<span class="labs-badge labs-badge--info"><span class="dot"></span>Ya</span>'; } else { echo '<span class="labs-badge labs-badge--default">Belum</span>'; } ?></td>
+                              <td>
+                                 <div class="labs-row-actions">
+                                 <?php is_allowed('career_template_update', function() use ($t){ ?>
+                                    <a href="<?= site_url('administrator/career_template/edit/' . $t->id_requirement_template); ?>" class="labs-btn labs-btn--default labs-btn--xs"><i class="fa fa-edit"></i> Ubah</a>
+                                 <?php }) ?>
+                                 <?php is_allowed('career_template_delete', function() use ($t){ ?>
+                                    <a href="javascript:void(0);" data-href="<?= site_url('administrator/career_template/delete/' . $t->id_requirement_template); ?>" class="labs-btn labs-btn--danger labs-btn--xs remove-data"><i class="fa fa-close"></i> Hapus</a>
+                                 <?php }) ?>
+                                 </div>
+                              </td>
+                           </tr>
+                        <?php endforeach; ?>
+                        <?php if ($template_counts == 0): ?>
+                           <tr class="labs-empty-row"><td colspan="6"><div class="labs-empty"><i class="fa fa-inbox"></i><p>Belum ada template.</p></div></td></tr>
+                        <?php endif; ?>
+                        </tbody>
+                     </table>
+                  </div>
+               </div>
+               <div class="labs-mt-4"><?= $pagination; ?></div>
+
             </div>
          </div>
       </div>

@@ -57,6 +57,70 @@ class Model_career_kandidat extends CI_Model
 		}
 	}
 
+	/**
+	 * Tambah kandidat baru dari admin panel (perm career_candidate_add).
+	 * Aturan input mengikuti register FE (apicareer/Auth::register_post):
+	 * email sah maks 190, nama maks 150 tanpa emoji (tabel utf8mb3).
+	 * Telepon opsional untuk kolom phone di career_candidate_profiles.
+	 * Password dibuat server lewat sandi_acak(), di-hash bcrypt (PASSWORD_BCRYPT);
+	 * plaintext sandi dikembalikan SEKALI di sini, controller yang menampilkannya,
+	 * tidak pernah masuk audit/log. Dup email dicek dulu (pesan ramah) dan
+	 * UNIQ pada insert tetap diantisipasi (err 1062) untuk kondisi balapan.
+	 * return array(bool, payload) — payload gagal: 'kode|pesan', sukses: password.
+	 */
+	public function tambah($email, $nama, $telepon)
+	{
+		$email   = trim((string) $email);
+		$nama    = trim((string) $nama);
+		$telepon = trim((string) $telepon);
+
+		if ($email === '' OR $nama === '') {
+			return array(FALSE, '422|Email dan nama wajib diisi.');
+		}
+		if ( ! filter_var($email, FILTER_VALIDATE_EMAIL) OR strlen($email) > 190) {
+			return array(FALSE, '422|Email tidak sah (maksimum 190 karakter).');
+		}
+		if (career_panjang($nama) > 150 OR career_ada_emoji($nama)) {
+			return array(FALSE, '422|Nama maksimum 150 karakter dan tidak boleh berisi emoji.');
+		}
+		if ($telepon !== '' AND ! preg_match('/^[0-9+\-\(\) ]{5,30}$/', $telepon)) {
+			return array(FALSE, '422|Nomor telepon tidak sah (5-30 karakter, angka/+-() spasi).');
+		}
+
+		$ada = $this->db->where('email', $email)
+			->count_all_results('career_candidates');
+		if ($ada > 0) {
+			return array(FALSE, '409|Email sudah terdaftar.');
+		}
+
+		$sandi = $this->sandi_acak(14);
+		$this->db->trans_begin();
+		$this->db->insert('career_candidates', array(
+			'email'         => $email,
+			'password_hash' => password_hash($sandi, PASSWORD_BCRYPT),
+			'full_name'     => $nama,
+			'is_active'     => 1,
+			'token_version' => 1,
+		));
+		$err = (int) $this->db->error()['code'];
+		$id  = (int) $this->db->insert_id();
+		if ($id >= 1 AND $err !== 1062) {
+			$this->db->insert('career_candidate_profiles', array(
+				'id_candidate' => $id,
+				'phone'        => $telepon !== '' ? $telepon : NULL,
+			));
+		}
+		if ($this->db->trans_status() === FALSE OR $id < 1 OR $err === 1062) {
+			$this->db->trans_rollback();
+			if ($err === 1062) {
+				return array(FALSE, '409|Email sudah terdaftar.');
+			}
+			return array(FALSE, '500|Gagal menyimpan kandidat baru.');
+		}
+		$this->db->trans_commit();
+		return array(TRUE, array('password' => $sandi, 'id_candidate' => $id));
+	}
+
 	/** Hemat: kandidat yang belum pernah lamar tetap muncul (P3). */
 	public function cari($id_candidate)
 	{

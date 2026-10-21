@@ -1,3 +1,7 @@
+<!-- Muat bundle desain labs-ui -->
+<link rel="stylesheet" href="<?= BASE_ASSET; ?>css/labs-ui/labs-ui.css">
+<script src="<?= BASE_ASSET; ?>js/labs-ui/labs-ui-init.js"></script>
+
 <!-- Content Header (Page header) -->
 <section class="content-header">
    <h1>Lowongan Kerja <small>ubah &amp; detail</small></h1>
@@ -11,241 +15,221 @@
 <section class="content">
    <div class="row">
       <div class="col-md-12">
-         <div class="box box-warning">
-            <div class="box-body">
-               <div class="box box-widget widget-user-2">
-                  <div class="widget-user-header">
-                     <div class="widget-user-image">
-                        <img class="img-circle" src="<?= BASE_ASSET; ?>/img/update.png" alt="Ubah">
-                     </div>
-                     <h3 class="widget-user-username">Lowongan #<?= (int) $lowongan->id_job_posting; ?></h3>
-                     <h5 class="widget-user-desc"><?= html_escape($lowongan->title); ?></h5>
-                     <hr>
-                  </div>
-                  <?php if ($punya_lamaran): ?>
-                     <div class="alert alert-warning" style="margin:0 15px 10px">
-                        Lowongan ini <b>sudah memiliki lamaran</b>. Judul/tanggal tetap bisa diubah, tapi:
-                        <ul style="margin-bottom:0">
-                           <li>Lowongan tidak dapat dihapus — cukup tutup lewat tanggal tutup atau tombol &ldquo;Tutup&rdquo; (unpublikasi).</li>
-                           <li>Persyaratan yang <b>sudah dipakai lamaran</b> terkunci per baris (D12): nama/format/ukuran masih boleh diubah, tipe isian, wajib/opsional, dan hapus tidak boleh.</li>
-                           <li>Menambah persyaratan <b>WAJIB</b> baru perlu konfirmasi eksplisit (lamaran yang sudah masuk bisa jadi kekurangan syarat).</li>
-                        </ul>
-                     </div>
+         <div class="labs-card">
+            <div class="labs-card__header">
+               <div class="labs-card__title"><i class="fa fa-edit"></i> Lowongan #<?= (int) $lowongan->id_job_posting; ?> <small><?= html_escape($lowongan->title); ?></small></div>
+               <div class="labs-row-actions" id="btn_terbit_area">
+                  <?php if ((int) $lowongan->is_published === 1): ?>
+                     <span class="labs-badge labs-badge--success"><span class="dot"></span>Status: terbit</span>
+                  <?php else: ?>
+                     <span class="labs-badge labs-badge--default"><span class="dot"></span>Status: draf</span>
                   <?php endif; ?>
-
-                  <div id="btn_terbit_area" style="padding:0 15px 10px">
-                     <?php if ((int) $lowongan->is_published === 1): ?>
-                        <span class="label label-success">Status: terbit</span>
-                     <?php else: ?>
-                        <span class="label label-default">Status: draf</span>
-                     <?php endif; ?>
-                     <?php if ((int) $lowongan->is_published === 0 && $this->aauth->is_allowed('career_lowongan_update')): ?>
-                        <button class="btn btn-flat btn-success" id="btn_terbitkan"><i class="fa fa-bullhorn"></i> Terbitkan</button>
-                     <?php elseif ($this->aauth->is_allowed('career_lowongan_update')): ?>
-                        <button class="btn btn-flat btn-warning" id="btn_tutup"><i class="fa fa-life-ring"></i> Tutup (jadi draf)</button>
-                     <?php endif; ?>
+                  <?php if ((int) $lowongan->is_published === 0 && $this->aauth->is_allowed('career_lowongan_update')): ?>
+                     <button class="labs-btn labs-btn--success" id="btn_terbitkan"><i class="fa fa-bullhorn"></i> Terbitkan</button>
+                  <?php elseif ($this->aauth->is_allowed('career_lowongan_update')): ?>
+                     <button class="labs-btn labs-btn--warning" id="btn_tutup"><i class="fa fa-life-ring"></i> Tutup (jadi draf)</button>
+                  <?php endif; ?>
+               </div>
+            </div>
+            <div class="labs-card__body">
+               <?php if ($punya_lamaran): ?>
+                  <div class="alert alert-warning">
+                     Lowongan ini <b>sudah memiliki lamaran</b>. Judul/tanggal tetap bisa diubah, tapi:
+                     <ul style="margin-bottom:0">
+                        <li>Lowongan tidak dapat dihapus — cukup tutup lewat tanggal tutup atau tombol &ldquo;Tutup&rdquo; (unpublikasi).</li>
+                        <li>Persyaratan yang <b>sudah dipakai lamaran</b> terkunci per baris (D12): nama/format/ukuran masih boleh diubah, tipe isian, wajib/opsional, dan hapus tidak boleh.</li>
+                        <li>Menambah persyaratan <b>WAJIB</b> baru perlu konfirmasi eksplisit (lamaran yang sudah masuk bisa jadi kekurangan syarat).</li>
+                     </ul>
                   </div>
+               <?php endif; ?>
 
-                  <!-- HIGH #4: action eksplisit ke edit_save/$id -->
-                  <?= form_open(site_url('administrator/career_lowongan/edit_save/' . (int) $lowongan->id_job_posting), ['name' => 'form_career_lowongan', 'class' => 'form-horizontal', 'id' => 'form_career_lowongan', 'method' => 'POST']); ?>
-                  <?= career_csrf_field(); ?>
-                  <div class="form-group">
-                     <label for="title" class="col-sm-2 control-label">Judul <i class="required">*</i></label>
-                     <div class="col-sm-8">
+               <!-- HIGH #4: action eksplisit ke edit_save/$id -->
+               <?= form_open(site_url('administrator/career_lowongan/edit_save/' . (int) $lowongan->id_job_posting), ['name' => 'form_career_lowongan', 'class' => 'form-horizontal', 'id' => 'form_career_lowongan', 'method' => 'POST']); ?>
+               <?= career_csrf_field(); ?>
+                  <div class="labs-form-group">
+                     <label for="title" class="labs-form-label">Judul <i class="required">*</i></label>
+                     <div class="col-sm-8 col-xs-12">
                         <input type="text" class="form-control" name="title" id="title" value="<?= set_value('title', $lowongan->title); ?>" maxlength="200">
                         <small class="info help-block">Wajib, maks 200 karakter.</small>
                      </div>
                   </div>
-                  <div class="form-group">
-                     <label for="description" class="col-sm-2 control-label">Deskripsi</label>
-                     <div class="col-sm-8">
+                  <div class="labs-form-group">
+                     <label for="description" class="labs-form-label">Deskripsi</label>
+                     <div class="col-sm-8 col-xs-12">
                         <textarea class="form-control" name="description" id="description" rows="6"><?= set_value('description', $lowongan->description); ?></textarea>
                         <small class="info help-block">Teks murni (di-escape saat tampil ke kandidat), maks 10.000 karakter.</small>
                      </div>
                   </div>
-                  <div class="form-group">
-                     <label class="col-sm-2 control-label">Periode <i class="required">*</i></label>
-                     <div class="col-sm-4">
-                        <input type="date" class="form-control" name="opening_date" value="<?= set_value('opening_date', $lowongan->opening_date); ?>">
-                        <small class="info help-block">Buka</small>
-                     </div>
-                     <div class="col-sm-4">
-                        <input type="date" class="form-control" name="closing_date" value="<?= set_value('closing_date', $lowongan->closing_date); ?>">
-                        <small class="info help-block">Tutup (tidak boleh &lt; buka)</small>
+                  <div class="labs-form-group">
+                     <span class="labs-form-label">Periode <i class="required">*</i></span>
+                     <div class="row">
+                        <div class="col-sm-4 col-xs-12">
+                           <input type="date" class="form-control" name="opening_date" value="<?= set_value('opening_date', $lowongan->opening_date); ?>">
+                           <small class="info help-block">Buka</small>
+                        </div>
+                        <div class="col-sm-4 col-xs-12">
+                           <input type="date" class="form-control" name="closing_date" value="<?= set_value('closing_date', $lowongan->closing_date); ?>">
+                           <small class="info help-block">Tutup (tidak boleh &lt; buka)</small>
+                        </div>
                      </div>
                   </div>
-                  <div class="form-group">
-                     <label for="education_level" class="col-sm-2 control-label">Jenjang pendidikan</label>
-                     <div class="col-sm-8">
+                  <div class="labs-form-group">
+                     <label for="education_level" class="labs-form-label">Jenjang pendidikan</label>
+                     <div class="col-sm-8 col-xs-12">
                         <input type="text" class="form-control" name="education_level" id="education_level" value="<?= set_value('education_level', $lowongan->education_level); ?>" maxlength="20">
                         <small class="info help-block">Teks opsional, maks 20 karakter.</small>
                      </div>
                   </div>
-                  <div class="form-group">
-                     <label class="col-sm-2 control-label">Publikasi</label>
-                     <div class="col-sm-8">
+                  <div class="labs-form-group">
+                     <span class="labs-form-label">Publikasi</span>
+                     <div class="col-sm-8 col-xs-12">
                         <label class="radio-inline"><input type="radio" name="is_published" value="1" <?= set_radio('is_published', '1', (int) $lowongan->is_published === 1); ?>> Terbit</label>
                         <label class="radio-inline"><input type="radio" name="is_published" value="0" <?= set_radio('is_published', '0', (int) $lowongan->is_published === 0); ?>> Draf / unpublikasi</label>
                         <small class="info help-block">Terbit butuh min. 1 persyaratan + tanggal sah (dicek juga saat draf → terbit lewat simpan).</small>
                      </div>
                   </div>
                   <div class="message"></div>
-                  <div class="row-fluid col-md-7 container-button-bottom">
-                     <button class="btn btn-flat btn-primary btn_save btn_action" id="btn_save" data-stype='stay' title="Simpan (Ctrl+s)">
+                  <div class="row-fluid col-md-7 col-xs-12 container-button-bottom labs-flex labs-flex-gap-2 labs-mt-5">
+                     <button class="labs-btn labs-btn--primary btn_save btn_action" id="btn_save" data-stype='stay' title="Simpan (Ctrl+s)">
                         <i class="fa fa-save"></i> Simpan
                      </button>
-                     <a class="btn btn-flat btn-info btn_save btn_action btn_save_back" id="btn_save_back" data-stype='back' title="Simpan & kembali">
+                     <a class="labs-btn labs-btn--info btn_save btn_action btn_save_back" id="btn_save_back" data-stype='back' title="Simpan &amp; kembali">
                         <i class="ion ion-ios-list-outline"></i> Simpan &amp; kembali
                      </a>
-                     <a class="btn btn-flat btn-default btn_action" id="btn_cancel" title="<?= cclang('cancel_button'); ?> (Ctrl+x)">
-                        <i class="fa fa-undo"></i> <?= cclang('cancel_button'); ?>
+                     <a class="labs-btn labs-btn--default btn_action" id="btn_cancel" title="Batal (Ctrl+x)">
+                        <i class="fa fa-undo"></i> Batal
                      </a>
                      <span class="loading loading-hide">
                         <img src="<?= BASE_ASSET; ?>/img/loading-spin-primary.svg">
                         <i>Menyimpan data…</i>
                      </span>
                   </div>
-                  <?= form_close(); ?>
+               <?= form_close(); ?>
 
-                  <!-- ================= Persyaratan ================= -->
-                  <div style="padding:0 15px 15px">
-                     <h4 style="border-bottom:1px solid #eee; padding-bottom:6px">Persyaratan lowongan</h4>
-                     <table class="table table-bordered table-striped" id="tbl_requirements">
-                        <thead>
-                           <tr>
-                              <th width="45">Urut</th>
-                              <th>Nama</th>
-                              <th width="12%">Wajib?</th>
-                              <th width="11%">Tipe isian</th>
-                              <th width="14%">Format</th>
-                              <th width="9%">Maks KB</th>
-                              <th width="215">Aksi</th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach ($requirements as $r): ?>
-                           <?php $terkunci = !empty($dipakai_req[(int) $r->id_job_posting_requirement]); ?>
-                           <tr data-rid="<?= (int) $r->id_job_posting_requirement; ?>">
-                              <td><?= (int) $r->display_order; ?></td>
-                              <td><?= html_escape($r->requirement_name); ?></td>
-                              <td><?= $r->requirement_type === 'required' ? 'Wajib' : 'Opsional'; ?></td>
-                              <td><?= html_escape($r->input_type); ?></td>
-                              <td><?= html_escape($r->allowed_formats !== NULL ? $r->allowed_formats : '-'); ?></td>
-                              <td><?= $r->max_file_size_kb !== NULL ? (int) $r->max_file_size_kb : '-'; ?></td>
-                              <td>
-                                 <?php if ($this->aauth->is_allowed('career_lowongan_update')): ?>
-                                    <a href="javascript:void(0);" class="label-default req-edit" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-name="<?= html_escape($r->requirement_name); ?>" data-type="<?= html_escape($r->requirement_type); ?>" data-input="<?= html_escape($r->input_type); ?>" data-formats="<?= html_escape($r->allowed_formats); ?>" data-maxkb="<?= $r->max_file_size_kb !== NULL ? (int) $r->max_file_size_kb : ''; ?>" data-terkunci="<?= $terkunci ? '1' : '0'; ?>"><i class="fa fa-edit"></i> Ubah</a>
-                                    <a href="javascript:void(0);" class="label-default req-move" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-dir="up"><i class="fa fa-arrow-up"></i></a>
-                                    <a href="javascript:void(0);" class="label-default req-move" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-dir="down"><i class="fa fa-arrow-down"></i></a>
-                                 <?php endif; ?>
-                                 <?php if (!$terkunci && $this->aauth->is_allowed('career_lowongan_update')): ?>
-                                    <a href="javascript:void(0);" data-href="<?= site_url('administrator/career_lowongan/requirement_delete/' . $r->id_job_posting_requirement); ?>" class="label-default remove-data"><i class="fa fa-close"></i> Hapus</a>
-                                 <?php elseif ($terkunci): ?>
-                                    <span class="label label-info" title="Sudah dipakai lamaran — terkunci (D12)">Terkunci</span>
-                                 <?php endif; ?>
-                              </td>
-                           </tr>
-                        <?php endforeach; ?>
-                        <?php if (count($requirements) == 0): ?>
-                           <tr><td colspan="7" class="text-center">Belum ada persyaratan — tambah minimal satu sebelum terbit.</td></tr>
-                        <?php endif; ?>
-                        </tbody>
-                     </table>
-                     <span style="display:none" id="csrf_holder"><?= career_csrf_field(); ?></span>
-
-                     <!-- Form persyaratan baru (dari template/ad-hoc) -->
-                     <h4 style="margin-top:18px">Tambah persyaratan</h4>
-                     <div class="form-inline">
-                     <div class="form-group" style="margin-bottom:8px">
-                        <select class="form-control template_picker" id="req_template">
-                           <option value="">-- dari template (opsional) --</option>
-                           <?php foreach ($templates_aktif as $t): ?>
-                              <option data-name="<?= html_escape($t->name); ?>" value="<?= (int) $t->id_requirement_template; ?>"><?= html_escape($t->name); ?></option>
+               <!-- ================= Persyaratan ================= -->
+               <div class="labs-modal-section labs-mt-5">
+                  <div class="labs-modal-section__title"><i class="fa fa-list-ul"></i> Persyaratan lowongan</div>
+                  <div class="labs-table-wrap">
+                     <div class="labs-table-scroll">
+                        <table class="labs-table" id="tbl_requirements">
+                           <thead>
+                              <tr>
+                                 <th width="45">Urut</th>
+                                 <th>Nama</th>
+                                 <th width="12%">Wajib?</th>
+                                 <th width="11%">Tipe isian</th>
+                                 <th width="14%">Format</th>
+                                 <th width="9%">Maks KB</th>
+                                 <th width="215">Aksi</th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                           <?php foreach ($requirements as $r): ?>
+                              <?php $terkunci = !empty($dipakai_req[(int) $r->id_job_posting_requirement]); ?>
+                              <tr data-rid="<?= (int) $r->id_job_posting_requirement; ?>">
+                                 <td><?= (int) $r->display_order; ?></td>
+                                 <td><?= html_escape($r->requirement_name); ?></td>
+                                 <td><?= $r->requirement_type === 'required' ? 'Wajib' : 'Opsional'; ?></td>
+                                 <td><?= html_escape($r->input_type); ?></td>
+                                 <td><?= html_escape($r->allowed_formats !== NULL ? $r->allowed_formats : '-'); ?></td>
+                                 <td><?= $r->max_file_size_kb !== NULL ? (int) $r->max_file_size_kb : '-'; ?></td>
+                                 <td>
+                                    <?php if ($this->aauth->is_allowed('career_lowongan_update')): ?>
+                                       <a href="javascript:void(0);" class="labs-btn labs-btn--default labs-btn--xs req-edit" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-name="<?= html_escape($r->requirement_name); ?>" data-type="<?= html_escape($r->requirement_type); ?>" data-input="<?= html_escape($r->input_type); ?>" data-formats="<?= html_escape($r->allowed_formats); ?>" data-maxkb="<?= $r->max_file_size_kb !== NULL ? (int) $r->max_file_size_kb : ''; ?>" data-terkunci="<?= $terkunci ? '1' : '0'; ?>"><i class="fa fa-edit"></i> Ubah</a>
+                                       <a href="javascript:void(0);" class="labs-btn labs-btn--default labs-btn--xs req-move" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-dir="up"><i class="fa fa-arrow-up"></i></a>
+                                       <a href="javascript:void(0);" class="labs-btn labs-btn--default labs-btn--xs req-move" data-rid="<?= (int) $r->id_job_posting_requirement; ?>" data-dir="down"><i class="fa fa-arrow-down"></i></a>
+                                    <?php endif; ?>
+                                    <?php if (!$terkunci && $this->aauth->is_allowed('career_lowongan_update')): ?>
+                                       <a href="javascript:void(0);" data-href="<?= site_url('administrator/career_lowongan/requirement_delete/' . $r->id_job_posting_requirement); ?>" class="labs-btn labs-btn--danger labs-btn--xs remove-data"><i class="fa fa-close"></i> Hapus</a>
+                                    <?php elseif ($terkunci): ?>
+                                       <span class="labs-badge labs-badge--info" title="Sudah dipakai lamaran — terkunci (D12)"><span class="dot"></span>Terkunci</span>
+                                    <?php endif; ?>
+                                 </td>
+                              </tr>
                            <?php endforeach; ?>
-                        </select>
+                           <?php if (count($requirements) == 0): ?>
+                              <tr class="labs-empty-row"><td colspan="7"><div class="labs-empty"><i class="fa fa-list-ul"></i><p>Belum ada persyaratan — tambah minimal satu sebelum terbit.</p></div></td></tr>
+                           <?php endif; ?>
+                           </tbody>
+                        </table>
                      </div>
-                     <div class="form-group" style="margin-bottom:8px">
-                        <input type="text" class="form-control" name="requirement_name" id="req_name" placeholder="Nama persyaratan" maxlength="200">
-                     </div>
-                     <div class="form-group" style="margin-bottom:8px">
-                        <select class="form-control" name="requirement_type" id="req_type">
-                           <option value="required">Wajib</option>
-                           <option value="optional">Opsional</option>
-                        </select>
-                     </div>
-                     <div class="form-group" style="margin-bottom:8px">
-                        <select class="form-control" name="input_type" id="req_input">
-                           <option value="text">Teks</option>
-                           <option value="number">Angka</option>
-                           <option value="document">Dokumen</option>
-                        </select>
-                     </div>
-                     <div class="form-group" style="margin-bottom:8px">
-                        <input type="text" class="form-control" name="allowed_formats" id="req_formats" placeholder="ekstensi koma" disabled>
-                     </div>
-                     <div class="form-group" style="margin-bottom:8px">
-                        <div class="input-group">
-                           <input type="number" class="form-control" name="max_file_size_kb" id="req_maxkb" min="1" max="5120" placeholder="maks KB" disabled>
-                           <span class="input-group-btn">
-                              <button class="btn btn-flat btn-success" id="btn_req_save" type="button"><i class="fa fa-plus"></i> Tambah</button>
-                           </span>
-                        </div>
-                     </div>
-                     <div id="req_message" class="help-block" style="margin-left:2px"></div>
-                     </div>
-                     <div style="clear:both"></div>
+                  </div>
+                  <span style="display:none" id="csrf_holder"><?= career_csrf_field(); ?></span>
 
-                     <!-- Dialog ubah persyaratan (inline dgn form kecil) -->
-                     <div class="modal fade" id="modal_req_edit" tabindex="-1" role="dialog">
-                        <div class="modal-dialog" role="document">
-                           <div class="modal-content">
-                              <div class="modal-header">
-                                 <button type="button" class="close" data-dismiss="modal">&times;</button>
-                                 <h4 class="modal-title">Ubah persyaratan</h4>
-                              </div>
-                              <div class="modal-body">
-                                 <div class="alert alert-warning" id="edit_lock_note" style="display:none">Baris ini sudah dipakai lamaran — nama/format/ukuran boleh diubah, tipe isian &amp; wajib/opsional terkunci (D12).</div>
-                                 <form id="form_req_edit" class="form">
-                                    <?php $csrf = career_csrf_token(); ?>
-                                    <div class="form-group">
-                                       <label>Nama</label>
-                                       <input type="text" class="form-control" name="requirement_name" id="edit_name" maxlength="200">
-                                    </div>
-                                    <div class="form-group">
-                                       <label>Wajib/opsional</label>
-                                       <select class="form-control" name="requirement_type" id="edit_type">
-                                          <option value="required">Wajib</option>
-                                          <option value="optional">Opsional</option>
-                                       </select>
-                                    </div>
-                                    <div class="form-group">
-                                       <label>Tipe isian</label>
-                                       <select class="form-control" name="input_type" id="edit_input">
-                                          <option value="text">Teks</option>
-                                          <option value="number">Angka</option>
-                                          <option value="document">Dokumen</option>
-                                       </select>
-                                    </div>
-                                    <div class="form-group">
-                                       <label>Format berkas (document)</label>
-                                       <input type="text" class="form-control" name="allowed_formats" id="edit_formats" placeholder="pdf,jpg">
-                                    </div>
-                                    <div class="form-group">
-                                       <label>Maks KB (document)</label>
-                                       <input type="number" class="form-control" name="max_file_size_kb" id="edit_maxkb" min="1" max="5120">
-                                    </div>
-                                    <div class="help-block" id="edit_message"></div>
-                                 </form>
-                              </div>
-                              <div class="modal-footer">
-                                 <button type="button" class="btn btn-flat btn-default" data-dismiss="modal">Tutup</button>
-                                 <button type="button" class="btn btn-flat btn-primary" id="btn_req_edit_save">Simpan</button>
-                              </div>
+                  <!-- Form persyaratan baru (dari template/ad-hoc) -->
+                  <div class="labs-filter-inline labs-mt-4">
+                     <select class="form-control template_picker" id="req_template">
+                        <option value="">-- dari template (opsional) --</option>
+                        <?php foreach ($templates_aktif as $t): ?>
+                           <option data-name="<?= html_escape($t->name); ?>" value="<?= (int) $t->id_requirement_template; ?>"><?= html_escape($t->name); ?></option>
+                        <?php endforeach; ?>
+                     </select>
+                     <input type="text" class="form-control" name="requirement_name" id="req_name" placeholder="Nama persyaratan" maxlength="200">
+                     <select class="form-control" name="requirement_type" id="req_type">
+                        <option value="required">Wajib</option>
+                        <option value="optional">Opsional</option>
+                     </select>
+                     <select class="form-control" name="input_type" id="req_input">
+                        <option value="text">Teks</option>
+                        <option value="number">Angka</option>
+                        <option value="document">Dokumen</option>
+                     </select>
+                     <input type="text" class="form-control" name="allowed_formats" id="req_formats" placeholder="ekstensi koma" disabled>
+                     <input type="number" class="form-control" name="max_file_size_kb" id="req_maxkb" min="1" max="5120" placeholder="maks KB" disabled>
+                     <button class="labs-btn labs-btn--success" id="btn_req_save" type="button"><i class="fa fa-plus"></i> Tambah</button>
+                  </div>
+                  <div id="req_message" class="help-block labs-mt-2"></div>
+
+                  <!-- Dialog ubah persyaratan (inline dgn form kecil) -->
+                  <div class="modal fade labs-modal" id="modal_req_edit" tabindex="-1" role="dialog" aria-hidden="true">
+                     <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                           <div class="modal-header">
+                              <button type="button" class="close" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+                              <h4 class="modal-title">Ubah persyaratan</h4>
+                           </div>
+                           <div class="modal-body">
+                              <div class="alert alert-warning hidden" id="edit_lock_note">Baris ini sudah dipakai lamaran — nama/format/ukuran boleh diubah, tipe isian &amp; wajib/opsional terkunci (D12).</div>
+                              <form id="form_req_edit" class="form">
+                                 <?php $csrf = career_csrf_token(); ?>
+                                 <div class="labs-form-group">
+                                    <label for="edit_name" class="labs-form-label">Nama</label>
+                                    <input type="text" class="form-control" name="requirement_name" id="edit_name" maxlength="200">
+                                 </div>
+                                 <div class="labs-form-group">
+                                    <label for="edit_type" class="labs-form-label">Wajib/opsional</label>
+                                    <select class="form-control" name="requirement_type" id="edit_type">
+                                       <option value="required">Wajib</option>
+                                       <option value="optional">Opsional</option>
+                                    </select>
+                                 </div>
+                                 <div class="labs-form-group">
+                                    <label for="edit_input" class="labs-form-label">Tipe isian</label>
+                                    <select class="form-control" name="input_type" id="edit_input">
+                                       <option value="text">Teks</option>
+                                       <option value="number">Angka</option>
+                                       <option value="document">Dokumen</option>
+                                    </select>
+                                 </div>
+                                 <div class="labs-form-group">
+                                    <label for="edit_formats" class="labs-form-label">Format berkas (document)</label>
+                                    <input type="text" class="form-control" name="allowed_formats" id="edit_formats" placeholder="pdf,jpg">
+                                 </div>
+                                 <div class="labs-form-group">
+                                    <label for="edit_maxkb" class="labs-form-label">Maks KB (document)</label>
+                                    <input type="number" class="form-control" name="max_file_size_kb" id="edit_maxkb" min="1" max="5120">
+                                 </div>
+                                 <div class="help-block" id="edit_message"></div>
+                              </form>
+                           </div>
+                           <div class="modal-footer">
+                              <button type="button" class="labs-btn labs-btn--default" data-dismiss="modal">Tutup</button>
+                              <button type="button" class="labs-btn labs-btn--primary" id="btn_req_edit_save">Simpan</button>
                            </div>
                         </div>
                      </div>
-
                   </div>
+
                </div>
             </div>
          </div>

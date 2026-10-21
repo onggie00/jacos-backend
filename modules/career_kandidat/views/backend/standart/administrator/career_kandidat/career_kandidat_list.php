@@ -1,73 +1,206 @@
-<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed'); ?>
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+/** Inisial nama untuk avatar (labs-name-cell). */
+if ( ! function_exists('career_kandidat_inisial')) {
+function career_kandidat_inisial($nama)
+{
+	$nama = trim((string) $nama);
+	if ($nama === '') return '?';
+	$potongan = preg_split('/\s+/', $nama);
+	if (count($potongan) >= 2) {
+		return strtoupper(mb_substr($potongan[0], 0, 1) . mb_substr($potongan[count($potongan) - 1], 0, 1));
+	}
+	return strtoupper(mb_substr($potongan[0], 0, 2));
+}
+}
+?>
+<link rel="stylesheet" href="<?= BASE_ASSET; ?>css/labs-ui/labs-ui.css">
+<script src="<?= BASE_ASSET; ?>js/labs-ui/labs-ui-init.js"></script>
+
+<section class="content-header">
+	<h1>
+		Kandidat Karier
+		<small class="labs-text-muted">Kelola akun kandidat</small>
+	</h1>
+	<ol class="breadcrumb">
+		<li><a href="<?= base_url('administrator'); ?>"><i class="fa fa-dashboard"></i> Home</a></li>
+		<li class="active">Kandidat Karier</li>
+	</ol>
+</section>
+
+<section class="content">
 <div id="career_kandidat">
-	<h3 class="mb-3">Kandidat Karier (<?php echo (int) $jumlah; ?>)</h3>
+	<div class="labs-card">
+		<div class="labs-card__header">
+			<h3 class="labs-card__title">
+				<i class="fa fa-users"></i>
+				Daftar Kandidat
+				<span class="labs-badge labs-badge--default"><?= (int) $jumlah; ?> kandidat</span>
+			</h3>
+			<div>
+				<button type="button" id="btn_buka_tambah" class="labs-btn labs-btn--primary labs-btn--sm"
+					title="Membuat akun kandidat baru; password ditampilkan sekali setelah sukses">
+					<i class="fa fa-user-plus"></i> Tambah Kandidat
+				</button>
+			</div>
+		</div>
 
-	<form method="get" action="<?php echo site_url('administrator/career_kandidat'); ?>" class="mb-3 form-inline">
-		<input type="text" name="q" value="<?php echo html_escape($q); ?>"
-			placeholder="Cari nama / email…" class="form-control form-control-sm mr-2">
-		<button type="submit" class="btn btn-sm btn-primary">Cari</button>
-		<?php if ($q !== ''): ?>
-			<a href="<?php echo site_url('administrator/career_kandidat'); ?>"
-				class="btn btn-sm btn-outline-secondary ml-1">Reset</a>
-		<?php endif; ?>
-	</form>
+		<div class="labs-card__body">
+			<!-- Filter cari (compact, wrap rapi di mobile) -->
+			<form method="get" action="<?= site_url('administrator/career_kandidat'); ?>"
+				class="labs-filter-inline mb-3">
+				<div class="labs-filter-inline__search">
+					<i class="fa fa-search labs-filter-inline__search-icon"></i>
+					<input type="text" name="q" value="<?= html_escape($q); ?>"
+						placeholder="Cari nama / email&hellip;">
+				</div>
+				<button type="submit" class="labs-btn labs-btn--primary labs-btn--sm" title="Cari">
+					<i class="fa fa-filter"></i>
+				</button>
+				<?php if ($q !== ''): ?>
+					<a href="<?= site_url('administrator/career_kandidat'); ?>"
+						class="labs-btn labs-btn--default labs-btn--sm" title="Reset pencarian">
+						<i class="fa fa-undo"></i>
+					</a>
+				<?php endif; ?>
+			</form>
 
-	<div class="table-responsive">
-		<table class="table table-sm table-bordered">
-			<thead>
-				<tr>
-					<th>#</th>
-					<th>Nama</th>
-					<th>Email</th>
-					<th>Telepon</th>
-					<th>Lamaran</th>
-					<th>Login terakhir</th>
-					<th style="width:1%">Aksi</th>
-				</tr>
-			</thead>
-			<tbody>
-			<?php if (empty($kandidats)): ?>
-				<tr><td colspan="7" class="text-center text-muted py-4">Tidak ada kandidat.</td></tr>
-			<?php endif; ?>
-			<?php foreach ($kandidats as $k): ?>
-				<tr class="kandidat-row">
-					<td><?php echo (int) $k->id_candidate; ?></td>
-					<td><?php echo html_escape($k->full_name); ?></td>
-					<td><?php echo html_escape($k->email); ?></td>
-					<td><?php echo html_escape($k->phone !== NULL ? $k->phone : '—'); ?></td>
-					<td><span class="badge badge-info badge-pill"><?php echo (int) $k->jumlah_lamaran; ?></span></td>
-					<td><?php echo $k->last_login_at !== NULL
-						? html_escape($k->last_login_at) : '<span class="text-muted">belum pernah</span>'; ?></td>
-					<td>
-						<button type="button"
-							class="btn btn-sm btn-outline-warning kandidat-reset"
-							data-url="<?php echo site_url('administrator/career_kandidat/reset_password/' . (int) $k->id_candidate); ?>">Reset password
-						</button>
-					</td>
-				</tr>
-			<?php endforeach; ?>
-			</tbody>
-		</table>
+			<!-- Tabel: wrap + scroll agar tetap terbaca di layar kecil -->
+			<div class="labs-table-wrap">
+				<div class="labs-table-scroll">
+					<table class="labs-table">
+						<thead>
+							<tr>
+								<th class="labs-cell-numeric">#</th>
+								<th>Kandidat</th>
+								<th>Email</th>
+								<th>Telepon</th>
+								<th class="labs-cell-numeric">Lamaran</th>
+								<th>Login terakhir</th>
+								<th>Aksi</th>
+							</tr>
+						</thead>
+						<tbody>
+						<?php if (empty($kandidats)): ?>
+							<tr>
+								<td colspan="7">
+									<div class="labs-empty">
+										<i class="fa fa-user-secret"></i>
+										<p>Tidak ada kandidat<?= $q !== '' ? ' yang cocok dengan pencarian' : ''; ?>.</p>
+									</div>
+								</td>
+							</tr>
+						<?php endif; ?>
+						<?php foreach ($kandidats as $k): ?>
+							<tr class="kandidat-row">
+								<td class="labs-cell-numeric labs-cell-muted"><?= (int) $k->id_candidate; ?></td>
+								<td>
+									<div class="labs-name-cell">
+										<span class="labs-avatar"><?= html_escape(career_kandidat_inisial($k->full_name)); ?></span>
+										<div>
+											<div class="labs-fw-semi"><?= html_escape($k->full_name); ?></div>
+											<div class="labs-fs-xs labs-text-muted">ID: <?= (int) $k->id_candidate; ?></div>
+										</div>
+									</div>
+								</td>
+								<td><?= html_escape($k->email); ?></td>
+								<td class="labs-cell-muted"><?= html_escape($k->phone !== NULL ? $k->phone : '&mdash;'); ?></td>
+								<td><span class="labs-badge labs-badge--info"><?= (int) $k->jumlah_lamaran; ?></span></td>
+								<td class="labs-cell-muted"><?php echo $k->last_login_at !== NULL
+									? html_escape($k->last_login_at) : 'belum pernah'; ?></td>
+								<td>
+									<div class="labs-row-actions">
+										<button type="button"
+											class="btn btn-sm btn-outline-warning kandidat-reset"
+											data-url="<?php echo site_url('administrator/career_kandidat/reset_password/' . (int) $k->id_candidate); ?>">Reset password
+										</button>
+									</div>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<div class="mt-3 d-flex justify-content-between align-items-center">
+				<span class="labs-text-muted labs-fs-xs">Total <?= (int) $jumlah; ?> kandidat</span>
+			</div>
+			<?php echo $pagination; ?>
+		</div>
 	</div>
-
-	<?php echo $pagination; ?>
-
-	<span id="career_csrf_holder" class="career-csrf hidden"><?php echo $csrf_field; ?></span>
 </div>
 
-<!-- Modal hasil reset (6B.1): password acak server ditampilkan SEKALI di sini;
+<span id="career_csrf_holder" class="career-csrf hidden"><?php echo $csrf_field; ?></span>
+</section>
+
+<!-- Modal tambah kandidat -->
+<div class="modal fade labs-modal" id="modal-tambah-kandidat" tabindex="-1" role="dialog">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="fa fa-user-plus"></i> Tambah Kandidat</h4>
+				<button type="button" class="close" data-dismiss="modal" id="btn-tambah-x">&times;</button>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label for="tambah-email">Email <span class="text-danger">*</span></label>
+					<input type="email" id="tambah-email" class="form-control" maxlength="190"
+						placeholder="nama@example.com" autocomplete="off">
+				</div>
+				<div class="form-group">
+					<label for="tambah-nama">Nama lengkap <span class="text-danger">*</span></label>
+					<input type="text" id="tambah-nama" class="form-control" maxlength="150"
+						placeholder="Nama lengkap kandidat" autocomplete="off">
+				</div>
+				<div class="form-group" style="margin-bottom:0;">
+					<label for="tambah-telepon">Telepon (opsional)</label>
+					<input type="text" id="tambah-telepon" class="form-control" maxlength="30"
+						placeholder="Contoh: 0812xxxxxxx" autocomplete="off">
+				</div>
+				<p class="help-block" style="margin-top:10px;">
+					Password dibuat otomatis oleh server (acak) dan
+					<strong>ditampilkan sekali</strong> setelah kandidat berhasil dibuat.
+				</p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="labs-btn labs-btn--default" data-dismiss="modal">Batal</button>
+				<button type="button" id="btn-simpan-kandidat" class="labs-btn labs-btn--primary">
+					<i class="fa fa-save"></i> Simpan Kandidat
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Modal hasil (tambah / reset): password acak server ditampilkan SEKALI di sini;
 	tidak tersimpan di halaman/log/audit. Tutup modal = password tak tampil lagi. -->
-<div id="modal-reset-hasil" class="hidden" style="display:none;
-	position:fixed; inset:0; z-index:1050; background:rgba(0,0,0,.5);">
-	<div style="max-width:520px; margin:10vh auto; background:#fff; border-radius:8px;
-		padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.3);">
-		<h5 class="mb-3">Sandi baru kandidat</h5>
-		<p class="mb-2">Buat otomatis oleh server. <strong>Catatan berlaku sekali</strong> —
-			setelah ditutup tidak bisa dilihat lagi. Bagikan lewat saluran administrasi
-			(BUKAN email — keputusan D2); sarankan kandidat menggantinya setelah masuk.</p>
-		<p class="mb-3"><code id="sandi-baru-tampil" style="font-size:1.25rem; user-select:all;"></code></p>
-		<button type="button" id="btn-modal-salin" class="btn btn-sm btn-outline-secondary mr-2">Salin</button>
-		<button type="button" id="btn-modal-tutup" class="btn btn-sm btn-primary">Sudah dicatat — muat ulang</button>
+<div class="modal fade labs-modal" id="modal-reset-hasil" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+	<div class="modal-dialog modal-sm" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title"><i class="fa fa-key"></i> Sandi baru kandidat</h4>
+			</div>
+			<div class="modal-body">
+				<p style="margin-bottom:12px;">
+					Dibuat otomatis oleh server. <strong>Catatan berlaku sekali</strong> &mdash;
+					setelah ditutup tidak bisa dilihat lagi. Bagikan lewat saluran administrasi
+					(BUKAN email &mdash; keputusan D2); sarankan kandidat menggantinya setelah masuk.
+				</p>
+				<p style="margin:0;">
+					<code id="sandi-baru-tampil"
+						style="font-size:1.25rem; display:block; user-select:all; word-break:break-all;"></code>
+				</p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" id="btn-modal-salin" class="labs-btn labs-btn--default labs-btn--sm">
+					<i class="fa fa-copy"></i> Salin
+				</button>
+				<button type="button" id="btn-modal-tutup" class="labs-btn labs-btn--primary labs-btn--sm">
+					Sudah dicatat &mdash; muat ulang
+				</button>
+			</div>
+		</div>
 	</div>
 </div>
 
@@ -76,52 +209,109 @@ document.addEventListener('DOMContentLoaded', function () {
 	var holder = document.getElementById('career_csrf_holder');
 	if (holder) { document.body.appendChild(holder); holder.style.display = 'none'; }
 
-	var modal = document.getElementById('modal-reset-hasil');
+	var modalHasil = document.getElementById('modal-reset-hasil');
 	var sandiEl = document.getElementById('sandi-baru-tampil');
-	var sudahTampil = false; // hasil reset hanya ditampilkan sekali per aksi
+	var sudahTampil = false; // hasil tambah/reset hanya ditampilkan sekali per aksi
+	var sandiBaru = null;
+
+	function csrfToken() {
+		var el = document.querySelector('#career_csrf_holder input[name="career_csrf"]');
+		return el ? el.value : '';
+	}
 
 	function tutupModal() {
-		modal.style.display = 'none';
+		$('#modal-reset-hasil').modal('hide');
 		sandiEl.textContent = '';
 		sudahTampil = false;
 		sandiBaru = null;
 		window.location.reload(); // sandi tak disimpan setelah modal ditutup
 	}
 
+	function hasilSukses(json) {
+		if (json && json.success && json.data && json.data.password && !sudahTampil) {
+			sudahTampil = true;
+			sandiBaru = String(json.data.password);
+			sandiEl.textContent = sandiBaru;
+			$('#modal-reset-hasil').modal('show'); // modal punya backdrop static: hanya bisa lewat tombol
+			return true;
+		}
+		window.alert((json && json.message) ? json.message : 'Gagal.');
+		return true;
+	}
+
 	var tombolSalin = document.getElementById('btn-modal-salin');
 	var tombolTutup = document.getElementById('btn-modal-tutup');
-	var sandiBaru = null;
 	if (tombolSalin) tombolSalin.addEventListener('click', function () {
 		if (sandiBaru && navigator.clipboard) { navigator.clipboard.writeText(sandiBaru); }
 	});
 	if (tombolTutup) tombolTutup.addEventListener('click', tutupModal);
 
+	// ---- Aksi reset password (per baris) ----
 	document.querySelectorAll('.kandidat-reset').forEach(function (btn) {
 		btn.addEventListener('click', function () {
-			if (!window.confirm('Reset password kandidat ini? Sistem akan membuat password BARU otomatis (acak); password lama tidak berlaku lagi, sesi/aplikasi kandidat yang aktif ikut berhenti. password baru ditampilkan SEKALI setelah aksi sukses.')) { return; }
-			var csrf = document.querySelector('#career_csrf_holder input[name="career_csrf"]');
+			if (!window.confirm('Reset password kandidat ini? Sistem akan membuat password BARU otomatis (acak); password lama tidak berlaku lagi, sesi/aplikasi kandidat yang aktif ikut berhenti. Password baru ditampilkan SEKALI setelah aksi sukses.')) { return; }
 			var fd = new FormData();
-			fd.append('career_csrf', csrf ? csrf.value : '');
+			fd.append('career_csrf', csrfToken());
 			btn.disabled = true;
 			btn.textContent = 'Memproses…';
 			fetch(btn.getAttribute('data-url'), {
 				method: 'POST',
 				body: fd,
 				credentials: 'same-origin'
-			}).then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }); })
-			.then(function (res) {
-				if (res.json && res.json.success && res.json.data && res.json.data.password && !sudahTampil) {
-					sudahTampil = true;
-					sandiBaru = String(res.json.data.password);
-					sandiEl.textContent = sandiBaru;
-					modal.style.display = 'block';
-				} else {
-					window.alert(res.json.message || 'Gagal.');
-				}
-			}).catch(function () { window.alert('Gagal — koneksi.'); }).finally(function () {
+			}).then(function (r) {
+				return r.json().then(function (j) { return j; });
+			})
+			.then(function (json) { hasilSukses(json); })
+			.catch(function () { window.alert('Gagal — koneksi.'); })
+			.finally(function () {
 				btn.disabled = false;
 				btn.textContent = 'Reset password';
 			});
+		});
+	});
+
+	// ---- Aksi tambah kandidat (baru) ----
+	var modalTambah = document.getElementById('modal-tambah-kandidat');
+	var btnBuka = document.getElementById('btn_buka_tambah');
+	if (btnBuka) btnBuka.addEventListener('click', function () {
+		$('#modal-tambah-kandidat').modal('show');
+	});
+
+	var btnSimpan = document.getElementById('btn-simpan-kandidat');
+	if (btnSimpan) btnSimpan.addEventListener('click', function () {
+		var email   = document.getElementById('tambah-email').value.trim();
+		var nama    = document.getElementById('tambah-nama').value.trim();
+		var telepon = document.getElementById('tambah-telepon').value.trim();
+		if (email === '' || nama === '') {
+			window.alert('Email dan nama wajib diisi.');
+			return;
+		}
+		var fd = new FormData();
+		fd.append('career_csrf', csrfToken());
+		fd.append('email', email);
+		fd.append('full_name', nama);
+		fd.append('phone', telepon);
+		btnSimpan.disabled = true;
+		btnSimpan.textContent = 'Menyimpan…';
+		fetch('<?php echo site_url('administrator/career_kandidat/add'); ?>', {
+			method: 'POST',
+			body: fd,
+			credentials: 'same-origin'
+		}).then(function (r) {
+			return r.json().then(function (j) { return j; });
+		})
+		.then(function (json) {
+			if (json && json.success) {
+				$('#modal-tambah-kandidat').modal('hide');
+				hasilSukses(json);
+			} else {
+				window.alert((json && json.message) ? json.message : 'Gagal menyimpan kandidat.');
+			}
+		})
+		.catch(function () { window.alert('Gagal — koneksi.'); })
+		.finally(function () {
+			btnSimpan.disabled = false;
+			btnSimpan.innerHTML = '<i class="fa fa-save"></i> Simpan Kandidat';
 		});
 	});
 });

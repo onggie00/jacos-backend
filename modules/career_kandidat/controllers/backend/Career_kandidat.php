@@ -50,9 +50,47 @@ class Career_kandidat extends Admin
 	}
 
 	/**
-	 * Rekam kandidat? Tidak di 6B — kandidat mendaftar sendiri di FE.
-	 * Detail kandidat ada lewat menu Pelamar (view per lamaran).
+	 * Tambah kandidat baru dari admin panel (keputusan user 2026-10-21).
+	 * POST administrator/career_kandidat/add — perm career_candidate_add.
+	 * Password DIBUAT SERVER (sandi acak ala reset) dan dikembalikan SEKALI
+	 * di respons (kunci 'password'); admin tetap bisa memakai aksi reset
+	 * password bila kandidat lupa sandinya. TANPA email (keputusan D2).
 	 */
+	public function add()
+	{
+		if ($this->input->method() !== 'post') {
+			return $this->_json_deny('Method harus POST.');
+		}
+		if ( ! career_csrf_ok()) {
+			return $this->_json_deny('Sesi tidak sah (CSRF). Muat ulang halaman.');
+		}
+		if ( ! $this->is_allowed('career_candidate_add', false)) {
+			return $this->_json_deny('Forbidden');
+		}
+
+		list($ok, $buah) = $this->model_career_kandidat->tambah(
+			$this->input->post('email'),
+			$this->input->post('full_name'),
+			$this->input->post('phone')
+		);
+		if ( ! $ok) {
+			list($kode, $teks) = $this->_pecah($buah);
+			return $this->_json_deny($teks, $kode);
+		}
+
+		// Audit: hanya aksi + id, tanpa menyimpan sandi apa pun.
+		career_audit('tambah_kandidat', 'career_candidates', (int) $buah['id_candidate']);
+		return $this->_json_done(
+			'Kandidat baru dibuat. Password di bawah terlihat SEKALI — catat dan bagikan '
+			.'melalui saluran administrasi (BUKAN email — keputusan D2); '
+			.'sarankan kandidat menggantinya setelah masuk.',
+			array(
+				'password'     => (string) $buah['password'],
+				'id_candidate' => (int) $buah['id_candidate'],
+			),
+			TRUE
+		);
+	}
 
 	/**
 	 * Reset password (D2, 6B.1): POST administrator/career_kandidat/
