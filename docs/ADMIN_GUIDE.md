@@ -46,7 +46,7 @@ Dokumen untuk admin JACOS yang memakai menu **Karier** di panel administrator (C
 
 ## Kandidat Karier
 
-- Menu anak **Kandidat Karier** (perm `career_candidate_reset_password` untuk aksi reset): daftar kandidat + pencarian nama/email.
+- Menu anak **Kandidat Karier** (perm `career_candidate_reset_password` untuk aksi reset; perm `career_candidate_list` untuk daftar): daftar kandidat + pencarian nama/email + urut kolom (id/nama/email/telepon/lamaran/login) + infobox jumlah per status.
 - **Reset sandi**: tombol reset → sandi baru DIGENERASI SERVER (14 karakter acak tanpa karakter ambigu) → POST+CSRF; tersimpan sebagai hash bcrypt, `token_version` naik (sesi/login lama gugur); sandi tampil sekali di modal (tombol salin) dan TIDAK dikirim email (D2 — proses lupa password ditangani admin). Respons JSON reset memakai `Cache-Control: no-store` + `Pragma: no-cache`.
 
 ## Catatan keamanan & batasan
@@ -55,3 +55,18 @@ Dokumen untuk admin JACOS yang memakai menu **Karier** di panel administrator (C
 - Token CSRF per-sesi (belum dirotasi di login); keputusan rotasi menunggu keputusan framework.
 - Pranala balik setelah aksi memakai helper framework `redirect_back` (HTTP_REFERER) — belum diubah (butir tunda #20).
 - Tanggal audit filter belum tervalidasi penuh; penyeragaman `object_type` audit lama menunggu keputusan (butir #22 — lihat `PHASE6A_REPORT.md`).
+
+## Menjadikan pelamar diterima sebagai guru (GURU.1)
+
+- Muncul di detail pelamar hanya bila status lamaran **Diterima (accepted)** dan admin punya perm `career_pelamar_to_guru`.
+- Alur dua langkah: tombol **Jadikan Guru** → halaman pratinjau `administrator/career_guru/konversi/{id_application}` (jenjang tujuan SD/KB/TK, emp_code, posisi, mapel untuk SD) → **Simpan** (POST + CSRF).
+- Data disalin (bukan dipindah): profil, riwayat pendidikan terbaru, kontak. Berkas lamaran TIDAK disalin (tetap di storage karier, privat).
+- Penjagaan: satu lamaran hanya boleh dikonversi sekali (UNIQUE); satu kandidat hanya satu baris link; duplikat guru lintas jenjang (emp_code/email/nik) ditolak; nama + tanggal lahir sama butuh konfirmasi pemeriksaan admin; semua audit tanpa data pribadi sensitif.
+- Setelah sukses: lencana **Sudah jadi guru {jenjang} #id** di detail pelamar; data guru baru ditemukan di menu Guru sesuai jenjang (Guru SD/KB/TK).
+
+## Modul Guru KB/TK
+
+- Menu **Guru → Guru KB / Guru TK → Data Guru** (modul `guru_kb`/`guru_tk`, mirror modul Guru SD tanpa mata pelajaran & tanpa slip gaji).
+- Employee Code (`emp_code`) wajib unik lintas semua jenjang guru (SD/SMP/SMA/FT/KB/TK) — dicek server.
+- Upload foto profil: jpg/jpeg/png/webp maks 2 MB; nama file digenerate server.
+- Hapus data guru = soft delete (tanda `deleted_at`); list tidak lagi menampilkan baris yang dihapus.
