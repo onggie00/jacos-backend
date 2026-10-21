@@ -17,6 +17,19 @@ function career_kandidat_inisial($nama)
 <link rel="stylesheet" href="<?= BASE_ASSET; ?>css/labs-ui/labs-ui.css">
 <script src="<?= BASE_ASSET; ?>js/labs-ui/labs-ui-init.js"></script>
 
+<style>
+/* Info boxes (pola ala siswa_sd_list) */
+.info-box-custom { min-height:90px; border-radius:6px; margin-bottom:15px; display:flex; align-items:center; padding:15px 20px; box-shadow:0 2px 4px rgba(0,0,0,0.08); color:#fff; position:relative; overflow:hidden; }
+.info-box-custom .info-icon { font-size:40px; opacity:0.35; position:absolute; right:15px; top:50%; transform:translateY(-50%); }
+.info-box-custom .info-label { font-size:12px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9; margin-bottom:5px; display:block; font-weight:500; }
+.info-box-custom .info-value { font-size:28px; font-weight:700; line-height:1.2; display:block; color:#fff; }
+.info-box-custom .info-detail { font-size:11px; opacity:0.85; margin-top:4px; display:block; color:#fff; }
+.bg-grad-blue { background:linear-gradient(135deg,#3c8dbc 0%,#367fa9 100%); }
+.bg-grad-green { background:linear-gradient(135deg,#00a65a 0%,#008d4c 100%); }
+.bg-grad-purple { background:linear-gradient(135deg,#605ca8 0%,#555299 100%); }
+.bg-grad-orange { background:linear-gradient(135deg,#f39c12 0%,#db8b0a 100%); }
+</style>
+
 <section class="content-header">
 	<h1>
 		Kandidat Karier
@@ -30,6 +43,50 @@ function career_kandidat_inisial($nama)
 
 <section class="content">
 <div id="career_kandidat">
+	<!-- Info boxes (ala siswa_sd) -->
+	<div class="row">
+		<div class="col-md-3 col-sm-6 col-xs-12">
+			<div class="info-box-custom bg-grad-blue">
+				<i class="fa fa-users info-icon"></i>
+				<div>
+					<span class="info-label">Total Kandidat</span>
+					<span class="info-value"><?= number_format($infobox['total']); ?></span>
+					<span class="info-detail">Seluruh akun kandidat terdaftar</span>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-3 col-sm-6 col-xs-12">
+			<div class="info-box-custom bg-grad-green">
+				<i class="fa fa-check-circle info-icon"></i>
+				<div>
+					<span class="info-label">Kandidat Aktif</span>
+					<span class="info-value"><?= number_format($infobox['aktif']); ?></span>
+					<span class="info-detail">Akun aktif, bisa login</span>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-3 col-sm-6 col-xs-12">
+			<div class="info-box-custom bg-grad-purple">
+				<i class="fa fa-ban info-icon"></i>
+				<div>
+					<span class="info-label">Kandidat Nonaktif</span>
+					<span class="info-value"><?= number_format($infobox['nonaktif']); ?></span>
+					<span class="info-detail">Akun tidak aktif</span>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-3 col-sm-6 col-xs-12">
+			<div class="info-box-custom bg-grad-orange">
+				<i class="fa fa-file-text info-icon"></i>
+				<div>
+					<span class="info-label">Punya Lamaran</span>
+					<span class="info-value"><?= number_format($infobox['punya_lamaran']); ?></span>
+					<span class="info-detail">Kandidat dengan >=1 lamaran</span>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<div class="labs-card">
 		<div class="labs-card__header">
 			<h3 class="labs-card__title">
@@ -69,14 +126,15 @@ function career_kandidat_inisial($nama)
 			<div class="labs-table-wrap">
 				<div class="labs-table-scroll">
 					<table class="labs-table">
+						<?php $sort_base = site_url('administrator/career_kandidat') . ($base_query !== '' ? '?' . $base_query : ''); ?>
 						<thead>
 							<tr>
-								<th class="labs-cell-numeric">#</th>
-								<th>Kandidat</th>
-								<th>Email</th>
-								<th>Telepon</th>
-								<th class="labs-cell-numeric">Lamaran</th>
-								<th>Login terakhir</th>
+								<th class="labs-cell-numeric"><?= career_sort_link('No.', 'id', $sort_col, $sort_dir, $sort_base, 'asc'); ?></th>
+								<th><?= career_sort_link('Kandidat', 'nama', $sort_col, $sort_dir, $sort_base); ?></th>
+								<th><?= career_sort_link('Email', 'email', $sort_col, $sort_dir, $sort_base); ?></th>
+								<th><?= career_sort_link('Telepon', 'telepon', $sort_col, $sort_dir, $sort_base); ?></th>
+								<th class="labs-cell-numeric"><?= career_sort_link('Lamaran', 'lamaran', $sort_col, $sort_dir, $sort_base); ?></th>
+								<th><?= career_sort_link('Login terakhir', 'login', $sort_col, $sort_dir, $sort_base); ?></th>
 								<th>Aksi</th>
 							</tr>
 						</thead>

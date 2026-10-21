@@ -32,16 +32,26 @@ class Career_kandidat extends Admin
 		);
 		$offset = max(0, (int) $offset);
 
+		// Sort server-side (whitelist di model); default: terlama dulu (id ASC).
+		list($sort_col, $sort_dir) = career_sort_state(
+			array('id', 'nama', 'email', 'telepon', 'lamaran', 'login'), 'id', 'asc');
+		$base_query = http_build_query(array('q' => $filter['q']));
+
 		$this->data['q']            = $filter['q'];
-		$this->data['kandidats']    = $this->model_career_kandidat->daftar($filter, $this->limit_page, $offset);
+		$this->data['sort_col']     = $sort_col;
+		$this->data['sort_dir']     = $sort_dir;
+		$this->data['base_query']   = $base_query;
+		$this->data['kandidats']    = $this->model_career_kandidat->daftar($filter, $this->limit_page, $offset, $sort_col, $sort_dir);
 		$this->data['jumlah']       = $this->model_career_kandidat->daftar_count($filter);
+		$this->data['infobox']      = $this->model_career_kandidat->infobox_counts();
 		$this->data['csrf_field']   = career_csrf_field();
 
 		$config = [
-			'base_url'    => 'administrator/career_kandidat/index/',
-			'total_rows'  => $this->data['jumlah'],
-			'per_page'    => $this->limit_page,
-			'uri_segment' => 4,
+			'base_url'           => 'administrator/career_kandidat/index/',
+			'total_rows'         => $this->data['jumlah'],
+			'per_page'           => $this->limit_page,
+			'uri_segment'        => 4,
+			'reuse_query_string' => TRUE, // pertahankan ?q=&sort=&dir= di pagination
 		];
 		$this->data['pagination'] = $this->pagination($config);
 

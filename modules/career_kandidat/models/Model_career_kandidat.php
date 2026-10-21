@@ -16,22 +16,35 @@ class Model_career_kandidat extends CI_Model
 
 	public function __construct() { parent::__construct(); }
 
+	/** Peta kolom sort (whitelist) → ekspresi SQL. */
+	private $_order_map = array(
+		'id'      => 'c.id_candidate',
+		'nama'    => 'c.full_name',
+		'email'   => 'c.email',
+		'telepon' => 'p.phone',
+		'lamaran' => 'jumlah_lamaran',
+		'login'   => 'c.last_login_at',
+	);
+
 	/** Daftar kandidat untuk admin: email, nama, lamaran count + lamaran aktif. */
-	public function daftar($filter = array(), $limit = 20, $offset = 0)
+	public function daftar($filter = array(), $limit = 20, $offset = 0, $sort_col = NULL, $sort_dir = 'asc')
 	{
 		$limit  = max(1, (int) $limit);
 		$offset = max(0, (int) $offset);
 		$this->_where_filter($filter);
-		return $this->db->select("c.id_candidate, c.email, c.full_name, c.is_active, c.last_login_at,
+		$this->db->select("c.id_candidate, c.email, c.full_name, c.is_active, c.last_login_at,
 				p.phone,
 				(SELECT COUNT(*) FROM career_applications a
 				  WHERE a.id_candidate = c.id_candidate) AS jumlah_lamaran")
 			->from('career_candidates c')
-			->join('career_candidate_profiles p', 'p.id_candidate = c.id_candidate', 'left')
-			->order_by('c.id_candidate', 'DESC')
-			->limit((int) $limit, (int) $offset)
-			->get()
-			->result();
+			->join('career_candidate_profiles p', 'p.id_candidate = c.id_candidate', 'left');
+		// Default (sort tak valid): terlama dulu — id ASC (poin user).
+		if ($sort_col !== NULL && isset($this->_order_map[$sort_col])) {
+			$this->db->order_by($this->_order_map[$sort_col], $sort_dir === 'desc' ? 'DESC' : 'ASC');
+		}
+		$this->db->order_by('c.id_candidate', 'ASC')
+			->limit((int) $limit, (int) $offset);
+		return $this->db->get()->result();
 	}
 
 	public function daftar_count($filter = array())
@@ -42,6 +55,25 @@ class Model_career_kandidat extends CI_Model
 			->get()
 			->row();
 		return $row ? (int) $row->n : 0;
+	}
+
+	/** Hitung utk 4 infobox list kandidat (satu query). */
+	public function infobox_counts()
+	{
+		$row = $this->db->select("COUNT(*) AS total,
+				SUM(c.is_active = 1) AS aktif,
+				SUM(c.is_active = 0) AS nonaktif,
+				SUM(EXISTS(SELECT 1 FROM career_applications a
+				  WHERE a.id_candidate = c.id_candidate)) AS punya_lamaran")
+			->from('career_candidates c')
+			->get()
+			->row();
+		return array(
+			'total'         => $row ? (int) $row->total : 0,
+			'aktif'         => $row ? (int) $row->aktif : 0,
+			'nonaktif'      => $row ? (int) $row->nonaktif : 0,
+			'punya_lamaran' => $row ? (int) $row->punya_lamaran : 0,
+		);
 	}
 
 	private function _where_filter($filter)
