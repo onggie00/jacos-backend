@@ -407,6 +407,15 @@ class Transaksi_spp extends Admin
 			if ($this->input->post('status_transaksi') == "0") {
 				$get_transaksi_spp = $this->mymodel->withquery("select * from transaksi_spp where id_transaksi = '" . $id . "'", "row");
 				$kode_tagihan = $get_transaksi_spp->kode_tagihan;
+				// reset diskon: total_biaya kembali ke nominal awal, hapus log diskon
+				if (!empty($kode_tagihan)) {
+					$get_ids_tagihan = $this->mymodel->withquery("select id_transaksi from transaksi_spp where kode_tagihan = '" . str_replace("'", "", $kode_tagihan) . "'", "result");
+					$ids_tagihan = array();
+					foreach ($get_ids_tagihan as $id_row_tagihan) {
+						$ids_tagihan[] = (int) $id_row_tagihan->id_transaksi;
+					}
+					spp_diskon_reset($ids_tagihan);
+				}
 				$update = $this->mymodel->update2("transaksi_spp", array('status_transaksi' => '0', 'expired_datetime' => NULL, 'kode_tagihan' => '', 'updated_at' => NULL, 'file_slip' => '', 'file_kwitansi' => '', 'detail_bulan' => NULL, 'updated_from' => 'admin:' . $this->session->userdata('username')), "kode_tagihan", $kode_tagihan);
 				$no_tranksaksi = explode("-", $get_transaksi_spp->no_transaksi);
 				$jenjang = strtolower($no_tranksaksi[1]);
@@ -592,6 +601,7 @@ class Transaksi_spp extends Admin
 				'user_name'       => $transaksi_spp->user_name,
 				'description'     => $transaksi_spp->description,
 				'total_biaya'     => $transaksi_spp->total_biaya,
+				'total_diskon'    => $transaksi_spp->total_diskon, 'nominal_awal' => (int) $transaksi_spp->total_biaya + (int) $transaksi_spp->total_diskon,
 				'status_text'     => $status_text,
 				'status_class'    => $status_class,
 				'status_icon'     => $status_icon,
@@ -729,10 +739,10 @@ class Transaksi_spp extends Admin
 		$field = $this->input->get("f");
 		$inputan = $this->input->get("q");
 		$where = null;
-		$field_search   = ['no_transaksi', 'nama_bank', 'va_number', 'user_email', 'user_name', 'description', 'total_biaya', 'status_transaksi', 'expired_datetime', 'created_at', 'updated_at', 'bulan', 'kode_tagihan', 'file_kwitansi'];
+		$field_search   = ['no_transaksi', 'nama_bank', 'va_number', 'user_email', 'user_name', 'description', 'total_biaya', 'status_transaksi', 'expired_datetime', 'created_at', 'updated_at', 'bulan', 'kode_tagihan', 'file_kwitansi', 'total_diskon'];
 		if (empty($field) && empty($inputan)) {
 			//export all data
-			$get_data = $this->mymodel->withquery("select ts.no_transaksi, ts.nama_bank, ts.va_number, ts.user_email, ts.user_name, ts.description, ts.total_biaya, ts.status_transaksi, ts.expired_datetime, ts.created_at, ts.updated_at, ts.bulan, ts.kode_tagihan, ts.file_kwitansi from transaksi_spp ts order by ts.updated_at DESC, ts.id_transaksi DESC","result");
+			$get_data = $this->mymodel->withquery("select ts.no_transaksi, ts.nama_bank, ts.va_number, ts.user_email, ts.user_name, ts.description, ts.total_biaya, ts.status_transaksi, ts.expired_datetime, ts.created_at, ts.updated_at, ts.bulan, ts.kode_tagihan, ts.total_diskon from transaksi_spp ts order by ts.updated_at DESC, ts.id_transaksi DESC","result");
 		}
 		else if(!empty($field) && !empty($inputan)){
 			//export all data based on input where specific field
@@ -750,7 +760,7 @@ class Transaksi_spp extends Admin
             else{
                 $where .= "(" . "ts.".$field . " LIKE '%" . $inputan . "%' ) ";
             }
-			$get_data = $this->mymodel->withquery("select ts.no_transaksi, ts.nama_bank, ts.va_number, ts.user_email, ts.user_name, ts.description, ts.total_biaya, ts.status_transaksi, ts.expired_datetime, ts.created_at, ts.updated_at, ts.bulan, ts.kode_tagihan, ts.file_kwitansi from transaksi_spp ts where ".$where." order by ts.updated_at DESC, ts.id_transaksi DESC","result");
+			$get_data = $this->mymodel->withquery("select ts.no_transaksi, ts.nama_bank, ts.va_number, ts.user_email, ts.user_name, ts.description, ts.total_biaya, ts.status_transaksi, ts.expired_datetime, ts.created_at, ts.updated_at, ts.bulan, ts.kode_tagihan, ts.total_diskon from transaksi_spp ts where ".$where." order by ts.updated_at DESC, ts.id_transaksi DESC","result");
 		}
 		else{
 			//export all data based on input where all field
@@ -776,7 +786,7 @@ class Transaksi_spp extends Admin
 	                $iterasi++;
 	        }
 	            $where = '('.$where.')';
-	            $get_data = $this->mymodel->withquery("select ts.no_transaksi, ts.nama_bank, ts.va_number, ts.user_email, ts.user_name, ts.description, ts.total_biaya, ts.status_transaksi, ts.expired_datetime, ts.created_at, ts.updated_at, ts.bulan, ts.kode_tagihan, ts.file_kwitansi from transaksi_spp ts where ".$where." order by ts.updated_at DESC, ts.id_transaksi DESC","result");
+	            $get_data = $this->mymodel->withquery("select ts.no_transaksi, ts.nama_bank, ts.va_number, ts.user_email, ts.user_name, ts.description, ts.total_biaya, ts.status_transaksi, ts.expired_datetime, ts.created_at, ts.updated_at, ts.bulan, ts.kode_tagihan, ts.total_diskon from transaksi_spp ts where ".$where." order by ts.updated_at DESC, ts.id_transaksi DESC","result");
 		}
 		//export excel
 		$this->load->library('Excel/PHPExcel');

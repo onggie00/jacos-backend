@@ -1458,6 +1458,99 @@ if (!function_exists('psb_cek_usia')) {
 }
 
 /**
+ * Resolusi baris biaya_pendaftaran untuk sebuah tingkatan.
+ * Aturan: bila tingkatan punya id_biaya_pendaftaran -> pakai baris itu;
+ * bila NULL/kosong -> fallback ke baris jenjang (jenjang = 'KB'/'TK'/'SD').
+ * Return row object atau NULL.
+ */
+if (!function_exists('psb_resolve_biaya')) {
+	function psb_resolve_biaya($tingkatan_row, $jenjang)
+	{
+		$ci =& get_instance();
+		if (!empty($tingkatan_row) && !empty($tingkatan_row->id_biaya_pendaftaran)) {
+			$row = $ci->mymodel->getbywhere("biaya_pendaftaran", "id_biaya_pendaftaran", (int) $tingkatan_row->id_biaya_pendaftaran, "row");
+			if (!empty($row)) {
+				return $row;
+			}
+		}
+		return $ci->mymodel->getbywhere("biaya_pendaftaran", "jenjang", $jenjang, "row");
+	}
+}
+
+/**
+ * Resolusi cutoff tanggal lahir: baris pengaturan_tanggal_lahir dengan
+ * id_tingkatan dicari dulu (cutoff khusus tingkatan), bila tidak ada
+ * fallback ke baris jenjang (jenjang = 'kb'/'tk'/'sd'/'ft', lowercase).
+ * Return row object atau NULL.
+ */
+if (!function_exists('psb_resolve_cutoff')) {
+	function psb_resolve_cutoff($jenjang, $id_tingkatan)
+	{
+		$ci =& get_instance();
+		if (!empty($id_tingkatan)) {
+			$row = $ci->mymodel->withquery("select * from pengaturan_tanggal_lahir where jenjang = '" . $ci->db->escape_str($jenjang) . "' and id_tingkatan = '" . (int) $id_tingkatan . "'", "row");
+			if (!empty($row)) {
+				return $row;
+			}
+		}
+		return $ci->mymodel->getbywhere("pengaturan_tanggal_lahir", "jenjang", $jenjang, "row");
+	}
+}
+
+/**
+ * Cek & alokasi kuota slot diskon pendaftaran (tabel kuota_diskon_psb).
+ * Dipakai endpoint pendaftaran SD: bila ada kuota TA aktif dengan sisa slot
+ * -> berhak diskon 10% (external) dan slot dialokasikan (terpakai +1);
+ * return id_kuota yang dialokasikan, atau NULL bila kuota tidak ada/habis.
+ *
+ * Catatan: pemanggil wajib memanggil dalam transaksi DB agar increment
+ * terpakai atomic terhadap pendaftaran lain; alokasi di-commit bersama insert siswa.
+ */
+if (!function_exists('psb_ambil_slot_kuota_diskon')) {
+	function psb_ambil_slot_kuota_diskon($jenjang, $id_tahun_ajaran, $label_tahun_ajaran = '')
+	{
+		$ci =& get_instance();
+		$where_ta = "";
+		if (!empty($id_tahun_ajaran)) {
+			$where_ta = "id_tahun_ajaran = '" . (int) $id_tahun_ajaran . "'";
+		} else {
+			$where_ta = "(id_tahun_ajaran is null or id_tahun_ajaran = 0) and label_tahun_ajaran = '" . $ci->db->escape_str($label_tahun_ajaran) . "'";
+		}
+		$row = $ci->mymodel->withquery("select * from kuota_diskon_psb where jenjang = '" . $ci->db->escape_str($jenjang) . "' and " . $where_ta . " order by id_kuota_diskon_psb ASC limit 1", "row");
+		if (empty($row) || (int) $row->terpakai >= (int) $row->total_slot) {
+			return null;
+		}
+		$ci->db->query("update kuota_diskon_psb set terpakai = terpakai + 1 where id_kuota_diskon_psb = '" . (int) $row->id_kuota_diskon_psb . "' and terpakai < total_slot");
+		if ($ci->db->affected_rows() < 1) {
+			return null; // kalah race -> tanpa slot
+		}
+		return (int) $row->id_kuota_diskon_psb;
+	}
+}
+
+/**
+ * Deteksi siswa internal JACOS: baris list sekolah is_internal = 1.
+ * $tipe: 'kb'|'tk'|'sd' memilih tabel list (list_sekolah_kb/tk/sd).
+ * Return TRUE bila sekolah asal teridentifikasi JACOS.
+ */
+if (!function_exists('psb_is_internal_sekolah')) {
+	function psb_is_internal_sekolah($tipe, $id_sekolah)
+	{
+		if (empty($id_sekolah)) {
+			return false;
+		}
+		$tabel = array('kb' => 'list_sekolah_kb', 'tk' => 'list_sekolah_tk', 'sd' => 'list_sekolah_sd');
+		if (!isset($tabel[$tipe])) {
+			return false;
+		}
+		$ci =& get_instance();
+		$pk = array('kb' => 'id_list_sekolah_kb', 'tk' => 'id_list_sekolah_tk', 'sd' => 'id_list_sekolah_sd');
+		$row = $ci->mymodel->getbywhere($tabel[$tipe], $pk[$tipe], (int) $id_sekolah, "row");
+		return (!empty($row) && !empty($row->is_internal));
+	}
+}
+
+/**
  * Ambil value pengaturan_akun untuk kredensial device face recognition
  * (face_device_username / face_device_password).
  * Device belum ada → default kosong string.
@@ -1468,5 +1561,167 @@ if (!function_exists('face_device_setting')) {
 		$ci =& get_instance();
 		$row = $ci->db->get_where('pengaturan_akun', array('name_setting' => $name))->row();
 		return (!empty($row) && isset($row->value)) ? $row->value : '';
+	}
+}
+
+/**
+ * ============================================================================
+ * DISKON SPP (bayar >= 1 tahun ajaran / >= 12 bulan digabung 1 VA)
+ * Tabel: pengaturan_diskon_spp (setting) & transaksi_spp_diskon (log).
+ * transaksi_spp.total_diskon = nominal potongan yang melekat per baris.
+ * ============================================================================
+ */
+
+/**
+ * Resolve setting diskon: barisjenjang + id_tingkatan spesifik dicari dulu,
+ * bila tidak ada fallback ke barisjenjang dengan id_tingkatan NULL (= semua
+ * tingkatan). Hanya baris aktif = 1.
+ * Return row object atau NULL.
+ */
+if (!function_exists('spp_diskon_setting')) {
+	function spp_diskon_setting($jenjang, $id_tingkatan)
+	{
+		$ci =& get_instance();
+		if (!empty($id_tingkatan)) {
+			$row = $ci->mymodel->withquery("select * from pengaturan_diskon_spp where jenjang = '" . $ci->db->escape_str($jenjang) . "' and id_tingkatan = '" . (int) $id_tingkatan . "' and aktif = 1 order by id_setting asc limit 1", "row");
+			if (!empty($row)) {
+				return $row;
+			}
+		}
+		return $ci->mymodel->withquery("select * from pengaturan_diskon_spp where jenjang = '" . $ci->db->escape_str($jenjang) . "' and id_tingkatan is null and aktif = 1 order by id_setting asc limit 1", "row");
+	}
+}
+
+/**
+ * Hitung nominal diskon SPP dari setting aktif.
+ * $setting_row : row pengaturan_diskon_spp (atau NULL).
+ * $total_biaya : jumlah gabungan nominal tagihan (sebelum diskon).
+ * Return integer nominal potongan rupiah, 0 bila tidak memenuhi syarat
+ * (setting NULL / jumlah bulan < min_pembayaran / persen <= 0).
+ * Nominal persis (tanpa pembulatan) — pembayaran via VA bank.
+ */
+if (!function_exists('spp_diskon_hitung')) {
+	function spp_diskon_hitung($setting_row, $jumlah_bulan, $total_biaya)
+	{
+		if (empty($setting_row) || empty($total_biaya)) {
+			return 0;
+		}
+		if ((int) $jumlah_bulan < (int) $setting_row->min_pembayaran) {
+			return 0;
+		}
+		$persen = (float) $setting_row->persen_diskon;
+		if ($persen <= 0) {
+			return 0;
+		}
+		$nominal = floor((float) $total_biaya * $persen / 100);
+		return (int) $nominal;
+	}
+}
+
+/**
+ * Distribusi nominal diskon ke baris-baris transaksi secara proporsional
+ * (porsi per baris = biaya baris / total, dibulatkan ke bawah ke rupiah utuh),
+ * sisa pembagian diserap baris dengan nominal terbesar (total tetap pas nominal_total).
+ * $rows : array row transaksi_spp (harus ada ->id_transaksi & ->total_biaya).
+ * $nominal_total : total diskon yang dibagi.
+ * Return array ber-index id_transaksi => nominal diskon baris tersebut.
+ */
+if (!function_exists('spp_diskon_distribusi')) {
+	function spp_diskon_distribusi($rows, $nominal_total)
+	{
+		$hasil = array();
+		if (empty($rows) || (int) $nominal_total <= 0) {
+			return $hasil;
+		}
+		$total_biaya = 0;
+		foreach ($rows as $r) {
+			$total_biaya += (int) $r->total_biaya;
+		}
+		if ($total_biaya <= 0) {
+			return $hasil;
+		}
+		$id_terbesar = null;
+		$biaya_terbesar = -1;
+		$terpakai = 0;
+		foreach ($rows as $r) {
+			$diskon = floor((int) $r->total_biaya * (int) $nominal_total / $total_biaya);
+			$hasil[$r->id_transaksi] = (int) $diskon;
+			$terpakai += (int) $diskon;
+			if ((int) $r->total_biaya > $biaya_terbesar) {
+				$biaya_terbesar = (int) $r->total_biaya;
+				$id_terbesar = $r->id_transaksi;
+			}
+		}
+		// sisa pembagian -> serap baris terbesar (dijamin pas & tidak melebihi biaya baris bila persen < 100%)
+		$hasil[$id_terbesar] = $hasil[$id_terbesar] + ((int) $nominal_total - $terpakai);
+		return $hasil;
+	}
+}
+
+/**
+ * Catat pemberian diskon (insert transaksi_spp_diskon).
+ * 1 log row per baris transaksi_spp (unique id_transaksi).
+ * $setting_row : row pengaturan_diskon_spp pilihan (boleh NULL bila tanpa diskon).
+ * $rows        : array row transaksi_spp SUDAH dengan total_biaya baru & total_diskon terisi.
+ * $jumlah_bulan: jumlah baris/bulan tagihan digabung.
+ * $sumber      : 'apps' | 'admin'.
+ * Return array id_diskon baru per id_transaksi, atau array() bila tanpa diskon / gagal.
+ */
+if (!function_exists('spp_diskon_catat')) {
+	function spp_diskon_catat($setting_row, $rows, $jumlah_bulan, $sumber = 'apps')
+	{
+		$hasil = array();
+		if (empty($setting_row) || empty($rows)) {
+			return $hasil;
+		}
+		$ci =& get_instance();
+		$nominal_diskon_total = 0;
+		foreach ($rows as $r) {
+			if (empty($r->total_diskon) || (int) $r->total_diskon <= 0) {
+				continue;
+			}
+			$nominal_awal = (int) $r->total_biaya + (int) $r->total_diskon;
+			$ci->db->query("insert into transaksi_spp_diskon (id_transaksi, id_setting, id_siswa_aktif, jenjang, id_tingkatan, id_tahun_ajaran, jenis_diskon, persen_diskon, nominal_diskon, nominal_awal, jumlah_bulan, sumber) values ('" . (int) $r->id_transaksi . "', '" . (int) $setting_row->id_setting . "', '" . (int) $r->id_siswa_aktif . "', '" . $ci->db->escape_str($r->jenjang) . "', " . (!empty($r->id_tingkatan) ? "'" . (int) $r->id_tingkatan . "'" : "null") . ", '" . (int) $r->id_tahun_ajaran . "', 'spp_bayar_1_tahun', '" . (float) $setting_row->persen_diskon . "', '" . (int) $r->total_diskon . "', '" . (int) $nominal_awal . "', '" . (int) $jumlah_bulan . "', '" . $ci->db->escape_str($sumber) . "')");
+			if ($ci->db->affected_rows() > 0) {
+				$hasil[$r->id_transaksi] = (int) $ci->db->insert_id();
+			}
+			$nominal_diskon_total += (int) $r->total_diskon;
+		}
+		if ($nominal_diskon_total <= 0) {
+			return array();
+		}
+		return $hasil;
+	}
+}
+
+/**
+ * Reset diskon satu transaksi_spp (satu kode_tagihan identik 1 log):
+ * baris transaksi_spp diskonnya dikembalikan (total_biaya += total_diskon,
+ * total_diskon = 0) dan log transaksi_spp_diskon dihapus.
+ * $ids : array / string pisah koma id_transaksi.
+ * Return Nominal potongan yang dibatalkan (untuk update agregat), atau 0.
+ */
+if (!function_exists('spp_diskon_reset')) {
+	function spp_diskon_reset($ids)
+	{
+		if (empty($ids)) {
+			return 0;
+		}
+		$ci =& get_instance();
+		if (!is_array($ids)) {
+			$ids = explode(',', $ids);
+		}
+		$in = array();
+		foreach ($ids as $i) {
+			$in[] = "'" . (int) $i . "'";
+		}
+		$in = implode(',', $in);
+		if ($in === '') {
+			return 0;
+		}
+
+		$ci->db->query("update transaksi_spp set total_biaya = total_biaya + total_diskon, total_diskon = 0 where id_transaksi in (" . $in . ") and total_diskon > 0");
+		$ci->db->query("delete from transaksi_spp_diskon where id_transaksi in (" . $in . ")");
+		return 1;
 	}
 }

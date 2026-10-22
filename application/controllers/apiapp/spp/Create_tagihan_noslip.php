@@ -76,10 +76,13 @@ class Create_tagihan_noslip extends REST_Controller
       }
     }
 
-    //cek tagihan lain
-    $tagihan_lain = $this->mymodel->withquery("select ts.* from transaksi_lain_".strtolower($jenjang)." ts 
-    join transaksi_lain_".strtolower($jenjang)."_manajemen t on t.id = ts.id_transaksi_lain  
-    where ts.status_transaksi in(0,1) and t.id_tahun_ajaran = ".$this->db->escape($id_thn_ajar)." and ts.id_siswa_aktif = ".$this->db->escape($id_siswa),"result");
+    //cek tagihan lain (tabel transaksi_lain_{jenjang} hanya ada utk sd/smp/sma/ft)
+    $tagihan_lain = array();
+    if (in_array(strtolower($jenjang), array('sd','smp','sma','ft'))) {
+      $tagihan_lain = $this->mymodel->withquery("select ts.* from transaksi_lain_".strtolower($jenjang)." ts 
+      join transaksi_lain_".strtolower($jenjang)."_manajemen t on t.id = ts.id_transaksi_lain  
+      where ts.status_transaksi in(0,1) and t.id_tahun_ajaran = ".$this->db->escape($id_thn_ajar)." and ts.id_siswa_aktif = ".$this->db->escape($id_siswa),"result");
+    }
     if (!empty($tagihan_lain)) {
       $msg = array('status' => 0, 'message' => 'Ada tagihan lain yang belum dibayarkan!', 'data' => null, 'detail_charge' => null);
       $status="200";
@@ -87,10 +90,15 @@ class Create_tagihan_noslip extends REST_Controller
       exit;
     }
 
-    if($jenjang=='sd'){
-      $msg = array('status' => 0, 'message'=>'Invalid Jenjang' ,'data'=>array());
-      $status="200";
-      $this->response($msg,$status);
+    if($jenjang=='kb'){
+      $code='10';
+      $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,s.nama_lengkap as nama_lengkap,s.id_siswa_kb as id_siswa from siswa_kb_aktif sa join siswa_kb s on s.id_siswa_kb = sa.id_siswa_kb join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran left join kelas_kb k on k.id_kelas_kb = sa.id_kelas where sa.id_siswa_kb_aktif = ".$id_siswa."","row");
+    }else if($jenjang=='tk'){
+      $code='20';
+      $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,s.nama_lengkap as nama_lengkap,s.id_siswa_tk as id_siswa from siswa_tk_aktif sa join siswa_tk s on s.id_siswa_tk = sa.id_siswa_tk join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran left join kelas_tk k on k.id_kelas_tk = sa.id_kelas where sa.id_siswa_tk_aktif = ".$id_siswa."","row");
+    }else if($jenjang=='sd'){
+      $code='30';
+      $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,s.nama_lengkap as nama_lengkap,s.id_siswa_sd as id_siswa from siswa_sd_aktif sa join siswa_sd s on s.id_siswa_sd = sa.id_siswa_sd join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran left join kelas_sd k on k.id_kelas_sd = sa.id_kelas where sa.id_siswa_sd_aktif = ".$id_siswa."","row");
     }else if($jenjang=='smp'){
       $code='60';
       $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,s.nama_lengkap as nama_lengkap,s.id_siswa_smp as id_siswa from siswa_smp_aktif sa join siswa_smp s on s.id_siswa_smp = sa.id_siswa_smp join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran left join kelas_smp k on k.id_kelas_smp = sa.id_kelas where id_siswa_smp_aktif = ".$id_siswa."","row");
@@ -102,6 +110,51 @@ class Create_tagihan_noslip extends REST_Controller
       $get_siswa = $this->mymodel->withquery("select sa.*,s.*,k.*,t.*,t.label as tahun_ajaran,s.nama_lengkap as nama_lengkap,s.id_siswa_ft as id_siswa from siswa_ft_aktif sa join siswa_ft s on s.id_siswa_ft = sa.id_siswa_ft join tahun_ajaran t on t.id_tahun_ajaran = sa.id_tahun_ajaran left join kelas_ft k on k.id_kelas_ft = sa.id_kelas where id_siswa_ft_aktif = ".$id_siswa."","row");
     }
     
+    // === VERIFIKASI TOTAL & DISKON SPP (server-side, tidak percaya POST total_biaya) ===
+    $in_ids = array();
+    foreach ($id_trans as $item2) {
+      $in_ids[] = (int)$item2;
+    }
+    $get_rows = $this->mymodel->withquery("select * from transaksi_spp where id_transaksi in (".implode(',',$in_ids).") order by id_transaksi asc", "result");
+    if (empty($get_rows)) {
+      $msg = array('status' => 0, 'message' => 'Transaksi tidak ditemukan', 'data' => null, 'detail_charge' => null);
+      $status = "200";
+      $this->response($msg, $status);
+      exit;
+    }
+    // Reset diskon lama (regenerasi VA / expired) dulu, lalu hitung ulang
+    spp_diskon_reset($in_ids);
+    $total_asli = 0;
+    foreach ($get_rows as $r) {
+      if ((int)$r->id_siswa_aktif != (int)$id_siswa) {
+        $msg = array('status' => 0, 'message' => 'id_siswa_aktif tidak sesuai dengan transaksi', 'data' => null, 'detail_charge' => null);
+        $status = "200";
+        $this->response($msg, $status);
+        exit;
+      }
+      $total_asli += (int)$r->total_biaya;
+    }
+    // total POST TIDAK dipercaya
+    $total_biaya = $total_asli;
+    $setting_diskon = spp_diskon_setting($jenjang, $get_siswa->id_tingkatan);
+    $nominal_diskon = spp_diskon_hitung($setting_diskon, count($get_rows), $total_asli);
+    if ($nominal_diskon > 0) {
+      $distribusi = spp_diskon_distribusi($get_rows, $nominal_diskon);
+      foreach ($get_rows as $r) {
+        if (!isset($distribusi[$r->id_transaksi])) {
+          continue;
+        }
+        $this->db->query("update transaksi_spp set total_biaya = total_biaya - '".(int)$distribusi[$r->id_transaksi]."', total_diskon = '".(int)$distribusi[$r->id_transaksi]."' where id_transaksi = '".(int)$r->id_transaksi."'");
+        $r->total_biaya = (int)$r->total_biaya - (int)$distribusi[$r->id_transaksi];
+        $r->total_diskon = (int)$distribusi[$r->id_transaksi];
+      }
+      foreach ($get_rows as $r) {
+        $r->id_tingkatan = $get_siswa->id_tingkatan;
+      }
+      spp_diskon_catat($setting_diskon, $get_rows, count($get_rows), 'apps');
+      $total_biaya = $total_asli - $nominal_diskon;
+    }
+
     //get va prefix
     $get_setting = $this->mymodel->getall("pengaturan_akun");
     if ($jenjang == 'ft') {
@@ -110,6 +163,16 @@ class Create_tagihan_noslip extends REST_Controller
           $client_id = $value->value;
         }
 
+        if ($value->name_setting == "bni_prefix") {
+          $prefix = $value->value;
+        }
+      }
+    }
+    else if (in_array($jenjang, array('kb','tk','sd'))) {
+      foreach ($get_setting as $key => $value) {
+        if ($value->name_setting == "bni_client_id_spp_".$jenjang) {
+          $client_id = $value->value;
+        }
         if ($value->name_setting == "bni_prefix") {
           $prefix = $value->value;
         }
@@ -209,6 +272,8 @@ class Create_tagihan_noslip extends REST_Controller
             "expired_datetime" => date("Y-m-d H:i:s", strtotime("+24 hours")),
             "detail_bulan" => $detail_bulan,
             "count_bill" => count($id_trans),
+            "total_biaya" => (string)((int)$get_transaksi->total_biaya),
+            "total_diskon" => (string)((int)$get_transaksi->total_diskon),
             "updated_at" => date("Y-m-d H:i:s"),
             "updated_from" => "apps_api",
         );
@@ -289,6 +354,13 @@ class Create_tagihan_noslip extends REST_Controller
           $client_id = $value->value;
         }
         if ($value->name_setting == "bni_secret_key_ft") {
+          $secret_key = $value->value;
+        }
+      }else if(in_array($jenjang, array('kb','tk','sd'))){
+        if ($value->name_setting == "bni_client_id_spp_".$jenjang) {
+          $client_id = $value->value;
+        }
+        if ($value->name_setting == "bni_secret_key_spp_".$jenjang) {
           $secret_key = $value->value;
         }
       }else{
@@ -379,6 +451,13 @@ class Create_tagihan_noslip extends REST_Controller
           $client_id = $value->value;
         }
         if ($value->name_setting == "bni_secret_key_ft") {
+          $secret_key = $value->value;
+        }
+      }else if(in_array($jenjang, array('kb','tk','sd'))){
+        if ($value->name_setting == "bni_client_id_spp_".$jenjang) {
+          $client_id = $value->value;
+        }
+        if ($value->name_setting == "bni_secret_key_spp_".$jenjang) {
           $secret_key = $value->value;
         }
       }else{

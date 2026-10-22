@@ -494,6 +494,7 @@
                            <th>VA Number</th>
                            <th>Bulan</th>
                            <th>Total Biaya</th>
+                           <th>Diskon</th>
                            <th>Status</th>
                            <th width="280">Aksi</th>
                         </tr>
@@ -518,6 +519,13 @@
                                  <td><code style="font-size:11px"><?= _ent($transaksi_spp->va_number ?: '-'); ?></code></td>
                                  <td style="text-align:center"><?= _ent($transaksi_spp->bulan); ?></td>
                                  <td style="text-align:right;font-weight:600">Rp <?= number_format((float) $transaksi_spp->total_biaya, 0, ',', '.'); ?></td>
+                                 <td style="text-align:center">
+                                    <?php if ((float) $transaksi_spp->total_diskon > 0): ?>
+                                       <span style="color:#27ae60;font-weight:600">- Rp <?= number_format((float) $transaksi_spp->total_diskon, 0, ',', '.'); ?></span>
+                                    <?php else: ?>
+                                       <span style="color:#999">-</span>
+                                    <?php endif; ?>
+                                 </td>
                                  <td style="text-align:center">
                                     <?php
                                        if ($transaksi_spp->status_transaksi == "0") {
@@ -784,7 +792,9 @@
    </div>
    <div class="detail-section" style="border-left-color:#27ae60;">
       <h6><i class="fa fa-money"></i> Total Biaya</h6>
-      <div class="detail-row"><span class="detail-value amount detail-amount">-</span></div>
+      <div class="detail-row"><span class="detail-label">Nominal Awal</span><span class="detail-value detail-nominal-awal">-</span></div>
+      <div class="detail-row"><span class="detail-label">Diskon</span><span class="detail-value detail-diskon">-</span></div>
+      <div class="detail-row"><span class="detail-label">Setelah Diskon</span><span class="detail-value amount detail-amount">-</span></div>
    </div>
    <div class="detail-section" style="border-left-color:#8e44ad;">
       <h6><i class="fa fa-file-pdf-o"></i> Bukti Pembayaran</h6>
@@ -1457,6 +1467,12 @@ $(document).ready(function(){
             $('#modal_detail_body').find('.detail-kode').text(d.kode_tagihan);
             $('#modal_detail_body').find('.detail-expired').text(d.expired_datetime);
             $('#modal_detail_body').find('.detail-amount').text('Rp ' + parseInt(d.total_biaya).toLocaleString('id-ID'));
+            $('#modal_detail_body').find('.detail-nominal-awal').text('Rp ' + parseInt(d.nominal_awal).toLocaleString('id-ID'));
+            if (parseInt(d.total_diskon) > 0) {
+               $('#modal_detail_body').find('.detail-diskon').html('<span style="color:#27ae60">- Rp ' + parseInt(d.total_diskon).toLocaleString('id-ID') + '</span>');
+            } else {
+               $('#modal_detail_body').find('.detail-diskon').text('-');
+            }
             $('#modal_detail_body').find('.detail-desc').text(d.description || '-');
             $('#modal_detail_body').find('.detail-updated').text(d.updated_at);
             $('#modal_detail_body').find('.detail-status').html('<span class="label ' + d.status_class + '"><i class="fa ' + d.status_icon + '"></i> ' + d.status_text + '</span>');

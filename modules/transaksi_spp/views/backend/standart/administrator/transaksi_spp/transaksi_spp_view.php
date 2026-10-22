@@ -118,6 +118,14 @@
                     </div>
                                          
                     <div class="form-group ">
+                        <label for="content" class="col-sm-2 control-label">Diskon </label>
+
+                        <div class="col-sm-8">
+                           <?php if ((float) $transaksi_spp->total_diskon > 0): ?>- Rp <?= _ent($transaksi_spp->total_diskon); ?><?php else: ?>-<?php endif; ?>
+                        </div>
+                    </div>
+                                         
+                    <div class="form-group ">
                         <label for="content" class="col-sm-2 control-label">Status Transaksi </label>
 
                         <div class="col-sm-8">

@@ -32,6 +32,8 @@ class Update_tagihan_expired extends REST_Controller
       $cek = $this->mymodel->withquery("select * from transaksi_spp where id_transaksi = '" . $item . "'", "row");
       if ($cek->status_transaksi != "2" && date("Y-m-d H:i:s") > date("Y-m-d H:i:s", strtotime($cek->expired_date))) {
         $update = $this->mymodel->update("transaksi_spp", array("status_transaksi" => "0", "kode_tagihan" => "", "file_slip" => ""), "id_transaksi", $item);
+        // reset diskon: total_biaya kembali ke nominal awal, hapus log diskon
+        spp_diskon_reset(array((int) $item));
         if ($update != 0) {
           $msg = array('status' => 0, 'message' => 'update data gagal', 'data' => array());
           $status = "200";
