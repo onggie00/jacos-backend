@@ -41,7 +41,9 @@ class Model_pengaturan_diskon_spp extends MY_Model {
         if (empty($jenjang) || !in_array($jenjang, ['kb','tk','sd','smp','sma','ft'])) {
             return array();
         }
-        $query = $this->db->query("select * from tingkatan_".$jenjang." order by (label+0 = 0) asc, (label+0) asc, label asc");
+        // pk tabel = id_tingkatan_{jenjang} mis. id_tingkatan_sd; alias jadi id_tingkatan
+        $pk = 'id_tingkatan_' . $jenjang;
+        $query = $this->db->query("select *, '".$pk."' as pk_kolom, ".$pk." as id_tingkatan from tingkatan_".$jenjang." order by (label+0 = 0) asc, (label+0) asc, label asc");
 
         return $query->result();
     }

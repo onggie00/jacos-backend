@@ -44,11 +44,13 @@ class Get_diskon_spp extends REST_Controller {
             $this->response($msg, "200");
         }
 
+        // row yang terpakai: spesifik tingkatan dulu, fallback default jenjang (id_tingkatan NULL)
         $msg = array('status' => 1, 'message' => 'Berhasil ambil data', 'data' => array(
             'diskon_aktif' => true,
             'persen_diskon' => (string)((float)$setting->persen_diskon),
             'min_pembayaran' => (string)((int)$setting->min_pembayaran),
-            'id_tingkatan' => $setting->id_setting ? $setting->id_tingkatan : null,
+            'id_setting' => (int)$setting->id_setting,
+            'id_tingkatan' => $setting->id_tingkatan !== null ? (int)$setting->id_tingkatan : null,
         ));
         $this->response($msg, "200");
     }
