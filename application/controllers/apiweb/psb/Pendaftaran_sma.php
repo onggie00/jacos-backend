@@ -61,7 +61,7 @@ class Pendaftaran_sma extends REST_Controller {
           $pekerjaan_ibu = "";
           $pekerjaan_ayah = "";
           if ($this->post("pekerjaan_ayah") > 0) {
-            $pekerjaan_ayah = $this->mymodel->withquery("select * from pekerjaan_ortu where id_pekerjaan_ortu = '".$this->db->escape($this->post("pekerjaan_ayah"))."'","row")->nama_pekerjaan;
+            $pekerjaan_ayah = $this->mymodel->withquery("select * from pekerjaan_ortu where id_pekerjaan_ortu = '".(int) $this->post("pekerjaan_ayah")."'","row")->nama_pekerjaan;
             if (!empty($this->post("pekerjaan_ayah_lainnya"))) {
               $pekerjaan_ayah = $this->post("pekerjaan_ayah_lainnya");
             }
@@ -73,7 +73,7 @@ class Pendaftaran_sma extends REST_Controller {
             $pekerjaan_ayah = $this->post("pekerjaan_ayah");
           }
           if ($this->post("pekerjaan_ibu") > 0) {
-            $pekerjaan_ibu = $this->mymodel->withquery("select * from pekerjaan_ortu where id_pekerjaan_ortu = '".$this->db->escape($this->post("pekerjaan_ibu"))."'","row")->nama_pekerjaan;
+            $pekerjaan_ibu = $this->mymodel->withquery("select * from pekerjaan_ortu where id_pekerjaan_ortu = '".(int) $this->post("pekerjaan_ibu")."'","row")->nama_pekerjaan;
             if (!empty($this->post("pekerjaan_ibu_lainnya"))) {
               $pekerjaan_ibu = $this->post("pekerjaan_ibu_lainnya");
             }

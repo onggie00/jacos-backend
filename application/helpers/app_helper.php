@@ -1433,7 +1433,11 @@ if(!function_exists('cek')) {
 	}
 }
 /**
- * Validasi usia (tahun penuh saat ini) terhadap rentang usia_min/usia_max tingkatan KB/TK.
+ * Validasi usia terhadap rentang usia_min/usia_max tingkatan KB/TK.
+ * Pendaftaran siswa baru selalu untuk TAHUN AJARAN MENDATANG, bukan TA berjalan:
+ * usia dihitung +1 tahun dari usia hari ini (setara usia tahun-penuh pada tanggal
+ * yang sama setahun kemudian). Contoh: lahir 2023-09-01, hari ini 2026-10-26
+ * (usia kalender 3) -> usia setahun berjalan 4 -> lolos tingkatan K1 (4-5).
  * Sumber logika: Siswa_kb::_cek_usia (modul admin) — dipakai bersama endpoint publik PSB KB/TK.
  * Return TRUE bila lolos.
  */
@@ -1443,7 +1447,8 @@ if (!function_exists('psb_cek_usia')) {
 		if (empty($tgl_lahir)) {
 			return false;
 		}
-		$usia = date('Y') - date('Y', strtotime($tgl_lahir));
+		//usia relative ke TA mendatang (tahun depan), bukan kalender berjalan
+		$usia = (date('Y') + 1) - date('Y', strtotime($tgl_lahir));
 		if (date('md', strtotime($tgl_lahir)) > date('md')) {
 			$usia = $usia - 1;
 		}

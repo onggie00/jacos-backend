@@ -46,8 +46,9 @@ class Pendaftaran_tk extends REST_Controller {
 
         if (empty($cek_email)) {
           $sekolah_asal = "";
-          if ($this->post("sekolah_asal") > 0) {
-            $row_sekolah_asal = $this->mymodel->withquery("select * from list_sekolah_tk where id_list_sekolah_tk = ".$this->post("sekolah_asal"),"row");
+          $id_sekolah_asal = (int) $this->post("sekolah_asal");
+          if ($id_sekolah_asal > 0) {
+            $row_sekolah_asal = $this->mymodel->withquery("select * from list_sekolah_tk where id_list_sekolah_tk = ".$id_sekolah_asal,"row");
             $sekolah_asal = (isset($row_sekolah_asal->nama_sekolah)) ? $row_sekolah_asal->nama_sekolah : "";
             if(!empty($this->post("sekolah_asal_lainnya"))){
               $sekolah_asal = $this->post("sekolah_asal_lainnya");
@@ -63,7 +64,7 @@ class Pendaftaran_tk extends REST_Controller {
           $pekerjaan_ibu = "";
           $pekerjaan_ayah = "";
           if ($this->post("pekerjaan_ayah") > 0) {
-            $pekerjaan_ayah = $this->mymodel->withquery("select * from pekerjaan_ortu where id_pekerjaan_ortu = '".$this->db->escape($this->post("pekerjaan_ayah"))."'","row")->nama_pekerjaan;
+            $pekerjaan_ayah = $this->mymodel->withquery("select * from pekerjaan_ortu where id_pekerjaan_ortu = '".(int) $this->post("pekerjaan_ayah")."'","row")->nama_pekerjaan;
             if (!empty($this->post("pekerjaan_ayah_lainnya"))) {
               $pekerjaan_ayah = $this->post("pekerjaan_ayah_lainnya");
             }
@@ -75,7 +76,7 @@ class Pendaftaran_tk extends REST_Controller {
             $pekerjaan_ayah = $this->post("pekerjaan_ayah");
           }
           if ($this->post("pekerjaan_ibu") > 0) {
-            $pekerjaan_ibu = $this->mymodel->withquery("select * from pekerjaan_ortu where id_pekerjaan_ortu = '".$this->db->escape($this->post("pekerjaan_ibu"))."'","row")->nama_pekerjaan;
+            $pekerjaan_ibu = $this->mymodel->withquery("select * from pekerjaan_ortu where id_pekerjaan_ortu = '".(int) $this->post("pekerjaan_ibu")."'","row")->nama_pekerjaan;
             if (!empty($this->post("pekerjaan_ibu_lainnya"))) {
               $pekerjaan_ibu = $this->post("pekerjaan_ibu_lainnya");
             }
@@ -98,9 +99,9 @@ class Pendaftaran_tk extends REST_Controller {
           if (!empty($id_tingkatan_post)) {
             $get_tingkatan_tk = $this->mymodel->getbywhere("tingkatan_tk", "id_tingkatan_tk", $id_tingkatan_post, "row");
             if (empty($get_tingkatan_tk)) {
-              //tingkatan tidak dikenal -> anggap tidak dipilih (tidak blocker)
-              $id_tingkatan_post = 0;
-              $get_tingkatan_tk = null;
+              //id tingkatan tidak ada di jenjang TK (id tumpang tindih antar jenjang, mis. P1 KB)
+              $msg = array('status' => 0, 'message' => 'Tingkatan tidak valid untuk jenjang TK, silahkan pilih tingkatan TK', 'data' => array(), 'transaksi' => array());
+              $this->response($msg, '200');
             }
           }
           $data = array(
@@ -136,6 +137,7 @@ class Pendaftaran_tk extends REST_Controller {
             "status_lulus" => 1,
             "token_expired" => date("Y-m-d H:i:s", strtotime("+3 days")),
             "id_tingkatan" => $id_tingkatan_post,
+            "id_biaya_pendaftaran" => (!empty($get_tingkatan_tk->id_biaya_pendaftaran)) ? (int) $get_tingkatan_tk->id_biaya_pendaftaran : null,
             "is_mutasi" => 2
           );
 
@@ -233,8 +235,9 @@ class Pendaftaran_tk extends REST_Controller {
               //insert transaksi
               //no_transaksi: JI = Jacos Invoice (lama: LI Labschool Invoice)
               $no_transaksi = "JI-TK-".date("Ymd")."-".$id_siswa;
-              //get biaya pendaftaran
-              $get_biaya = $this->mymodel->getbywhere("biaya_pendaftaran","jenjang","TK","row");
+              //get biaya pendaftaran: baris biaya tingkatan dulu (id_biaya_pendaftaran di tingkatan_tk),
+              //bila kosong fallback ke baris jenjang TK
+              $get_biaya = psb_resolve_biaya($get_tingkatan_tk, "TK");
               $total_biaya = $get_biaya->nominal_pendaftaran; //+ $get_biaya->nominal_daftar_ulang;
               $data_transaksi = array(
                 "no_transaksi" => $no_transaksi,
@@ -244,6 +247,8 @@ class Pendaftaran_tk extends REST_Controller {
                 "user_phone" => "",
                 "description" => "Tagihan Pendaftaran TK a.n ".strtoupper($this->post('nama_lengkap')),
                 "id_biaya_pendaftaran" => $get_biaya->id_biaya_pendaftaran,
+                "id_tingkatan" => $id_tingkatan_post,
+                "tahun_ajaran" => $tahun_ajaran_aktif,
                 "total_biaya" => $total_biaya,
                 "status_transaksi" => "0",
                 "created_at" => date("Y-m-d H:i:s"),
